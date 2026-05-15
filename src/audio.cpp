@@ -61,10 +61,29 @@ void audio_loop() {
     WDL_ResampleSample *in_buf;
     int nframes = resampler.ResamplePrepare(frames, OUTPUT_CHANNELS, &in_buf);
 
-    const float audio_gain = mute[0] ? 0.0f : powf(10.0f, get_config().speaker_volume / 20.0f);
+    const float audio_gain   = mute[0] ? 0.0f : powf(10.0f, get_config().speaker_volume / 20.0f);
     const float haptics_gain = get_config().haptics_gain;
+    const uint8_t auto_mode  = get_config().auto_haptics_enable;
+    const float auto_gain    = (auto_mode > 0) ? (get_config().auto_haptics_gain / 100.0f) * haptics_gain : 0.0f;
+
+    // 1-pole LP coefficients at 48 kHz: a = 1 - exp(-2*pi*fc/fs), pre-computed for 4 cutoffs
+    static const float LP_COEFF[4] = {
+        0.01039f,  //  80 Hz
+        0.02074f,  // 160 Hz (default)
+        0.03095f,  // 250 Hz
+        0.05123f,  // 400 Hz
+    };
+    const float lp_a = LP_COEFF[get_config().auto_haptics_lowpass & 3];
+
+    // Persistent DSP state across calls
+    static float lp_l = 0.0f,  lp_r = 0.0f;   // 1-pole LP memory
+    static float env_l = 0.0f, env_r = 0.0f;  // envelope follower memory
+    // Attack ~1 ms, release ~80 ms (values are per-frame at 48 kHz, not per-sample)
+    constexpr float ENV_ATK = 0.40f;
+    constexpr float ENV_REL = 0.025f;
+
     for (int i = 0; i < nframes; i++) {
- #if !DISABLE_SPEAKER_PROC       
+ #if !DISABLE_SPEAKER_PROC
         audio_buf[audio_buf_pos++] = raw[i * INPUT_CHANNELS] / 32768.0f * audio_gain;
         audio_buf[audio_buf_pos++] = raw[i * INPUT_CHANNELS + 1] / 32768.0f * audio_gain;
         if (audio_buf_pos == 512 * 2) {
@@ -79,10 +98,47 @@ void audio_loop() {
             audio_buf_pos = 0;
         }
 #endif
-        in_buf[i * 2] = static_cast<WDL_ResampleSample>(clamp(raw[i * INPUT_CHANNELS + 2] / 32768.0f * haptics_gain,
-                                                              -1.0f, 1.0f));
-        in_buf[i * 2 + 1] = static_cast<WDL_ResampleSample>(clamp(raw[i * INPUT_CHANNELS + 3] / 32768.0f * haptics_gain,
-                                                                  -1.0f, 1.0f));
+        // Native haptics from ch3/ch4
+        float h_l = raw[i * INPUT_CHANNELS + 2] / 32768.0f * haptics_gain;
+        float h_r = raw[i * INPUT_CHANNELS + 3] / 32768.0f * haptics_gain;
+
+        if (auto_mode > 0) {
+            // Low-pass filter speaker audio (ch1/ch2) — keep only bass felt by actuators
+            const float spk_l = raw[i * INPUT_CHANNELS    ] / 32768.0f;
+            const float spk_r = raw[i * INPUT_CHANNELS + 1] / 32768.0f;
+            lp_l += lp_a * (spk_l - lp_l);
+            lp_r += lp_a * (spk_r - lp_r);
+
+            // Envelope follower — fast attack captures gunshots/footsteps, slow release gives body
+            const float abs_l = lp_l < 0.0f ? -lp_l : lp_l;
+            const float abs_r = lp_r < 0.0f ? -lp_r : lp_r;
+            env_l = (abs_l > env_l) ? env_l + ENV_ATK * (abs_l - env_l)
+                                    : env_l + ENV_REL * (abs_l - env_l);
+            env_r = (abs_r > env_r) ? env_r + ENV_ATK * (abs_r - env_r)
+                                    : env_r + ENV_REL * (abs_r - env_r);
+
+            // Modulate LP signal by envelope to get a thumping waveform,
+            // then soft-clip with tanh approximation (x / (1 + |x|), avoids tanhf cost)
+            float al = lp_l * (1.0f + 3.0f * env_l) * auto_gain;
+            float ar = lp_r * (1.0f + 3.0f * env_r) * auto_gain;
+            al = al / (1.0f + (al < 0.0f ? -al : al));
+            ar = ar / (1.0f + (ar < 0.0f ? -ar : ar));
+
+            if (auto_mode == 2) {
+                // Replace mode: discard native ch3/ch4, use only derived signal
+                h_l = al;
+                h_r = ar;
+            } else {
+                // Mix mode: add derived signal on top of native haptics then re-clip
+                float m_l = h_l + al;
+                float m_r = h_r + ar;
+                h_l = m_l / (1.0f + (m_l < 0.0f ? -m_l : m_l));
+                h_r = m_r / (1.0f + (m_r < 0.0f ? -m_r : m_r));
+            }
+        }
+
+        in_buf[i * 2]     = static_cast<WDL_ResampleSample>(clamp(h_l, -1.0f, 1.0f));
+        in_buf[i * 2 + 1] = static_cast<WDL_ResampleSample>(clamp(h_r, -1.0f, 1.0f));
     }
 
     // 3. 48kHz -> 3kHz 重采样
