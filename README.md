@@ -128,11 +128,18 @@ Run this after plugging in the Pico. Your default output is untouched — the Pi
 
 **Option B — persistent loopback that follows the default output (recommended):**
 
-This version always mirrors whatever your current default output is, automatically.
+This version starts automatically with PipeWire and always mirrors whatever your current default output is, without any hardcoded device name.
 
-Create `~/.config/pipewire/filter-chain.conf.d/ds5-haptics-loopback.conf`:
+**Step 1 — create the config directory:**
 
-```conf
+```bash
+mkdir -p ~/.config/pipewire/pipewire.conf.d
+```
+
+**Step 2 — create the loopback config file:**
+
+```bash
+cat > ~/.config/pipewire/pipewire.conf.d/ds5-haptics-loopback.conf << 'EOF'
 context.modules = [
   { name = libpipewire-module-loopback
     args = {
@@ -150,15 +157,31 @@ context.modules = [
     }
   }
 ]
+EOF
 ```
 
-Apply without rebooting:
+**Step 3 — apply without rebooting:**
 
 ```bash
 systemctl --user restart pipewire pipewire-pulse
 ```
 
-`@DEFAULT_AUDIO_SINK@.monitor` is a PipeWire special value that always resolves to the monitor of whatever sink is currently set as default — no hardcoded device name needed.
+**Step 4 — verify the loopback is active:**
+
+```bash
+pw-cli list-objects | grep -i "DS5"
+```
+
+You should see two entries for DS5 Bridge: one for the haptics sink (the Pico's audio input) and one for the loopback node feeding it.
+
+> `@DEFAULT_AUDIO_SINK@.monitor` is a PipeWire built-in that always resolves to the monitor of your current default output — it follows automatically if you switch between headset, speakers, or any other device.
+
+**To remove the loopback:**
+
+```bash
+rm ~/.config/pipewire/pipewire.conf.d/ds5-haptics-loopback.conf
+systemctl --user restart pipewire pipewire-pulse
+```
 
 **Per-game routing (Steam / Proton):**
 
