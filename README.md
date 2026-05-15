@@ -172,27 +172,31 @@ Everything else keeps playing through your normal output.
 
 #### Windows
 
-Windows does not natively support sending audio to two outputs at once. The free tool **[VoiceMeeter Banana](https://vb-audio.com/Voicemeeter/banana.htm)** handles this cleanly.
+Windows has no native way to send audio to two outputs simultaneously. You need one of the tools below to **duplicate** the stream — not move it.
 
-**Setup with VoiceMeeter Banana (free):**
+**Option A — VoiceMeeter Banana (free, recommended):**
 
-1. Download and install **VoiceMeeter Banana** from vb-audio.com
-2. Open VoiceMeeter → set **Hardware Out A1** to your headset or speakers
-3. Set **Hardware Out A2** to **DS5 Bridge**
+1. Download and install **[VoiceMeeter Banana](https://vb-audio.com/Voicemeeter/banana.htm)**
+2. Open VoiceMeeter:
+   - **Hardware Out A1** → your headset or speakers
+   - **Hardware Out A2** → DS5 Bridge
+3. On the main input strip, enable **both A1 and A2** (both buttons lit up)
 4. In Windows Sound settings → set **VoiceMeeter Input** as the default playback device
-5. In VoiceMeeter, make sure the main input sends to both **A1** and **A2** (click both buttons so they light up)
 
-All your system audio now goes to both your headset and the Pico simultaneously.
+All audio now goes to your headset **and** the Pico at the same time.
 
-**Per-game routing (without VoiceMeeter):**
+**Option B — Stereo Mix (no install, if your driver supports it):**
 
-If you only want one game to send audio to the Pico:
+Some audio drivers include a "Stereo Mix" device that captures everything playing on your system.
 
-1. Right-click the speaker icon in the taskbar → **Open Sound settings**
-2. Scroll down to **Advanced sound options → App volume and device preferences**
-3. Find the game in the list → change its **Output** to **DS5 Bridge**
+1. Right-click the speaker icon → **Sounds** → **Recording** tab
+2. If **Stereo Mix** appears: right-click it → **Enable**
+3. Right-click **Stereo Mix** → **Properties** → **Listen** tab
+4. Check **Listen to this device** → set playback to **DS5 Bridge** → OK
 
-Everything else keeps playing through your normal device.
+Your normal output is unchanged. The Pico receives a copy via Stereo Mix.
+
+> **Note:** Stereo Mix is not available on all systems — it depends on your audio driver (Realtek usually has it, USB headsets often don't).
 
 ---
 
