@@ -1,69 +1,79 @@
 # DS5Dongle — Auto Haptics Edition
 
 > **Fork of [awalol/DS5Dongle](https://github.com/awalol/DS5Dongle)**  
-> Adds **Audio Auto Haptics**: the Raspberry Pi Pico 2 W analyzes game audio in real time and generates DualSense rumble — even when the game sends no haptic commands.
+> Adds **Audio Auto Haptics**: your DualSense vibrates in sync with the game's sounds — footsteps, gunshots, explosions — even when the game has no haptic support.
 
 ---
 
-## What is DS5Dongle?
+## What does this do, concretely?
 
-DS5Dongle turns a **Raspberry Pi Pico 2 W** into a Bluetooth adapter for the **Sony DualSense (PS5) controller** on PC.
+### The problem
 
-Without it, connecting the DualSense over Bluetooth on PC means losing:
-- HD haptics (the voice-coil actuators)
-- The internal speaker
-- Adaptive triggers (partially)
+The Sony DualSense controller has advanced features that only work properly when connected **by USB cable** on PC: the HD haptics (the actuators that make you feel every texture), the internal speaker, and the adaptive triggers. Connect it via Bluetooth and most of these are lost — the operating system simply doesn't know how to send that data wirelessly.
 
-The Pico bridges the gap: it presents itself to the PC as a **native DualSense USB device** (same VID/PID, same HID descriptors, 4-channel USB Audio), then forwards everything wirelessly to the controller over **Bluetooth Classic (L2CAP)**.
+On top of that, even with a cable, **most PC games never send haptic commands at all** — including many games that do vibrate on PS5. The game just doesn't bother implementing it for PC.
+
+### The solution — a $20 bridge
+
+DS5Dongle is a firmware for the **Raspberry Pi Pico 2 W** (~$7 board) that acts as a smart bridge between your PC and your DualSense:
 
 ```
-[PC / Linux / Windows]
-        │
-        ▼  USB  (HID gamepad + 4ch USB Audio)
-[ Raspberry Pi Pico 2 W ]
-        │
-        ▼  Bluetooth Classic (L2CAP)
-[ DualSense controller ]
+Your PC
+  │
+  │  USB cable  (the Pico looks exactly like a DualSense plugged in by cable)
+  ▼
+Raspberry Pi Pico 2 W        ← this is the "dongle"
+  │
+  │  Bluetooth
+  ▼
+DualSense controller         ← wireless, on your couch
 ```
 
-- **ch 1/2** → Game audio → Opus 160 kbps → DualSense internal speaker
-- **ch 3/4** → Native haptics stream → resampled 48k→3 kHz PCM → HD actuators
-- **HID output 0x02** → Rumble motors + adaptive triggers → forwarded as BT report 0x31
+Your PC thinks it has a DualSense connected by USB. In reality it's talking to the Pico, which relays everything to the controller wirelessly. You get all the features, without the cable to the controller.
+
+### What this fork adds — Audio Auto Haptics
+
+This fork goes further: the Pico **listens to the game's audio** and **generates vibrations from the sound**, in real time, with no software needed on your PC.
+
+- A horse galloping → hoofbeat vibrations
+- A gunshot → sharp impact in your hands
+- An explosion → deep rumble that fades out
+- A car engine → constant low-frequency buzz that changes with RPM
+
+This works even if the game has **zero haptic support**. The Pico extracts the bass and impact sounds from the audio stream and converts them into motor signals, entirely by itself.
+
+**Compared to the PS5 experience**, this is not identical — the PS5 has access to precise per-object haptic data from the game engine. What this does is a smart approximation from audio alone, similar to what apps like DSX do on Windows. In practice it adds a lot of immersion to games that would otherwise have no feedback at all.
 
 ---
 
-## What this fork adds — Audio Auto Haptics
+## How it works internally
 
-Most PC games (including Linux/Proton titles) never send haptic data, even for games that support rumble on PS5.  
-This fork adds a **DSP pipeline inside the firmware** that derives haptic signals directly from the game audio:
+The Pico receives the game audio over USB (it appears as a 4-channel sound card). It then runs this signal through a small DSP chain entirely in firmware, with no CPU overhead on your PC:
 
 ```
-Game audio (ch 1/2, 48 kHz stereo)
+Game audio (stereo, 48 kHz)
     │
-    ├── 1-pole low-pass filter  (80 / 160 / 250 / 400 Hz selectable)
-    │       → keeps only the bass felt by DualSense actuators
+    ├── Low-pass filter (selectable: 80 / 160 / 250 / 400 Hz)
+    │       → isolates the bass frequencies the actuators can reproduce
     │
-    ├── Envelope follower  (attack ~1 ms / release ~80 ms)
-    │       → fast attack captures gunshots, footsteps, impacts
-    │       → slow release gives body to explosions
+    ├── Envelope follower  (attack 1 ms / release 80 ms)
+    │       → detects sudden impacts and gives them extra punch
     │
-    ├── Modulation: bass × (1 + 3 × envelope)
-    │       → creates a "thumping" waveform
+    ├── Waveform shaping
+    │       → turns the filtered signal into a physically convincing rumble
     │
-    ├── Soft-clip: x / (1 + |x|)   ← tanh approximation, no tanhf cost
-    │
-    └── Injected into the haptics bus before 48k→3k resampling
+    └── Sent to the DualSense actuators via Bluetooth
 ```
 
-Three modes available:
+Three modes let you control how the auto haptics interact with games that do send native haptic data:
 
 | Mode | Behaviour |
 |------|-----------|
-| **0 — Off** | Original behaviour: only native ch3/ch4 haptics pass through |
-| **1 — Mix** | Native haptics **+** audio-derived signal blended together |
-| **2 — Replace** *(default)* | Audio-derived only — works even when the game sends nothing |
+| **0 — Off** | Original behaviour: only native haptics from the game pass through |
+| **1 — Mix** | Native game haptics **+** audio-derived signal at the same time |
+| **2 — Replace** *(default)* | Audio-derived signal only — best for games with no haptic support |
 
-Works with any game, any OS, without any software on the PC side.
+Classic rumble (games that do send vibration commands via DirectInput/SDL) works normally alongside the auto haptics — they go through a completely separate path and are unaffected.
 
 ---
 
