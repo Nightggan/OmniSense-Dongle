@@ -138,6 +138,9 @@ mkdir -p ~/.config/pipewire/pipewire.conf.d
 
 **Step 2 — create the loopback config file:**
 
+> **fish shell users:** fish does not support heredoc syntax. Use the `bash -c` wrapper below, or open the file in a text editor (`nano`, `kate`, etc.) and paste the content manually.
+
+**bash / zsh:**
 ```bash
 cat > ~/.config/pipewire/pipewire.conf.d/ds5-haptics-loopback.conf << 'EOF'
 context.modules = [
@@ -158,6 +161,29 @@ context.modules = [
   }
 ]
 EOF
+```
+
+**fish:**
+```fish
+bash -c 'cat > ~/.config/pipewire/pipewire.conf.d/ds5-haptics-loopback.conf << "EOF"
+context.modules = [
+  { name = libpipewire-module-loopback
+    args = {
+      capture.props = {
+        audio.position = [ FL FR ]
+        node.target = "@DEFAULT_AUDIO_SINK@.monitor"
+        stream.dont-remix = true
+        node.passive = true
+      }
+      playback.props = {
+        audio.position = [ FL FR ]
+        node.target = "DS5 Bridge"
+        stream.dont-remix = true
+      }
+    }
+  }
+]
+EOF'
 ```
 
 **Step 3 — apply without rebooting:**
