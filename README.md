@@ -104,17 +104,71 @@ cp ds5-bridge-autohaptics.uf2 /run/media/$USER/RP2350/
 
 The Pico reboots automatically. Done.
 
-### 3. Set your audio output
+### 3. Route audio to the Pico
 
-#### Linux
+The Pico needs to receive the game audio to generate haptics. **Do not set it as your default output** — your headset or speakers should remain the default. Instead, create a PipeWire loopback that sends a silent copy of your audio to the Pico in the background.
+
+#### Linux (PipeWire)
+
+**Option A — one-shot loopback (runs until you close the terminal):**
+
 ```bash
-# The Pico appears as a 4-channel USB sound card — set it as default output
-wpctl set-default $(wpctl status | grep "DS5 Bridge" | awk '{print $2}' | tr -d '.')
+# Find your headset sink name
+wpctl status | grep -A20 "Sinks:"
+
+# Create a loopback: headset monitor → DS5 Bridge input
+# Replace <your-headset-sink> with the sink name shown above (e.g. alsa_output.usb-...)
+pw-loopback \
+  --capture-props='media.class=Audio/Source node.target=<your-headset-sink>.monitor' \
+  --playback-props='node.target=DS5\ Bridge'
 ```
-Or use `pavucontrol` / system sound settings to select **DS5 Bridge** as output.
+
+Your headset stays as the default output. The Pico receives a copy of the audio silently.
+
+**Option B — persistent loopback (survives reboots, recommended):**
+
+Create `/etc/pipewire/filter-chain.conf.d/ds5-haptics-loopback.conf`:
+
+```conf
+context.modules = [
+  { name = libpipewire-module-loopback
+    args = {
+      capture.props = {
+        audio.position = [ FL FR ]
+        target.object = "<your-headset-sink>.monitor"
+        stream.dont-remix = true
+        node.passive = true
+      }
+      playback.props = {
+        audio.position = [ FL FR ]
+        target.object = "DS5 Bridge"
+        stream.dont-remix = true
+        node.dont-reconnect = false
+      }
+    }
+  }
+]
+```
+
+Then restart the filter-chain service:
+
+```bash
+systemctl --user restart pipewire-pulse
+```
+
+**Per-game routing (Steam / Proton):**
+
+To send only a specific game's audio to the Pico (not your whole system):
+
+1. Open `pavucontrol` → **Playback** tab while the game is running
+2. Find the game's audio stream
+3. Change its output to **DS5 Bridge**
+
+Your headset keeps all other sounds. Only that game's audio goes to the Pico for haptics.
 
 #### Windows
-Open **Sound settings** → set **DS5 Bridge** as the default playback device.
+
+Open **Sound settings** → right-click **DS5 Bridge** → **Properties** → enable it as a secondary output, or use a virtual audio cable (e.g. VoiceMeeter) to duplicate the stream.
 
 ---
 
