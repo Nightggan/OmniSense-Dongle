@@ -172,7 +172,27 @@ Everything else keeps playing through your normal output.
 
 #### Windows
 
-Open **Sound settings** → right-click **DS5 Bridge** → **Properties** → enable it as a secondary output, or use a virtual audio cable (e.g. VoiceMeeter) to duplicate the stream.
+Windows does not natively support sending audio to two outputs at once. The free tool **[VoiceMeeter Banana](https://vb-audio.com/Voicemeeter/banana.htm)** handles this cleanly.
+
+**Setup with VoiceMeeter Banana (free):**
+
+1. Download and install **VoiceMeeter Banana** from vb-audio.com
+2. Open VoiceMeeter → set **Hardware Out A1** to your headset or speakers
+3. Set **Hardware Out A2** to **DS5 Bridge**
+4. In Windows Sound settings → set **VoiceMeeter Input** as the default playback device
+5. In VoiceMeeter, make sure the main input sends to both **A1** and **A2** (click both buttons so they light up)
+
+All your system audio now goes to both your headset and the Pico simultaneously.
+
+**Per-game routing (without VoiceMeeter):**
+
+If you only want one game to send audio to the Pico:
+
+1. Right-click the speaker icon in the taskbar → **Open Sound settings**
+2. Scroll down to **Advanced sound options → App volume and device preferences**
+3. Find the game in the list → change its **Output** to **DS5 Bridge**
+
+Everything else keeps playing through your normal device.
 
 ---
 
