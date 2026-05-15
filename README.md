@@ -110,24 +110,27 @@ The Pico needs to receive the game audio to generate haptics. **Do not set it as
 
 #### Linux (PipeWire)
 
+The loopback taps the **monitor of your current default output** — whatever it is (headset, speakers, DAC, HDMI TV…). Your default output is never changed.
+
 **Option A — one-shot loopback (runs until you close the terminal):**
 
 ```bash
-# Find your headset sink name
-wpctl status | grep -A20 "Sinks:"
-
-# Create a loopback: headset monitor → DS5 Bridge input
-# Replace <your-headset-sink> with the sink name shown above (e.g. alsa_output.usb-...)
+# Auto-detect your current default output and create the loopback
+DEFAULT_SINK=$(pactl info | grep "Default Sink" | awk '{print $3}')
 pw-loopback \
-  --capture-props='media.class=Audio/Source node.target=<your-headset-sink>.monitor' \
+  --capture-props="media.class=Audio/Source node.target=${DEFAULT_SINK}.monitor" \
   --playback-props='node.target=DS5\ Bridge'
 ```
 
-Your headset stays as the default output. The Pico receives a copy of the audio silently.
+Run this after plugging in the Pico. Your default output is untouched — the Pico receives a silent copy.
 
-**Option B — persistent loopback (survives reboots, recommended):**
+> If you change your default output (e.g. switch from headset to speakers), re-run the command to update the loopback.
 
-Create `/etc/pipewire/filter-chain.conf.d/ds5-haptics-loopback.conf`:
+**Option B — persistent loopback that follows the default output (recommended):**
+
+This version always mirrors whatever your current default output is, automatically.
+
+Create `~/.config/pipewire/filter-chain.conf.d/ds5-haptics-loopback.conf`:
 
 ```conf
 context.modules = [
@@ -135,36 +138,37 @@ context.modules = [
     args = {
       capture.props = {
         audio.position = [ FL FR ]
-        target.object = "<your-headset-sink>.monitor"
+        node.target = "@DEFAULT_AUDIO_SINK@.monitor"
         stream.dont-remix = true
         node.passive = true
       }
       playback.props = {
         audio.position = [ FL FR ]
-        target.object = "DS5 Bridge"
+        node.target = "DS5 Bridge"
         stream.dont-remix = true
-        node.dont-reconnect = false
       }
     }
   }
 ]
 ```
 
-Then restart the filter-chain service:
+Apply without rebooting:
 
 ```bash
-systemctl --user restart pipewire-pulse
+systemctl --user restart pipewire pipewire-pulse
 ```
+
+`@DEFAULT_AUDIO_SINK@.monitor` is a PipeWire special value that always resolves to the monitor of whatever sink is currently set as default — no hardcoded device name needed.
 
 **Per-game routing (Steam / Proton):**
 
-To send only a specific game's audio to the Pico (not your whole system):
+To send only one game's audio to the Pico instead of your whole system output:
 
 1. Open `pavucontrol` → **Playback** tab while the game is running
 2. Find the game's audio stream
 3. Change its output to **DS5 Bridge**
 
-Your headset keeps all other sounds. Only that game's audio goes to the Pico for haptics.
+Everything else keeps playing through your normal output.
 
 #### Windows
 
