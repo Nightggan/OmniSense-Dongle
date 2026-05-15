@@ -185,18 +185,22 @@ Windows has no native way to send audio to two outputs simultaneously. You need 
 
 All audio now goes to your headset **and** the Pico at the same time.
 
-**Option B — Stereo Mix (no install, if your driver supports it):**
+**Option B — Stereo Mix (no install required, one-time setup):**
 
-Some audio drivers include a "Stereo Mix" device that captures everything playing on your system.
+Some audio drivers include a "Stereo Mix" device that captures everything playing on your system. This is a **one-time configuration** — once done, it works automatically every time you plug in the Pico.
 
-1. Right-click the speaker icon → **Sounds** → **Recording** tab
-2. If **Stereo Mix** appears: right-click it → **Enable**
-3. Right-click **Stereo Mix** → **Properties** → **Listen** tab
-4. Check **Listen to this device** → set playback to **DS5 Bridge** → OK
+1. Right-click the speaker icon in the taskbar → **Sounds**
+2. Go to the **Recording** tab
+3. If **Stereo Mix** appears in the list: right-click it → **Enable**
+   - If it doesn't appear: right-click anywhere in the list → check **Show Disabled Devices**
+4. Right-click **Stereo Mix** → **Properties** → **Listen** tab
+5. Check **Listen to this device**
+6. Set **Playback through this device** to **DS5 Bridge**
+7. Click **OK**
 
-Your normal output is unchanged. The Pico receives a copy via Stereo Mix.
+Your normal output is unchanged. The Pico silently receives a copy of all system audio.
 
-> **Note:** Stereo Mix is not available on all systems — it depends on your audio driver (Realtek usually has it, USB headsets often don't).
+> **Note:** Stereo Mix depends on your audio driver — Realtek onboard audio usually has it, USB DACs and USB headsets often don't. If it doesn't appear even after enabling hidden devices, use VoiceMeeter instead.
 
 ---
 
