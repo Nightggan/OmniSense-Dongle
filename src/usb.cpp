@@ -67,11 +67,9 @@ static bool audio10_set_req_entity(tusb_control_request_t const *p_request, uint
                         TU_VERIFY(p_request->wLength == 2);
 
                         volume[index] = static_cast<float>(*reinterpret_cast<int16_t const *>(pBuff)) / 256;
-                        if (entityID == UAC1_ENTITY_SPK_FEATURE_UNIT) {
-                            auto config = get_config();
-                            config.speaker_volume = volume[index];
-                            set_config(config);
-                        }
+                        // Do not sync USB audio volume to config: the OS restores its
+                        // last-known volume on every reconnect, which would silently
+                        // override the user's speaker_volume setting saved in flash.
 
                         TU_LOG2("    Set Volume: %d dB of entity: %u\r\n", volume[index], entityID);
                         return true;
