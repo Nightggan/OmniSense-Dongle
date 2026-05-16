@@ -88,7 +88,7 @@ void config_valid() {
         printf("[Config] auto_haptics_gain is invalid, defaulting to 100\n");
     }
     if (body->auto_haptics_lowpass > 3) {
-        body->auto_haptics_lowpass = 1; // default: 160 Hz
+        body->auto_haptics_lowpass = 0; // default: 80 Hz
         printf("[Config] auto_haptics_lowpass is invalid, defaulting to 1 (160 Hz)\n");
     }
 }

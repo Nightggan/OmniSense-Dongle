@@ -48,10 +48,9 @@ LOWPASS_MODES     = {0: "80 Hz", 1: "160 Hz", 2: "250 Hz", 3: "400 Hz"}
 # ---------------------------------------------------------------------------
 
 def open_device():
-    device = hid.device()
     for pid, label in [(DS5_PID, "DualSense"), (DSE_PID, "DualSense Edge")]:
         try:
-            device.open(SONY_VID, pid)
+            device = hid.Device(SONY_VID, pid)
             print(f"[INFO] Connected to {label}")
             return device
         except Exception:
@@ -217,7 +216,7 @@ Auto haptics lowpass cutoff (selects bass frequency range sent to actuators):
                    help='Auto haptics intensity 0–200%% of haptics_gain (default: 100)')
     g.add_argument('--auto-haptics-lowpass', type=int, choices=[0, 1, 2, 3],
                    metavar='0|1|2|3',
-                   help='LP cutoff: 0=80Hz, 1=160Hz, 2=250Hz, 3=400Hz (default: 1)')
+                   help='LP cutoff: 0=80Hz, 1=160Hz, 2=250Hz, 3=400Hz (default: 0)')
     return p
 
 
@@ -267,7 +266,10 @@ def main():
     try:
         if changes:
             set_config(device, **changes)
-            print()
+            # Device reconnects after save — reopen to read back config
+            device.close()
+            import time; time.sleep(2)
+            device = open_device()
         cfg = get_config(device)
         print_config(cfg)
     finally:

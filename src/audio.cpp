@@ -68,8 +68,8 @@ void audio_loop() {
 
     // 1-pole LP coefficients at 48 kHz: a = 1 - exp(-2*pi*fc/fs), pre-computed for 4 cutoffs
     static const float LP_COEFF[4] = {
-        0.01039f,  //  80 Hz
-        0.02074f,  // 160 Hz (default)
+        0.01039f,  //  80 Hz (default)
+        0.02074f,  // 160 Hz
         0.03095f,  // 250 Hz
         0.05123f,  // 400 Hz
     };
