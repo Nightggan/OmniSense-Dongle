@@ -246,6 +246,8 @@ Everything else keeps playing through your normal output.
 
 #### Windows
 
+The Pico appears in Windows as a USB audio device named **"DualSense Wireless Controller"**. The auto-haptics firmware derives vibration from channels 1/2 (standard stereo), so any tool that routes a stereo copy of your audio there will work.
+
 Windows has no native way to send audio to two outputs simultaneously. You need one of the tools below to **duplicate** the stream — not move it.
 
 **Option A — VoiceMeeter Banana (free, recommended):**
@@ -253,7 +255,7 @@ Windows has no native way to send audio to two outputs simultaneously. You need 
 1. Download and install **[VoiceMeeter Banana](https://vb-audio.com/Voicemeeter/banana.htm)**
 2. Open VoiceMeeter:
    - **Hardware Out A1** → your headset or speakers
-   - **Hardware Out A2** → DS5 Bridge
+   - **Hardware Out A2** → **DualSense Wireless Controller**
 3. On the main input strip, enable **both A1 and A2** (both buttons lit up)
 4. In Windows Sound settings → set **VoiceMeeter Input** as the default playback device
 
@@ -269,7 +271,7 @@ Some audio drivers include a "Stereo Mix" device that captures everything playin
    - If it doesn't appear: right-click anywhere in the list → check **Show Disabled Devices**
 4. Right-click **Stereo Mix** → **Properties** → **Listen** tab
 5. Check **Listen to this device**
-6. Set **Playback through this device** to **DS5 Bridge**
+6. Set **Playback through this device** to **DualSense Wireless Controller**
 7. Click **OK**
 
 Your normal output is unchanged. The Pico silently receives a copy of all system audio.
