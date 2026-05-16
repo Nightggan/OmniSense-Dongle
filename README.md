@@ -114,9 +114,74 @@ The loopback taps the **monitor of your current default output** — whatever it
 
 **Persistent loopback (recommended — starts automatically with PipeWire):**
 
-Two files are needed: a WirePlumber rule that gives the Pico a stable name regardless of ALSA card index, and the loopback config that routes audio to that name.
+**Step 1 — PipeWire loopback config:**
 
-**Step 1 — WirePlumber rule (stable device name):**
+```bash
+mkdir -p ~/.config/pipewire/pipewire.conf.d
+```
+
+Create `~/.config/pipewire/pipewire.conf.d/20-ds5-haptics-loopback.conf`:
+
+```ini
+context.modules = [
+  {
+    name  = libpipewire-module-loopback
+    flags = [ nofail ]
+    args  = {
+      node.description = "DS5 Haptics Capture"
+      capture.props    = {
+        node.name           = "ds5_haptics_capture"
+        media.class         = "Stream/Input/Audio"
+        stream.capture.sink = true
+        target.object       = "@DEFAULT_AUDIO_SINK@"
+        audio.position      = [ FL FR ]
+        stream.dont-remix   = true
+        node.passive        = true
+        node.linger         = true
+      }
+      playback.props   = {
+        node.name           = "ds5_haptics_playback"
+        target.object       = "alsa_output.hw_Controller_0"
+        audio.position      = [ AUX0 AUX1 ]
+        stream.dont-remix   = true
+        node.passive        = true
+        node.linger         = true
+        latency.msec        = 20
+      }
+    }
+  }
+]
+```
+
+`stream.capture.sink = true` taps the **monitor** of the default output (a read-only copy of whatever is playing) — your headset or speakers remain unchanged. `@DEFAULT_AUDIO_SINK@` follows dynamically when you switch output devices.
+
+**Step 2 — apply:**
+
+```bash
+systemctl --user restart pipewire
+```
+
+**Step 3 — verify:**
+
+```bash
+pw-dump Node 2>/dev/null | python3 -c "
+import sys,json
+for n in json.load(sys.stdin):
+    name = n.get('info',{}).get('props',{}).get('node.name','')
+    if 'ds5' in name or 'Controller' in name: print(name)
+"
+```
+
+You should see `alsa_output.hw_Controller_0`, `ds5_haptics_capture`, and `ds5_haptics_playback`.
+
+---
+
+**Optional — WirePlumber rule for extra stability (WirePlumber 0.5+ only):**
+
+> **Check your version:** `wireplumber --version`
+> Skip this step if you are on WirePlumber 0.4.x (Ubuntu 24.04 LTS, Debian stable, etc.).
+
+This step assigns the Pico a stable fixed name regardless of ALSA card index, and prevents the DualSense ACP audio profile from stealing your default output on reconnect. Without it everything still works, but on systems with multiple USB audio devices the card index in `hw_Controller_0` could occasionally differ.
 
 ```bash
 mkdir -p ~/.config/wireplumber/wireplumber.conf.d
@@ -155,73 +220,17 @@ monitor.alsa.rules = [
 ]
 ```
 
-The first block renames the Pico's raw 4-channel output to `ds5_dongle_sink` — stable across reboots and USB replug regardless of ALSA card index. The second block prevents the DualSense ACP audio profile nodes from stealing your default audio output when the Pico reconnects.
-
-**Step 2 — PipeWire loopback config:**
-
-```bash
-mkdir -p ~/.config/pipewire/pipewire.conf.d
-```
-
-Create `~/.config/pipewire/pipewire.conf.d/20-ds5-haptics-loopback.conf`:
-
-```ini
-context.modules = [
-  {
-    name  = libpipewire-module-loopback
-    flags = [ nofail ]
-    args  = {
-      node.description = "DS5 Haptics Capture"
-      capture.props    = {
-        node.name           = "ds5_haptics_capture"
-        media.class         = "Stream/Input/Audio"
-        stream.capture.sink = true
-        target.object       = "@DEFAULT_AUDIO_SINK@"
-        audio.position      = [ FL FR ]
-        stream.dont-remix   = true
-        node.passive        = true
-        node.linger         = true
-      }
-      playback.props   = {
-        node.name           = "ds5_haptics_playback"
-        target.object       = "ds5_dongle_sink"
-        audio.position      = [ AUX0 AUX1 ]
-        stream.dont-remix   = true
-        node.passive        = true
-        node.linger         = true
-        latency.msec        = 20
-      }
-    }
-  }
-]
-```
-
-`stream.capture.sink = true` taps the **monitor** of the default output (a read-only copy of whatever is playing) — your headset or speakers remain unchanged. `@DEFAULT_AUDIO_SINK@` follows dynamically when you switch output devices.
-
-**Step 3 — apply:**
+Then update the loopback config: change `target.object = "alsa_output.hw_Controller_0"` to `target.object = "ds5_dongle_sink"` and apply:
 
 ```bash
 systemctl --user restart wireplumber pipewire
 ```
 
-**Step 4 — verify:**
-
-```bash
-pw-dump Node 2>/dev/null | python3 -c "
-import sys,json
-for n in json.load(sys.stdin):
-    name = n.get('info',{}).get('props',{}).get('node.name','')
-    if 'ds5' in name: print(name)
-"
-```
-
-You should see `ds5_dongle_sink`, `ds5_haptics_capture`, and `ds5_haptics_playback`.
-
 **To remove the loopback:**
 
 ```bash
 rm ~/.config/pipewire/pipewire.conf.d/20-ds5-haptics-loopback.conf
-rm ~/.config/wireplumber/wireplumber.conf.d/51-ds5dongle.conf
+rm -f ~/.config/wireplumber/wireplumber.conf.d/51-ds5dongle.conf
 systemctl --user restart wireplumber pipewire
 ```
 
