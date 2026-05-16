@@ -112,101 +112,117 @@ The Pico needs to receive the game audio to generate haptics. **Do not set it as
 
 The loopback taps the **monitor of your current default output** — whatever it is (headset, speakers, DAC, HDMI TV…). Your default output is never changed.
 
-**Option A — one-shot loopback (runs until you close the terminal):**
+**Persistent loopback (recommended — starts automatically with PipeWire):**
+
+Two files are needed: a WirePlumber rule that gives the Pico a stable name regardless of ALSA card index, and the loopback config that routes audio to that name.
+
+**Step 1 — WirePlumber rule (stable device name):**
 
 ```bash
-# Auto-detect your current default output and create the loopback
-DEFAULT_SINK=$(pactl info | grep "Default Sink" | awk '{print $3}')
-pw-loopback \
-  --capture-props="media.class=Audio/Source node.target=${DEFAULT_SINK}.monitor" \
-  --playback-props='node.target=DS5\ Bridge'
+mkdir -p ~/.config/wireplumber/wireplumber.conf.d
 ```
 
-Run this after plugging in the Pico. Your default output is untouched — the Pico receives a silent copy.
+Create `~/.config/wireplumber/wireplumber.conf.d/51-ds5dongle.conf`:
 
-> If you change your default output (e.g. switch from headset to speakers), re-run the command to update the loopback.
+```ini
+monitor.alsa.rules = [
+  {
+    matches = [
+      { alsa.components = "USB054c:0ce6"
+        node.name       = "~alsa_output\\.hw_.*" }
+      { alsa.components = "USB054c:0df2"
+        node.name       = "~alsa_output\\.hw_.*" }
+    ]
+    actions = {
+      update-props = {
+        node.name = "ds5_dongle_sink"
+      }
+    }
+  }
+  {
+    matches = [
+      { alsa.components = "USB054c:0ce6"
+        node.name       = "~alsa_output\\.usb-.*" }
+      { alsa.components = "USB054c:0df2"
+        node.name       = "~alsa_output\\.usb-.*" }
+    ]
+    actions = {
+      update-props = {
+        priority.session = 0
+      }
+    }
+  }
+]
+```
 
-**Option B — persistent loopback that follows the default output (recommended):**
+The first block renames the Pico's raw 4-channel output to `ds5_dongle_sink` — stable across reboots and USB replug regardless of ALSA card index. The second block prevents the DualSense ACP audio profile nodes from stealing your default audio output when the Pico reconnects.
 
-This version starts automatically with PipeWire and always mirrors whatever your current default output is, without any hardcoded device name.
-
-**Step 1 — create the config directory:**
+**Step 2 — PipeWire loopback config:**
 
 ```bash
 mkdir -p ~/.config/pipewire/pipewire.conf.d
 ```
 
-**Step 2 — create the loopback config file:**
+Create `~/.config/pipewire/pipewire.conf.d/20-ds5-haptics-loopback.conf`:
 
-> **fish shell users:** fish does not support heredoc syntax. Use the `bash -c` wrapper below, or open the file in a text editor (`nano`, `kate`, etc.) and paste the content manually.
-
-**bash / zsh:**
-```bash
-cat > ~/.config/pipewire/pipewire.conf.d/ds5-haptics-loopback.conf << 'EOF'
+```ini
 context.modules = [
-  { name = libpipewire-module-loopback
-    args = {
-      capture.props = {
-        audio.position = [ FL FR ]
-        node.target = "@DEFAULT_AUDIO_SINK@.monitor"
-        stream.dont-remix = true
-        node.passive = true
+  {
+    name  = libpipewire-module-loopback
+    flags = [ nofail ]
+    args  = {
+      node.description = "DS5 Haptics Capture"
+      capture.props    = {
+        node.name           = "ds5_haptics_capture"
+        media.class         = "Stream/Input/Audio"
+        stream.capture.sink = true
+        target.object       = "@DEFAULT_AUDIO_SINK@"
+        audio.position      = [ FL FR ]
+        stream.dont-remix   = true
+        node.passive        = true
+        node.linger         = true
       }
-      playback.props = {
-        audio.position = [ FL FR ]
-        node.target = "DS5 Bridge"
-        stream.dont-remix = true
+      playback.props   = {
+        node.name           = "ds5_haptics_playback"
+        target.object       = "ds5_dongle_sink"
+        audio.position      = [ AUX0 AUX1 ]
+        stream.dont-remix   = true
+        node.passive        = true
+        node.linger         = true
+        latency.msec        = 20
       }
     }
   }
 ]
-EOF
 ```
 
-**fish:**
-```fish
-bash -c 'cat > ~/.config/pipewire/pipewire.conf.d/ds5-haptics-loopback.conf << "EOF"
-context.modules = [
-  { name = libpipewire-module-loopback
-    args = {
-      capture.props = {
-        audio.position = [ FL FR ]
-        node.target = "@DEFAULT_AUDIO_SINK@.monitor"
-        stream.dont-remix = true
-        node.passive = true
-      }
-      playback.props = {
-        audio.position = [ FL FR ]
-        node.target = "DS5 Bridge"
-        stream.dont-remix = true
-      }
-    }
-  }
-]
-EOF'
-```
+`stream.capture.sink = true` taps the **monitor** of the default output (a read-only copy of whatever is playing) — your headset or speakers remain unchanged. `@DEFAULT_AUDIO_SINK@` follows dynamically when you switch output devices.
 
-**Step 3 — apply without rebooting:**
+**Step 3 — apply:**
 
 ```bash
-systemctl --user restart pipewire pipewire-pulse
+systemctl --user restart wireplumber pipewire
 ```
 
-**Step 4 — verify the loopback is active:**
+**Step 4 — verify:**
 
 ```bash
-pw-cli list-objects | grep -i "DS5"
+pw-dump Node 2>/dev/null | python3 -c "
+import sys,json
+for n in json.load(sys.stdin):
+    name = n.get('info',{}).get('props',{}).get('node.name','')
+    if 'ds5' in name: print(name)
+"
 ```
 
-You should see two entries for DS5 Bridge: one for the haptics sink (the Pico's audio input) and one for the loopback node feeding it.
-
-> `@DEFAULT_AUDIO_SINK@.monitor` is a PipeWire built-in that always resolves to the monitor of your current default output — it follows automatically if you switch between headset, speakers, or any other device.
+You should see `ds5_dongle_sink`, `ds5_haptics_capture`, and `ds5_haptics_playback`.
 
 **To remove the loopback:**
 
 ```bash
-rm ~/.config/pipewire/pipewire.conf.d/ds5-haptics-loopback.conf
-systemctl --user restart pipewire pipewire-pulse
+rm ~/.config/pipewire/pipewire.conf.d/20-ds5-haptics-loopback.conf
+rm ~/.config/wireplumber/wireplumber.conf.d/51-ds5dongle.conf
+systemctl --user restart wireplumber pipewire
 ```
 
 **Per-game routing (Steam / Proton):**
@@ -270,10 +286,10 @@ Open **[DS5 Bridge Config](https://loteran.github.io/ds5dongle-config/)** in **C
 |---------|-------------|---------|
 | **Mode** | 0=off · 1=mix · 2=replace | 2 |
 | **Intensity** | Strength as % of Haptics Gain | 100% |
-| **Low-pass cutoff** | 0=80Hz · 1=160Hz · 2=250Hz · 3=400Hz | 1 (160 Hz) |
+| **Low-pass cutoff** | 0=80Hz · 1=160Hz · 2=250Hz · 3=400Hz | 0 (80 Hz) |
 
 **Tuning tips:**
-- Start with **Replace + 160 Hz + 100%** (defaults)
+- Start with **Replace + 80 Hz + 100%** (defaults)
 - Increase intensity if vibrations feel too weak
 - Use **80 Hz** for heavy bass feel (racing, explosions)
 - Use **250–400 Hz** for more detail (FPS — footsteps, reloads)
@@ -313,7 +329,7 @@ python3 scripts/set_ds5.py --help
 | `controller_mode` | 0 / 1 / 2 | 2 | 0=DS5 · 1=DSE Edge · 2=Auto |
 | `auto_haptics_enable` | 0 / 1 / 2 | 2 | Auto haptics mode |
 | `auto_haptics_gain` | 0 – 200% | 100 | Auto haptics intensity |
-| `auto_haptics_lowpass` | 0 / 1 / 2 / 3 | 1 | LP cutoff: 80/160/250/400 Hz |
+| `auto_haptics_lowpass` | 0 / 1 / 2 / 3 | 0 | LP cutoff: 80/160/250/400 Hz |
 
 ---
 
