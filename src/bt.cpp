@@ -307,9 +307,11 @@ static void hci_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t *p
         }
 
         case HCI_EVENT_DISCONNECTION_COMPLETE: {
-#if !ENABLE_SERIAL
-            tud_disconnect();
-#endif
+            // Do NOT call tud_disconnect() here: disconnecting the full USB device
+            // also tears down the UAC1 audio interface, which causes PipeWire to
+            // lose ds5_dongle_sink and disrupts headset audio routing on the host.
+            // USB stays connected; the host's audio loopback keeps working while
+            // we search for the controller again via inquiry.
             gap_connectable_control(1);
             gap_discoverable_control(1);
             const uint8_t reason = hci_event_disconnection_complete_get_reason(packet);
