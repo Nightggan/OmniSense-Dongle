@@ -3,9 +3,38 @@
 > **Fork of [awalol/DS5Dongle](https://github.com/awalol/DS5Dongle)**  
 > Adds **Audio Auto Haptics**: your DualSense vibrates in sync with the game's sounds — footsteps, gunshots, explosions — even when the game has no haptic support.
 
+![Hardware](https://img.shields.io/badge/hardware-Raspberry%20Pi%20Pico%202%20W-c51a4a?logo=raspberrypi&logoColor=white)
+![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20Windows-blue?logo=linux&logoColor=white)
+![License](https://img.shields.io/badge/license-MIT-green)
+
 ---
 
-## What does this do, concretely?
+## Table of Contents
+
+- [What does this do?](#-what-does-this-do)
+  - [The problem](#the-problem)
+  - [The solution — a $20 bridge](#the-solution--a-20-bridge)
+  - [What this fork adds](#what-this-fork-adds--audio-auto-haptics)
+- [How it works internally](#-how-it-works-internally)
+- [Hardware required](#-hardware-required)
+- [Installation](#-installation)
+  - [1. Download the firmware](#1-download-the-pre-built-firmware)
+  - [2. Flash the Pico](#2-flash-the-pico)
+  - [3. Route audio to the Pico](#3-route-audio-to-the-pico)
+    - [Linux (PipeWire)](#linux-pipewire)
+    - [Windows](#windows)
+- [Configuration](#-configuration)
+  - [Web app](#web-app--recommended)
+  - [Auto Haptics settings](#auto-haptics-settings)
+  - [Python CLI](#python-script-cli--no-chrome)
+- [All configuration parameters](#-all-configuration-parameters)
+- [Building from source](#-building-from-source)
+- [Technical notes](#-technical-notes)
+- [Credits](#-credits)
+
+---
+
+## 🎮 What does this do?
 
 ### The problem
 
@@ -35,18 +64,20 @@ Your PC thinks it has a DualSense connected by USB. In reality it's talking to t
 
 This fork goes further: the Pico **listens to the game's audio** and **generates vibrations from the sound**, in real time, with no software needed on your PC.
 
-- A horse galloping → hoofbeat vibrations
-- A gunshot → sharp impact in your hands
-- An explosion → deep rumble that fades out
-- A car engine → constant low-frequency buzz that changes with RPM
+| Sound | Haptic feel |
+|-------|-------------|
+| Horse galloping | Rhythmic hoofbeat pulses |
+| Gunshot | Sharp impact in your hands |
+| Explosion | Deep rumble that fades out |
+| Car engine | Constant low-frequency buzz changing with RPM |
 
 This works even if the game has **zero haptic support**. The Pico extracts the bass and impact sounds from the audio stream and converts them into motor signals, entirely by itself.
 
-**Compared to the PS5 experience**, this is not identical — the PS5 has access to precise per-object haptic data from the game engine. What this does is a smart approximation from audio alone, similar to what apps like DSX do on Windows. In practice it adds a lot of immersion to games that would otherwise have no feedback at all.
+> **Compared to the PS5 experience**, this is not identical — the PS5 has access to precise per-object haptic data from the game engine. What this does is a smart approximation from audio alone, similar to what apps like DSX do on Windows. In practice it adds a lot of immersion to games that would otherwise have no feedback at all.
 
 ---
 
-## How it works internally
+## ⚙️ How it works internally
 
 The Pico receives the game audio over USB (it appears as a 4-channel sound card). It then runs this signal through a small DSP chain entirely in firmware, with no CPU overhead on your PC:
 
@@ -77,7 +108,7 @@ Classic rumble (games that do send vibration commands via DirectInput/SDL) works
 
 ---
 
-## Hardware required
+## 🔧 Hardware required
 
 | Item | Notes |
 |------|-------|
@@ -87,7 +118,7 @@ Classic rumble (games that do send vibration commands via DirectInput/SDL) works
 
 ---
 
-## Installation
+## 🚀 Installation
 
 ### 1. Download the pre-built firmware
 
@@ -106,7 +137,9 @@ The Pico reboots automatically. Done.
 
 ### 3. Route audio to the Pico
 
-The Pico needs to receive the game audio to generate haptics. **Do not set it as your default output** — your headset or speakers should remain the default. Instead, create a PipeWire loopback that sends a silent copy of your audio to the Pico in the background.
+The Pico needs to receive the game audio to generate haptics. **Do not set it as your default output** — your headset or speakers should remain the default. Instead, create a loopback that sends a silent copy of your audio to the Pico in the background.
+
+---
 
 #### Linux (PipeWire)
 
@@ -178,7 +211,7 @@ You should see `alsa_output.hw_Controller_0`, `ds5_haptics_capture`, and `ds5_ha
 
 **Optional — WirePlumber rule for extra stability (WirePlumber 0.5+ only):**
 
-> **Check your version:** `wireplumber --version`
+> **Check your version:** `wireplumber --version`  
 > Skip this step if you are on WirePlumber 0.4.x (Ubuntu 24.04 LTS, Debian stable, etc.).
 
 This step assigns the Pico a stable fixed name regardless of ALSA card index, and prevents the DualSense ACP audio profile from stealing your default output on reconnect. Without it everything still works, but on systems with multiple USB audio devices the card index in `hw_Controller_0` could occasionally differ.
@@ -244,6 +277,8 @@ To send only one game's audio to the Pico instead of your whole system output:
 
 Everything else keeps playing through your normal output.
 
+---
+
 #### Windows
 
 The Pico appears in Windows as a USB audio device named **"DualSense Wireless Controller"**. The auto-haptics firmware derives vibration from channels 1/2 (standard stereo), so any tool that routes a stereo copy of your audio there will work.
@@ -280,7 +315,7 @@ Your normal output is unchanged. The Pico silently receives a copy of all system
 
 ---
 
-## Configuration
+## 🎛️ Configuration
 
 ### Web app — recommended
 
@@ -326,7 +361,7 @@ python3 scripts/set_ds5.py --help
 
 ---
 
-## All configuration parameters
+## 📋 All configuration parameters
 
 | Parameter | Range | Default | Description |
 |-----------|-------|---------|-------------|
@@ -344,7 +379,7 @@ python3 scripts/set_ds5.py --help
 
 ---
 
-## Building from source
+## 🛠️ Building from source
 
 ```bash
 # Arch / CachyOS
@@ -372,7 +407,7 @@ ls build/ds5-bridge.uf2
 
 ---
 
-## Technical notes
+## 📌 Technical notes
 
 - DSP runs on **Core 0** inside `audio_loop()` — no new threads, no queues added
 - All state is `static` (16 bytes: 2× LP + 2× envelope)
@@ -384,7 +419,7 @@ ls build/ds5-bridge.uf2
 
 ---
 
-## Credits
+## 🙏 Credits
 
 - **[awalol](https://github.com/awalol/DS5Dongle)** — original DS5Dongle firmware
 - **[egormanga/SAxense](https://github.com/egormanga/SAxense)** — DualSense BT haptics proof of concept
