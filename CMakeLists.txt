@@ -87,6 +87,7 @@ add_executable(ds5-bridge
         src/bt.cpp
         src/config.cpp
         src/cmd.cpp
+        src/state_mgr.cpp
 )
 
 if (ENABLE_BATT_LED)
@@ -141,9 +142,10 @@ if(WAKE_DEBUG)
             WAKE_DEBUG
     )
 endif()
+set(VERSION "dev" CACHE STRING "Program version string")
 
 pico_set_program_name(ds5-bridge "ds5-bridge")
-pico_set_program_version(ds5-bridge "0.5.3")
+pico_set_program_version(ds5-bridge "${VERSION}")
 
 # Modify the below lines to enable/disable output over UART/USB
 pico_enable_stdio_uart(ds5-bridge 1)

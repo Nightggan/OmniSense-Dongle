@@ -79,17 +79,21 @@ void config_valid() {
         body->controller_mode = 2;
         printf("[Config] controller_mode is invalid\n");
     }
+    if (body->config_version != CONFIG_VERSION) {
+        body->config_version = CONFIG_VERSION;
+        printf("[Config] Warning: Config may breaking change\n");
+    }
     if (body->auto_haptics_enable > 2) {
-        body->auto_haptics_enable = 2; // default: replace mode (derive haptics from game audio)
+        body->auto_haptics_enable = 2;
         printf("[Config] auto_haptics_enable is invalid, defaulting to 2\n");
     }
     if (body->auto_haptics_gain > 200) {
-        body->auto_haptics_gain = 100; // default: 100%
+        body->auto_haptics_gain = 100;
         printf("[Config] auto_haptics_gain is invalid, defaulting to 100\n");
     }
     if (body->auto_haptics_lowpass > 3) {
-        body->auto_haptics_lowpass = 0; // default: 80 Hz
-        printf("[Config] auto_haptics_lowpass is invalid, defaulting to 1 (160 Hz)\n");
+        body->auto_haptics_lowpass = 0;
+        printf("[Config] auto_haptics_lowpass is invalid, defaulting to 0 (80 Hz)\n");
     }
 }
 

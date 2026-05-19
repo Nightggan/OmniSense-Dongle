@@ -11,16 +11,34 @@
 3. 将 DS5 手柄进入蓝牙配对模式
 4. Enjoy it
 
-- 调整麦克风音量为改变震动增益倍数，范围 [1,2]
-- 开启扬声器静音为关闭LED连接提示 (手柄重连后生效)
-- 开启麦克风静音为禁用静默断连
+***你可能需要在控制器处于匹配模式时重新插拔 pico***
+
 - 手柄连接到pico以后，系统才会显示设备
+
+# Pico 配置调整
+你可以通过网页调整Pico的内部设置
+
+- 用于正式固件: https://ds5.awalol.eu.org
+- 用于测试固件: https://ds5-dev.awalol.eu.org
+
+### Pico W 版本
+
+Pico W 由于性能问题，只能支持震动，不支持扬声器。
+你可以通过开启 `-DPICO_W_BUILD=ON` 编译项去开启 Pico W 固件编译，或者在 Github Action 下载预编译的固件
+
+### USB 唤醒支持
+这是一项实验性的功能。如果你需要该功能，请前往 feat/usb-wake 分支进行编译，或者使用该分支对应的 Github Action 预编译固件。`ds5-bridge-wake.uf2` 为该功能的固件
+
+极为建议在使用该功能前阅读  #60 和 #61
+
+### 社区分支
+https://github.com/MarcelineVPQ/DS5Dongle-OLED-Edition
+https://github.com/zurce/DS5Dongle-OLED
 
 # 当前问题:
 - 声音可能有点小卡顿
 - 由于编码需要，需要对pico进行超频，当前的参数是1.2V 320MHz。
 - 若您的pico使用该超频参数无法启动，请自行增加电压或者降低频率
-- 在 Linux 扬声器不工作
 
 # 未来计划
 请查看[DS5Dongle plan](https://github.com/users/awalol/projects/5)

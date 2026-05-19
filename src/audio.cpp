@@ -14,6 +14,7 @@
 #include "pico/multicore.h"
 #include "pico/util/queue.h"
 #include "config.h"
+#include "state_mgr.h"
 #include "usb.h"
 
 #define INPUT_CHANNELS    4
@@ -172,33 +173,27 @@ void audio_loop() {
         pkt[8] = buf_len;
         pkt[9] = buf_len;
         pkt[10] = packetCounter++;
-        // SetStateData sub-report (0x10) must be present in every audio packet
-        // so the DualSense keeps the HD haptic actuators active
+        // SetStateData
         pkt[11] = 0x10 | 0 << 6 | 1 << 7;
         pkt[12] = 63;
-        static const uint8_t state_data[63] = {
-            0xfd, 0xf7, 0x0, 0x0,
-            0x7f, 0x7f,
-            0xff, 0x9, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
-            0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
-            0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
-            0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0xa,
-            0x7, 0x0, 0x0, 0x2, 0x1,
-            0x00,
-            0xff, 0xd7, 0x00,
-        };
-        memcpy(pkt + 13, state_data, 63);
+        state_set(pkt + 13, 63);
+        // Haptics Audio Data
         pkt[76] = 0x12 | 0 << 6 | 1 << 7;
         pkt[77] = SAMPLE_SIZE;
         memcpy(pkt + 78, haptic_buf, SAMPLE_SIZE);
 #if !DISABLE_SPEAKER_PROC
+        // Speaker Audio Data
         pkt[142] = (plug_headset ? 0x16 : 0x13) | 0 << 6 | 1 << 7; // Speaker: 0x13
+        // L Headset Mono: 0x14
+        // L Headset R Speaker: 0x15
+        // Headset: 0x16
         pkt[143] = 200;
         critical_section_enter_blocking(&opus_cs);
         memcpy(pkt + 144, opus_buf, 200);
         critical_section_exit(&opus_cs);
 #endif
-        bt_write(pkt, sizeof(pkt), true);
+
+        bt_write(pkt, sizeof(pkt));
         haptic_buf_pos = 0;
     }
 }
