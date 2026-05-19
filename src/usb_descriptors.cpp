@@ -55,7 +55,7 @@ enum {
 #else
         0,
 #endif
-    CONFIG_DESC_LEN_BASE = 0x00E3 + CONFIG_DESC_LEN_AUDIO_IAD,
+    CONFIG_DESC_LEN_BASE = 0x010E + CONFIG_DESC_LEN_AUDIO_IAD,
     CONFIG_DESC_LEN_TOTAL = CONFIG_DESC_LEN_BASE
 #if ENABLE_SERIAL
         + TUD_CDC_DESC_LEN
@@ -282,6 +282,54 @@ uint8_t descriptor_configuration[] = {
     0x25, // bDescriptorType: CS_ENDPOINT
     0x01, // bDescriptorSubtype: GENERAL
     0x00, // Attributes: No pitch/sampling freq control
+    0x00, // Lock Delay Units: Undefined
+    0x00, 0x00, // Lock Delay: 0
+
+    // --- INTERFACE DESCRIPTOR (1.2): Audio Streaming (OUT - Alternate 2, 2ch for Windows/Stereo Mix) ---
+    0x09, // bLength
+    0x04, // bDescriptorType (INTERFACE)
+    0x01, // bInterfaceNumber: 1
+    0x02, // bAlternateSetting: 2
+    0x01, // bNumEndpoints: 1
+    0x01, // bInterfaceClass: Audio
+    0x02, // bInterfaceSubClass: Audio Streaming
+    0x00, // bInterfaceProtocol
+    0x00, // iInterface
+
+    // AS General Descriptor (for Interface 1.2)
+    0x07, // bLength: 7
+    0x24, // bDescriptorType: CS_INTERFACE
+    0x01, // bDescriptorSubtype: AS_GENERAL
+    0x01, // bTerminalLink: Terminal ID 1
+    0x01, // bDelay: 1 frame
+    0x01, 0x00, // wFormatTag: PCM (0x0001)
+
+    // Format Type Descriptor (2-channel, 16-bit, 48kHz)
+    0x0B, // bLength: 11
+    0x24, // bDescriptorType: CS_INTERFACE
+    0x02, // bDescriptorSubtype: FORMAT_TYPE
+    0x01, // bFormatType: TYPE_I
+    0x02, // bNrChannels: 2
+    0x02, // bSubframeSize: 2 bytes/sample
+    0x10, // bBitResolution: 16 bits
+    0x01, // bSamFreqType: 1 discrete frequency
+    0x80, 0xBB, 0x00, // tSamFreq: 48000 Hz (0x00BB80)
+
+    // Endpoint Descriptor (Audio OUT: EP1)
+    0x09, // bLength
+    0x05, // bDescriptorType (ENDPOINT)
+    0x01, // bEndpointAddress: OUT EP1
+    0x09, // bmAttributes: Isochronous, Adaptive
+    0xC4, 0x00, // wMaxPacketSize: 196 bytes (2ch * 2bytes * 49 samples)
+    0x01, // bInterval: 1
+    0x00, // bRefresh
+    0x00, // bSynchAddress
+
+    // Class-specific Audio Streaming Endpoint Descriptor (EP1)
+    0x07, // bLength
+    0x25, // bDescriptorType: CS_ENDPOINT
+    0x01, // bDescriptorSubtype: GENERAL
+    0x00, // Attributes: No controls
     0x00, // Lock Delay Units: Undefined
     0x00, 0x00, // Lock Delay: 0
 

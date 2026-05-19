@@ -51,7 +51,10 @@ void audio_loop() {
 
     int16_t raw[192];
     uint32_t bytes_read = tud_audio_read(raw, sizeof(raw)); // 每次读入 384 bytes
-    int frames = bytes_read / (INPUT_CHANNELS * sizeof(int16_t));
+    // Detect actual channel count from packet size:
+    // 4ch@48kHz ≈ 384 bytes/ms (Linux/PipeWire), 2ch@48kHz ≈ 192 bytes/ms (Windows/Stereo Mix)
+    const int actual_ch = (bytes_read > 250) ? 4 : 2;
+    int frames = bytes_read / (actual_ch * (int)sizeof(int16_t));
     if (frames == 0) {
         return;
     }
@@ -65,7 +68,8 @@ void audio_loop() {
     const float audio_gain   = mute[0] ? 0.0f : powf(10.0f, get_config().speaker_volume / 20.0f);
     const float haptics_gain = get_config().haptics_gain;
     const uint8_t auto_mode  = get_config().auto_haptics_enable;
-    const float auto_gain    = (auto_mode > 0) ? (get_config().auto_haptics_gain / 100.0f) * haptics_gain : 0.0f;
+    // For 2ch mode (Windows/Stereo Mix), always enable auto-haptics DSP regardless of auto_mode setting
+    const float auto_gain    = (auto_mode > 0 || actual_ch == 2) ? (get_config().auto_haptics_gain / 100.0f) * haptics_gain : 0.0f;
 
     // 1-pole LP coefficients at 48 kHz: a = 1 - exp(-2*pi*fc/fs), pre-computed for 4 cutoffs
     static const float LP_COEFF[4] = {
@@ -85,8 +89,8 @@ void audio_loop() {
 
     for (int i = 0; i < nframes; i++) {
  #if !DISABLE_SPEAKER_PROC
-        audio_buf[audio_buf_pos++] = raw[i * INPUT_CHANNELS] / 32768.0f * audio_gain;
-        audio_buf[audio_buf_pos++] = raw[i * INPUT_CHANNELS + 1] / 32768.0f * audio_gain;
+        audio_buf[audio_buf_pos++] = raw[i * actual_ch] / 32768.0f * audio_gain;
+        audio_buf[audio_buf_pos++] = raw[i * actual_ch + 1] / 32768.0f * audio_gain;
         if (audio_buf_pos == 512 * 2) {
             static audio_raw_element element{};
             memcpy(element.data, audio_buf, 512 * 2 * 4);
@@ -99,14 +103,15 @@ void audio_loop() {
             audio_buf_pos = 0;
         }
 #endif
-        // Native haptics from ch3/ch4
-        float h_l = raw[i * INPUT_CHANNELS + 2] / 32768.0f * haptics_gain;
-        float h_r = raw[i * INPUT_CHANNELS + 3] / 32768.0f * haptics_gain;
+        // 4ch mode (Linux): use dedicated haptic channels ch2/ch3
+        // 2ch mode (Windows): no dedicated haptic channels, DSP will derive from ch0/ch1 below
+        float h_l = (actual_ch == 4) ? raw[i * 4 + 2] / 32768.0f * haptics_gain : 0.0f;
+        float h_r = (actual_ch == 4) ? raw[i * 4 + 3] / 32768.0f * haptics_gain : 0.0f;
 
-        if (auto_mode > 0) {
-            // Low-pass filter speaker audio (ch1/ch2) — keep only bass felt by actuators
-            const float spk_l = raw[i * INPUT_CHANNELS    ] / 32768.0f;
-            const float spk_r = raw[i * INPUT_CHANNELS + 1] / 32768.0f;
+        if (auto_mode > 0 || actual_ch == 2) {
+            // Low-pass filter speaker audio — keep only bass felt by actuators
+            const float spk_l = raw[i * actual_ch    ] / 32768.0f;
+            const float spk_r = raw[i * actual_ch + 1] / 32768.0f;
             lp_l += lp_a * (spk_l - lp_l);
             lp_r += lp_a * (spk_r - lp_r);
 
@@ -125,8 +130,8 @@ void audio_loop() {
             al = al / (1.0f + (al < 0.0f ? -al : al));
             ar = ar / (1.0f + (ar < 0.0f ? -ar : ar));
 
-            if (auto_mode == 2) {
-                // Replace mode: discard native ch3/ch4, use only derived signal
+            if (auto_mode == 2 || actual_ch == 2) {
+                // Replace mode: use only derived signal (also forced for 2ch/Windows mode)
                 h_l = al;
                 h_r = ar;
             } else {
