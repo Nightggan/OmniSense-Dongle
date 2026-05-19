@@ -50,7 +50,8 @@ LOWPASS_MODES     = {0: "80 Hz", 1: "160 Hz", 2: "250 Hz", 3: "400 Hz"}
 def open_device():
     for pid, label in [(DS5_PID, "DualSense"), (DSE_PID, "DualSense Edge")]:
         try:
-            device = hid.Device(SONY_VID, pid)
+            device = hid.device()
+            device.open(SONY_VID, pid)
             print(f"[INFO] Connected to {label}")
             return device
         except Exception:
