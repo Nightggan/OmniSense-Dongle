@@ -200,6 +200,7 @@ jobs:
           if-no-files-found: error
 
       - name: Upload PicoW UF2 artifact
+        if: inputs.picow
         uses: actions/upload-artifact@v7
         with:
           path: artifacts/ds5-bridge-picow${{ inputs.asset_suffix }}.uf2

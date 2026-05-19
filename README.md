@@ -79,7 +79,7 @@ This works even if the game has **zero haptic support**. The Pico extracts the b
 
 ## ⚙️ How it works internally
 
-The Pico receives the game audio over USB (it appears as a 4-channel sound card). It then runs this signal through a small DSP chain entirely in firmware, with no CPU overhead on your PC:
+The Pico receives the game audio over USB (it appears as a stereo USB sound card — 2 channels, 48 kHz). It then runs this signal through a small DSP chain entirely in firmware, with no CPU overhead on your PC:
 
 ```
 Game audio (stereo, 48 kHz)
@@ -122,7 +122,12 @@ Classic rumble (games that do send vibration commands via DirectInput/SDL) works
 
 ### 1. Download the pre-built firmware
 
-Get `ds5-bridge-autohaptics.uf2` from the [Releases](https://github.com/loteran/DS5Dongle/releases) page.
+Get the latest `.uf2` from the [Releases](https://github.com/loteran/DS5Dongle/releases) page:
+
+| Board | File |
+|-------|------|
+| Raspberry Pi Pico 2 W | `ds5-bridge-picow-<version>.uf2` |
+| Raspberry Pi Pico 2 (no W) | `ds5-bridge-<version>.uf2` |
 
 ### 2. Flash the Pico
 
@@ -130,7 +135,7 @@ Get `ds5-bridge-autohaptics.uf2` from the [Releases](https://github.com/loteran/
 2. Copy the UF2 onto it:
 
 ```bash
-cp ds5-bridge-autohaptics.uf2 /run/media/$USER/RP2350/
+cp ds5-bridge-picow-<version>.uf2 /run/media/$USER/RP2350/
 ```
 
 The Pico reboots automatically. Done.
@@ -281,37 +286,18 @@ Everything else keeps playing through your normal output.
 
 #### Windows
 
-The Pico appears in Windows as a USB audio device named **"DualSense Wireless Controller"**. The auto-haptics firmware derives vibration from channels 1/2 (standard stereo), so any tool that routes a stereo copy of your audio there will work.
+The Pico appears in Windows as a USB audio device. Windows has no native way to send audio to two outputs simultaneously — use **VoiceMeeter Banana** (free) to duplicate the stream to both your headset and the Pico.
 
-Windows has no native way to send audio to two outputs simultaneously. You need one of the tools below to **duplicate** the stream — not move it.
+**VoiceMeeter Banana setup:**
 
-**Option A — VoiceMeeter Banana (free, recommended):**
-
-1. Download and install **[VoiceMeeter Banana](https://vb-audio.com/Voicemeeter/banana.htm)**
-2. Open VoiceMeeter:
+1. Download and install **[VoiceMeeter Banana](https://vb-audio.com/Voicemeeter/banana.htm)**, then **restart your PC**
+2. In Windows Sound settings → set **VoiceMeeter Input** as the default playback device
+3. Open VoiceMeeter Banana:
    - **Hardware Out A1** → your headset or speakers
-   - **Hardware Out A2** → **DualSense Wireless Controller**
-3. On the main input strip, enable **both A1 and A2** (both buttons lit up)
-4. In Windows Sound settings → set **VoiceMeeter Input** as the default playback device
+   - **Hardware Out A2** → **DualSense Wireless Controller** (the Pico)
+4. On the **VoiceMeeter VAIO** input strip → enable both **A1** and **A2** (both buttons lit)
 
 All audio now goes to your headset **and** the Pico at the same time.
-
-**Option B — Stereo Mix (no install required, one-time setup):**
-
-Some audio drivers include a "Stereo Mix" device that captures everything playing on your system. This is a **one-time configuration** — once done, it works automatically every time you plug in the Pico.
-
-1. Right-click the speaker icon in the taskbar → **Sounds**
-2. Go to the **Recording** tab
-3. If **Stereo Mix** appears in the list: right-click it → **Enable**
-   - If it doesn't appear: right-click anywhere in the list → check **Show Disabled Devices**
-4. Right-click **Stereo Mix** → **Properties** → **Listen** tab
-5. Check **Listen to this device**
-6. Set **Playback through this device** to **DualSense Wireless Controller**
-7. Click **OK**
-
-Your normal output is unchanged. The Pico silently receives a copy of all system audio.
-
-> **Note:** Stereo Mix depends on your audio driver — Realtek onboard audio usually has it, USB DACs and USB headsets often don't. If it doesn't appear even after enabling hidden devices, use VoiceMeeter instead.
 
 ---
 
