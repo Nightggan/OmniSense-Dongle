@@ -118,10 +118,7 @@ void on_bt_data(CHANNEL_TYPE channel, uint8_t *data, uint16_t len) {
 uint16_t tud_hid_get_report_cb(uint8_t itf, uint8_t report_id, hid_report_type_t report_type, uint8_t *buffer,
                                uint16_t reqlen) {
     (void) itf;
-    (void) report_id;
     (void) report_type;
-    (void) buffer;
-    (void) reqlen;
 
     if (is_pico_cmd(report_id)) {
         return pico_cmd_get(report_id, buffer, reqlen);
@@ -129,10 +126,16 @@ uint16_t tud_hid_get_report_cb(uint8_t itf, uint8_t report_id, hid_report_type_t
 
     std::vector<uint8_t> feature_data = get_feature_data(report_id, reqlen);
     if (!feature_data.empty()) {
-        memcpy(buffer, feature_data.data() + 1, feature_data.size() - 1);
+        uint16_t len = (uint16_t)std::min((size_t)reqlen, feature_data.size() - 1);
+        memcpy(buffer, feature_data.data() + 1, len);
+        return len;
     }
 
-    return feature_data.empty() ? 0 : feature_data.size() - 1;
+    // BT feature data not yet cached — return zeros instead of STALLing.
+    // hid_playstation calls GET_FEATURE(0x20) during probe; a STALL causes
+    // it to fail and leaves the device without a driver.
+    memset(buffer, 0, reqlen);
+    return reqlen;
 }
 
 bool tud_audio_set_itf_cb(uint8_t rhport, tusb_control_request_t const *p_request) {
