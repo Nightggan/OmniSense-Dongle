@@ -71,14 +71,8 @@ void audio_loop() {
     // For 2ch mode (Windows/Stereo Mix), always enable auto-haptics DSP regardless of auto_mode setting
     const float auto_gain    = (auto_mode > 0 || actual_ch == 2) ? (get_config().auto_haptics_gain / 100.0f) * haptics_gain : 0.0f;
 
-    // 1-pole LP coefficients at 48 kHz: a = 1 - exp(-2*pi*fc/fs), pre-computed for 4 cutoffs
-    static const float LP_COEFF[4] = {
-        0.01039f,  //  80 Hz (default)
-        0.02074f,  // 160 Hz
-        0.03095f,  // 250 Hz
-        0.05123f,  // 400 Hz
-    };
-    const float lp_a = LP_COEFF[get_config().auto_haptics_lowpass & 3];
+    const float lp_fc = (float)get_config().auto_haptics_lowpass_hz;
+    const float lp_a = 1.0f - expf(-2.0f * M_PI * lp_fc / 48000.0f);
 
     // Persistent DSP state across calls
     static float lp_l = 0.0f,  lp_r = 0.0f;   // 1-pole LP memory

@@ -91,9 +91,9 @@ void config_valid() {
         body->auto_haptics_gain = 100;
         printf("[Config] auto_haptics_gain is invalid, defaulting to 100\n");
     }
-    if (body->auto_haptics_lowpass > 3) {
-        body->auto_haptics_lowpass = 0;
-        printf("[Config] auto_haptics_lowpass is invalid, defaulting to 0 (80 Hz)\n");
+    if (body->auto_haptics_lowpass_hz < 20 || body->auto_haptics_lowpass_hz > 400) {
+        body->auto_haptics_lowpass_hz = 80;
+        printf("[Config] auto_haptics_lowpass_hz is invalid, defaulting to 80 Hz\n");
     }
     if (body->enable_poweroff_shortcut > 1) {
         body->enable_poweroff_shortcut = 1;

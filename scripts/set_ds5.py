@@ -18,7 +18,7 @@ SONY_VID = 0x054C
 DS5_PID  = 0x0CE6  # DualSense
 DSE_PID  = 0x0DF2  # DualSense Edge
 
-# Config_body layout (19 bytes, little-endian)
+# Config_body layout (20 bytes, little-endian)
 #   float  haptics_gain               [0:4]
 #   float  speaker_volume             [4:8]
 #   uint8  inactive_time              [8]
@@ -29,11 +29,11 @@ DSE_PID  = 0x0DF2  # DualSense Edge
 #   uint8  controller_mode            [13]
 #   uint8  auto_haptics_enable        [14]
 #   uint8  auto_haptics_gain          [15]
-#   uint8  auto_haptics_lowpass       [16]
-#   uint8  enable_poweroff_shortcut   [17]
-#   uint8  enable_touchpad            [18]
-CONFIG_FMT  = '<ffBBBBBBBBBBB'
-CONFIG_SIZE = struct.calcsize(CONFIG_FMT)  # 19
+#   uint16 auto_haptics_lowpass_hz    [16:18]  (free Hz value 20–400)
+#   uint8  enable_poweroff_shortcut   [18]
+#   uint8  enable_touchpad            [19]
+CONFIG_FMT  = '<ffBBBBBBBBHBB'
+CONFIG_SIZE = struct.calcsize(CONFIG_FMT)  # 20
 
 POLLING_MODES     = {0: "250 Hz", 1: "500 Hz", 2: "Real-time (1000 Hz)"}
 CONTROLLER_MODES  = {0: "DS5", 1: "DSE (Edge)", 2: "Auto"}
@@ -42,7 +42,6 @@ AUTO_HAP_MODES    = {
     1: "Mix (native + audio-derived)",
     2: "Replace (audio-derived only)",
 }
-LOWPASS_MODES     = {0: "80 Hz", 1: "160 Hz", 2: "250 Hz", 3: "400 Hz"}
 
 
 # ---------------------------------------------------------------------------
@@ -77,7 +76,7 @@ def get_config(device):
         haptics_gain, speaker_volume,
         inactive_time, disable_inactive_disconnect, disable_pico_led,
         polling_rate_mode, audio_buffer_length, controller_mode,
-        auto_haptics_enable, auto_haptics_gain, auto_haptics_lowpass,
+        auto_haptics_enable, auto_haptics_gain, auto_haptics_lowpass_hz,
         enable_poweroff_shortcut, enable_touchpad,
     ) = struct.unpack(CONFIG_FMT, body)
     return {
@@ -91,7 +90,7 @@ def get_config(device):
         'controller_mode':             controller_mode,
         'auto_haptics_enable':         auto_haptics_enable,
         'auto_haptics_gain':           auto_haptics_gain,
-        'auto_haptics_lowpass':        auto_haptics_lowpass,
+        'auto_haptics_lowpass_hz':     auto_haptics_lowpass_hz,
         'enable_poweroff_shortcut':    enable_poweroff_shortcut,
         'enable_touchpad':             enable_touchpad,
     }
@@ -114,8 +113,7 @@ def print_config(cfg):
     ae = cfg['auto_haptics_enable']
     print(f"  auto_haptics_enable         : {ae}  ({AUTO_HAP_MODES.get(ae, '?')})")
     print(f"  auto_haptics_gain           : {cfg['auto_haptics_gain']}%  [0 – 200]")
-    al = cfg['auto_haptics_lowpass']
-    print(f"  auto_haptics_lowpass        : {al}  ({LOWPASS_MODES.get(al, '?')} cutoff)")
+    print(f"  auto_haptics_lowpass_hz     : {cfg['auto_haptics_lowpass_hz']} Hz  [20 – 400]")
     print()
     print("--- Input ---")
     print(f"  enable_poweroff_shortcut    : {cfg['enable_poweroff_shortcut']}  (1=PS+Triangle powers off)")
@@ -145,7 +143,7 @@ def set_config(device, **kwargs):
         cfg['controller_mode'],
         cfg['auto_haptics_enable'],
         cfg['auto_haptics_gain'],
-        cfg['auto_haptics_lowpass'],
+        cfg['auto_haptics_lowpass_hz'],
         cfg['enable_poweroff_shortcut'],
         cfg['enable_touchpad'],
     )
@@ -176,7 +174,7 @@ Examples:
   python set_ds5.py
 
   # Enable auto haptics (replace mode, 160 Hz LP, 120% gain)
-  python set_ds5.py --auto-haptics-enable 2 --auto-haptics-gain 120 --auto-haptics-lowpass 1
+  python set_ds5.py --auto-haptics-enable 2 --auto-haptics-gain 120 --auto-haptics-lowpass 160
 
   # Mix mode: native haptics + audio-derived
   python set_ds5.py --auto-haptics-enable 1
@@ -195,11 +193,11 @@ Auto haptics modes:
   1 = Mix            — native ch3/ch4 + audio-derived signal blended together
   2 = Replace        — audio-derived signal only (works even when game sends no haptics)
 
-Auto haptics lowpass cutoff (selects bass frequency range sent to actuators):
-  0 = 80 Hz          — deep bass only (best for very heavy rumble feel)
-  1 = 160 Hz         — balanced bass (default, good for most games)
-  2 = 250 Hz         — extended bass (more detail, slightly noisier)
-  3 = 400 Hz         — wide bass (maximum detail)
+Auto haptics lowpass cutoff (free Hz value, 20–400):
+  20  Hz             — sub-bass only (very heavy, low-frequency rumble)
+  80  Hz             — deep bass (default, good all-round feel)
+  160 Hz             — balanced bass (more detail, good for most games)
+  400 Hz             — wide bass (maximum detail)
 """)
 
     p.add_argument('--haptics-gain', type=float,
@@ -226,9 +224,9 @@ Auto haptics lowpass cutoff (selects bass frequency range sent to actuators):
     g.add_argument('--auto-haptics-gain', type=int,
                    metavar='PCT',
                    help='Auto haptics intensity 0–200%% of haptics_gain (default: 100)')
-    g.add_argument('--auto-haptics-lowpass', type=int, choices=[0, 1, 2, 3],
-                   metavar='0|1|2|3',
-                   help='LP cutoff: 0=80Hz, 1=160Hz, 2=250Hz, 3=400Hz (default: 0)')
+    g.add_argument('--auto-haptics-lowpass', type=int,
+                   metavar='HZ',
+                   help='LP cutoff in Hz [20–400], default 80')
 
     h = p.add_argument_group('Input')
     h.add_argument('--enable-poweroff-shortcut', type=int, choices=[0, 1],
@@ -250,6 +248,8 @@ def validate(args):
         errs.append("--audio-buffer-length must be between 16 and 128")
     if args.auto_haptics_gain is not None and not (0 <= args.auto_haptics_gain <= 200):
         errs.append("--auto-haptics-gain must be between 0 and 200")
+    if args.auto_haptics_lowpass is not None and not (20 <= args.auto_haptics_lowpass <= 400):
+        errs.append("--auto-haptics-lowpass must be between 20 and 400")
     if errs:
         for e in errs:
             print(f"[ERROR] {e}")
@@ -274,7 +274,7 @@ def main():
         'controller_mode':             args.controller_mode,
         'auto_haptics_enable':         args.auto_haptics_enable,
         'auto_haptics_gain':           args.auto_haptics_gain,
-        'auto_haptics_lowpass':        args.auto_haptics_lowpass,
+        'auto_haptics_lowpass_hz':     args.auto_haptics_lowpass,
         'enable_poweroff_shortcut':    args.enable_poweroff_shortcut,
         'enable_touchpad':             args.enable_touchpad,
     }

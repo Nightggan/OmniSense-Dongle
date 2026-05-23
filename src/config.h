@@ -18,9 +18,9 @@ struct __attribute__((packed)) Config_body {
     uint8_t audio_buffer_length; // [16,128]
     uint8_t controller_mode; // 0: DS5, 1: DSE, 2: Auto
     // Auto haptics: derive rumble from game audio (ch1/ch2) even when game sends no haptic commands
-    uint8_t auto_haptics_enable;  // 0: off, 1: mix with native haptics, 2: replace native haptics
-    uint8_t auto_haptics_gain;    // [0,200] percent applied to derived signal, default 100
-    uint8_t auto_haptics_lowpass; // cutoff: 0=80Hz, 1=160Hz (default), 2=250Hz, 3=400Hz
+    uint8_t auto_haptics_enable;      // 0: off, 1: mix with native haptics, 2: replace native haptics
+    uint8_t auto_haptics_gain;        // [0,200] percent applied to derived signal, default 100
+    uint16_t auto_haptics_lowpass_hz; // LP cutoff in Hz [20-400], default 80
     uint8_t enable_poweroff_shortcut; // 1: PS+Triangle powers off controller, 0: disabled
     uint8_t enable_touchpad;          // 1: touchpad active, 0: touchpad data zeroed (PS+Circle toggles runtime)
 };
