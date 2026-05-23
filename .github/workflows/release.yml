@@ -17,4 +17,4 @@ jobs:
       version: ${{ github.event.release.tag_name }}
       asset_suffix: -${{ github.event.release.tag_name }}
       upload_tag: ${{ github.event.release.tag_name }}
-      picow: true
+      picow: false
