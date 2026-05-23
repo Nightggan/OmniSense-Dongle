@@ -122,12 +122,9 @@ Classic rumble (games that do send vibration commands via DirectInput/SDL) works
 
 ### 1. Download the pre-built firmware
 
-Get the latest `.uf2` from the [Releases](https://github.com/loteran/DS5Dongle/releases) page:
+Get the latest `ds5-bridge-<version>.uf2` from the [Releases](https://github.com/loteran/DS5Dongle/releases) page.
 
-| Board | File |
-|-------|------|
-| Raspberry Pi Pico 2 W | `ds5-bridge-picow-<version>.uf2` |
-| Raspberry Pi Pico 2 (no W) | `ds5-bridge-<version>.uf2` |
+> This fork requires a **Raspberry Pi Pico 2 W** (RP2350). Audio processing is mandatory for auto-haptics, so there is no Pico W (RP2040) build.
 
 ### 2. Flash the Pico
 
@@ -312,6 +309,17 @@ Open **[DS5 Bridge Config](https://loteran.github.io/ds5dongle-config/)** in **C
 3. Adjust settings
 4. Click **Save to Device** — written to flash, persists across reboots
 
+### Controller shortcuts
+
+These work at any time without opening the config page:
+
+| Shortcut | Action |
+|----------|--------|
+| **PS + Triangle** | Power off the controller |
+| **PS + Circle** | Toggle touchpad on/off (runtime only, not saved to flash) |
+
+Both can be enabled/disabled from the config page.
+
 ### Auto Haptics settings
 
 | Setting | Description | Default |
@@ -362,6 +370,8 @@ python3 scripts/set_ds5.py --help
 | `auto_haptics_enable` | 0 / 1 / 2 | 2 | Auto haptics mode |
 | `auto_haptics_gain` | 0 – 200% | 100 | Auto haptics intensity |
 | `auto_haptics_lowpass` | 0 / 1 / 2 / 3 | 0 | LP cutoff: 80/160/250/400 Hz |
+| `enable_poweroff_shortcut` | 0 / 1 | 1 | 1 = PS+Triangle powers off the controller |
+| `enable_touchpad` | 0 / 1 | 1 | Touchpad default state on connect (PS+Circle toggles runtime) |
 
 ---
 
