@@ -18,20 +18,22 @@ SONY_VID = 0x054C
 DS5_PID  = 0x0CE6  # DualSense
 DSE_PID  = 0x0DF2  # DualSense Edge
 
-# Config_body layout (17 bytes, little-endian)
-#   float  haptics_gain            [0:4]
-#   float  speaker_volume          [4:8]
-#   uint8  inactive_time           [8]
-#   uint8  disable_inactive_disc.  [9]
-#   uint8  disable_pico_led        [10]
-#   uint8  polling_rate_mode       [11]
-#   uint8  audio_buffer_length     [12]
-#   uint8  controller_mode         [13]
-#   uint8  auto_haptics_enable     [14]  ← new
-#   uint8  auto_haptics_gain       [15]  ← new
-#   uint8  auto_haptics_lowpass    [16]  ← new
-CONFIG_FMT  = '<ffBBBBBBBBB'
-CONFIG_SIZE = struct.calcsize(CONFIG_FMT)  # 17
+# Config_body layout (19 bytes, little-endian)
+#   float  haptics_gain               [0:4]
+#   float  speaker_volume             [4:8]
+#   uint8  inactive_time              [8]
+#   uint8  disable_inactive_disc.     [9]
+#   uint8  disable_pico_led           [10]
+#   uint8  polling_rate_mode          [11]
+#   uint8  audio_buffer_length        [12]
+#   uint8  controller_mode            [13]
+#   uint8  auto_haptics_enable        [14]
+#   uint8  auto_haptics_gain          [15]
+#   uint8  auto_haptics_lowpass       [16]
+#   uint8  enable_poweroff_shortcut   [17]
+#   uint8  enable_touchpad            [18]
+CONFIG_FMT  = '<ffBBBBBBBBBBB'
+CONFIG_SIZE = struct.calcsize(CONFIG_FMT)  # 19
 
 POLLING_MODES     = {0: "250 Hz", 1: "500 Hz", 2: "Real-time (1000 Hz)"}
 CONTROLLER_MODES  = {0: "DS5", 1: "DSE (Edge)", 2: "Auto"}
@@ -76,6 +78,7 @@ def get_config(device):
         inactive_time, disable_inactive_disconnect, disable_pico_led,
         polling_rate_mode, audio_buffer_length, controller_mode,
         auto_haptics_enable, auto_haptics_gain, auto_haptics_lowpass,
+        enable_poweroff_shortcut, enable_touchpad,
     ) = struct.unpack(CONFIG_FMT, body)
     return {
         'haptics_gain':                haptics_gain,
@@ -89,6 +92,8 @@ def get_config(device):
         'auto_haptics_enable':         auto_haptics_enable,
         'auto_haptics_gain':           auto_haptics_gain,
         'auto_haptics_lowpass':        auto_haptics_lowpass,
+        'enable_poweroff_shortcut':    enable_poweroff_shortcut,
+        'enable_touchpad':             enable_touchpad,
     }
 
 
@@ -111,6 +116,10 @@ def print_config(cfg):
     print(f"  auto_haptics_gain           : {cfg['auto_haptics_gain']}%  [0 – 200]")
     al = cfg['auto_haptics_lowpass']
     print(f"  auto_haptics_lowpass        : {al}  ({LOWPASS_MODES.get(al, '?')} cutoff)")
+    print()
+    print("--- Input ---")
+    print(f"  enable_poweroff_shortcut    : {cfg['enable_poweroff_shortcut']}  (1=PS+Triangle powers off)")
+    print(f"  enable_touchpad             : {cfg['enable_touchpad']}  (1=on, 0=off; PS+Circle toggles runtime)")
     print("================================\n")
 
 
@@ -137,6 +146,8 @@ def set_config(device, **kwargs):
         cfg['auto_haptics_enable'],
         cfg['auto_haptics_gain'],
         cfg['auto_haptics_lowpass'],
+        cfg['enable_poweroff_shortcut'],
+        cfg['enable_touchpad'],
     )
 
     print("[INFO] Writing config to memory...")
@@ -218,6 +229,12 @@ Auto haptics lowpass cutoff (selects bass frequency range sent to actuators):
     g.add_argument('--auto-haptics-lowpass', type=int, choices=[0, 1, 2, 3],
                    metavar='0|1|2|3',
                    help='LP cutoff: 0=80Hz, 1=160Hz, 2=250Hz, 3=400Hz (default: 0)')
+
+    h = p.add_argument_group('Input')
+    h.add_argument('--enable-poweroff-shortcut', type=int, choices=[0, 1],
+                   metavar='0|1', help='1=PS+Triangle powers off controller (default: 1)')
+    h.add_argument('--enable-touchpad', type=int, choices=[0, 1],
+                   metavar='0|1', help='1=touchpad active, 0=disabled (PS+Circle toggles runtime)')
     return p
 
 
@@ -258,6 +275,8 @@ def main():
         'auto_haptics_enable':         args.auto_haptics_enable,
         'auto_haptics_gain':           args.auto_haptics_gain,
         'auto_haptics_lowpass':        args.auto_haptics_lowpass,
+        'enable_poweroff_shortcut':    args.enable_poweroff_shortcut,
+        'enable_touchpad':             args.enable_touchpad,
     }
     for key, val in mapping.items():
         if val is not None:

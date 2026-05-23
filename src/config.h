@@ -21,6 +21,8 @@ struct __attribute__((packed)) Config_body {
     uint8_t auto_haptics_enable;  // 0: off, 1: mix with native haptics, 2: replace native haptics
     uint8_t auto_haptics_gain;    // [0,200] percent applied to derived signal, default 100
     uint8_t auto_haptics_lowpass; // cutoff: 0=80Hz, 1=160Hz (default), 2=250Hz, 3=400Hz
+    uint8_t enable_poweroff_shortcut; // 1: PS+Triangle powers off controller, 0: disabled
+    uint8_t enable_touchpad;          // 1: touchpad active, 0: touchpad data zeroed (PS+Circle toggles runtime)
 };
 
 struct __attribute__((packed)) Config {

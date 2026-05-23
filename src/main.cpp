@@ -28,6 +28,7 @@
 int reportSeqCounter = 0;
 uint8_t packetCounter = 0;
 bool spk_active = false;
+bool touchpad_runtime_enabled = true;
 
 uint8_t interrupt_in_data[63] = {
     0x7f, 0x7d, 0x7f, 0x7e, 0x00, 0x00, 0xa7,
@@ -81,29 +82,69 @@ void interrupt_loop() {
     }
 }
 
+// Zero out touchpad data in a 63-byte USB HID input report.
+static void suppress_touchpad(uint8_t *report) {
+    report[9] &= ~0x02;        // clear ButtonPad (touchpad click)
+    memset(report + 32, 0, 9); // zero 9-byte TouchData (finger positions + timestamp)
+}
+
 void on_bt_data(CHANNEL_TYPE channel, uint8_t *data, uint16_t len) {
-    // printf("[Main] BT data callback: channel=%u len=%u\n", channel, len);
     if (channel == INTERRUPT && data[1] == 0x31) {
         if ((data[56] & 1) != (interrupt_in_data[53] & 1)) {
             set_headset(data[56] & 1);
         }
 
+        // Shortcut detection
+        // data[3+7] = byte 7 of USBGetStateData: bit7=Triangle, bit6=Circle
+        // data[3+9] = byte 9: bit0=PS(Home), bit1=Pad
+        const bool ps       = (data[12] & 0x01) != 0;
+        const bool triangle = (data[10] & 0x80) != 0;
+        const bool circle   = (data[10] & 0x40) != 0;
+        bool suppress_ps    = false;
+
+        // PS + Triangle → power off controller
+        static bool poweroff_held = false;
+        if (get_config().enable_poweroff_shortcut && ps && triangle) {
+            data[10] &= ~0x80; // suppress Triangle
+            suppress_ps = true;
+            if (!poweroff_held) {
+                poweroff_held = true;
+                bt_disconnect();
+                return;
+            }
+        } else {
+            poweroff_held = false;
+        }
+
+        // PS + Circle → toggle touchpad (runtime only, no flash write)
+        static bool touchpad_toggle_held = false;
+        if (ps && circle) {
+            data[10] &= ~0x40; // suppress Circle
+            suppress_ps = true;
+            if (!touchpad_toggle_held) {
+                touchpad_toggle_held = true;
+                touchpad_runtime_enabled = !touchpad_runtime_enabled;
+            }
+        } else {
+            touchpad_toggle_held = false;
+        }
+
+        if (suppress_ps) {
+            data[12] &= ~0x01; // suppress PS
+        }
+
         if (get_config().polling_rate_mode != 2) {
             memcpy(interrupt_in_data, data + 3, 63);
+            if (!touchpad_runtime_enabled) suppress_touchpad(interrupt_in_data);
 #if ENABLE_BATT_LED
             battery_led_note_report();
 #endif
             return;
         }
 
-        // We add the critical section here to avoid any race conditions when writing to the interrupt_in_data buffer,
-        // which is shared between the main loop and this callback. 
-        // The critical section ensures that only one thread can access the buffer at a time, 
-        // preventing data corruption and ensuring thread safety.   
-        // We also set the report_dirty flag to true to indicate that new data is available
-        //  and needs to be sent in the next interrupt report.
         critical_section_enter_blocking(&report_cs);
         memcpy(interrupt_in_data, data + 3, 63);
+        if (!touchpad_runtime_enabled) suppress_touchpad(interrupt_in_data);
         report_dirty = true;
         critical_section_exit(&report_cs);
 #if ENABLE_BATT_LED
@@ -249,6 +290,7 @@ int main() {
     critical_section_init(&report_cs);
 
     config_load();
+    touchpad_runtime_enabled = get_config().enable_touchpad != 0;
 
     bt_init();
     bt_register_data_callback(on_bt_data);

@@ -95,6 +95,12 @@ void config_valid() {
         body->auto_haptics_lowpass = 0;
         printf("[Config] auto_haptics_lowpass is invalid, defaulting to 0 (80 Hz)\n");
     }
+    if (body->enable_poweroff_shortcut > 1) {
+        body->enable_poweroff_shortcut = 1;
+    }
+    if (body->enable_touchpad > 1) {
+        body->enable_touchpad = 1;
+    }
 }
 
 void config_load() {
