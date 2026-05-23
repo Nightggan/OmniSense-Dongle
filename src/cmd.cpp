@@ -27,12 +27,17 @@ bool is_pico_cmd(uint8_t report_id) {
 uint16_t pico_cmd_get(uint8_t report_id, uint8_t *buffer, uint16_t reqlen) {
     if (report_id == 0xf7) {
         printf("[HID] Receive 0xf7 getting config\n");
-        if (sizeof(Config_body) > reqlen) {
+        // Skip config_version (internal field), expose from haptics_gain so
+        // clients see a 17-byte layout matching their struct definition.
+        const Config_body& body = get_config();
+        constexpr size_t offset = offsetof(Config_body, haptics_gain);
+        constexpr size_t body_len = sizeof(Config_body) - offset;
+        if (body_len > reqlen) {
             printf("[Config] Warning: Config_body overflow\n");
         }
-        const auto len = std::min(sizeof(Config_body),static_cast<size_t>(reqlen));
-        memcpy(buffer,&get_config(),len);
-        return len;
+        const auto len = std::min(body_len, static_cast<size_t>(reqlen));
+        memcpy(buffer, reinterpret_cast<const uint8_t*>(&body) + offset, len);
+        return static_cast<uint16_t>(len);
     }
     if (report_id == 0xf8) {
         printf("[HID] Receive 0xf8 getting firmware version\n");

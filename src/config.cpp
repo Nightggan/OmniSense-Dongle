@@ -130,8 +130,11 @@ const Config_body& get_config() {
 }
 
 void set_config(const uint8_t *new_config, const uint16_t len) {
-    const auto copy_len = len < sizeof(Config_body) ? len : sizeof(Config_body);
-    memcpy(&config.body, new_config, copy_len);
+    // HID payload starts at haptics_gain (config_version is internal, not sent over HID)
+    constexpr size_t offset = offsetof(Config_body, haptics_gain);
+    const size_t body_len = sizeof(Config_body) - offset;
+    const auto copy_len = len < body_len ? len : body_len;
+    memcpy(reinterpret_cast<uint8_t*>(&config.body) + offset, new_config, copy_len);
     config_valid();
     if (config.body.disable_pico_led) {
         cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, false);
