@@ -62,13 +62,18 @@ void state_update(const uint8_t *data, const uint8_t size) {
         byte = (byte & ~(1 << bit)) | (value << bit);
     };
 
-    // Always keep rumble emulation on — clearing it silences the haptic
-    // actuators even for audio-driven haptics (auto-haptics path).
+    // Keep the haptic actuators in rumble-emulation mode (bit0=1) so the
+    // controller converts RumbleEmulationRight/Left into actuator output.
+    // Force UseRumbleNotHaptics=0 so the controller stays in haptics mode
+    // and continues processing 0x36 audio-haptics even after a game crash.
+    // Always forward motor values regardless of game flags so that any rumble
+    // command (EnableRumbleEmulation or UseRumbleNotHaptics variant) produces
+    // vibration.
     set_bit(state[0], 0, true);
-    set_bit(state[0], 1, update.UseRumbleNotHaptics);
+    set_bit(state[0], 1, false);
     set_bit(state[38], 2, true);
     copy_if_allowed(
-        update.UseRumbleNotHaptics || update.EnableRumbleEmulation,
+        true,
         offsetof(SetStateData, RumbleEmulationRight),
         2
     );

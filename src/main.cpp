@@ -12,6 +12,7 @@
 #include "hardware/vreg.h"
 #include "hardware/watchdog.h"
 #include "pico/cyw43_arch.h"
+#include "pico/time.h"
 #include "state_mgr.h"
 #if ENABLE_SERIAL
 #include "pico/stdio_usb.h"
@@ -240,6 +241,25 @@ void tud_hid_set_report_cb(uint8_t itf, uint8_t report_id, hid_report_type_t rep
     }
 }
 
+// Periodic 0x31 keepalive: the DualSense haptic subsystem times out if no
+// output report arrives for a few hundred ms. When a game crashes, HID reports
+// stop but audio keeps flowing — this sends state every 20 ms so the actuators
+// stay alive and 0x36 audio-haptics continue working.
+static void state_keepalive() {
+    static uint64_t last_us = 0;
+    const uint64_t now = to_us_since_boot(get_absolute_time());
+    if (now - last_us < 20000ULL) return;
+    last_us = now;
+
+    uint8_t pkt[78]{};
+    pkt[0] = 0x31;
+    pkt[1] = (uint8_t)(reportSeqCounter << 4);
+    if (++reportSeqCounter == 256) reportSeqCounter = 0;
+    pkt[2] = 0x10;
+    state_set(pkt + 3, sizeof(SetStateData));
+    bt_write(pkt, sizeof(pkt));
+}
+
 int main() {
     vreg_set_voltage(VREG_VOLTAGE_1_20);
     sleep_ms(1000);
@@ -310,6 +330,7 @@ int main() {
         tud_task();
         audio_loop();
         interrupt_loop();
+        if (spk_active) state_keepalive();
 #if ENABLE_BATT_LED
         battery_led_tick();
 #endif
