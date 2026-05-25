@@ -62,9 +62,11 @@ void state_update(const uint8_t *data, const uint8_t size) {
         byte = (byte & ~(1 << bit)) | (value << bit);
     };
 
-    set_bit(state[0], 0, update.EnableRumbleEmulation);
+    // Always keep rumble emulation on — clearing it silences the haptic
+    // actuators even for audio-driven haptics (auto-haptics path).
+    set_bit(state[0], 0, true);
     set_bit(state[0], 1, update.UseRumbleNotHaptics);
-    set_bit(state[38], 2, update.EnableImprovedRumbleEmulation);
+    set_bit(state[38], 2, true);
     copy_if_allowed(
         update.UseRumbleNotHaptics || update.EnableRumbleEmulation,
         offsetof(SetStateData, RumbleEmulationRight),

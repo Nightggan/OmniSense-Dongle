@@ -186,6 +186,9 @@ bool tud_audio_set_itf_cb(uint8_t rhport, tusb_control_request_t const *p_reques
 
     if (itf == 1) {
         printf("[AUDIO] Set interface Speaker to alternate setting %d\n", alt);
+        if (alt == 0 && spk_active) {
+            state_init();
+        }
         spk_active = alt;
     }
 

@@ -58,6 +58,7 @@ void audio_loop() {
             uint64_t now = to_us_since_boot(get_absolute_time());
             if (now - audio_last_us > 2000000ULL) {
                 printf("[Audio] No audio for 2s, clearing spk_active\n");
+                state_init();
                 spk_active = false;
                 audio_last_us = 0;
             }
