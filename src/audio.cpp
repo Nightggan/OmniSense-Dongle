@@ -12,6 +12,7 @@
 #include "opus.h"
 #include "utils.h"
 #include "pico/multicore.h"
+#include "pico/time.h"
 #include "pico/util/queue.h"
 #include "config.h"
 #include "state_mgr.h"
@@ -33,6 +34,9 @@ static uint8_t reportSeqCounter = 0;
 static uint8_t packetCounter = 0;
 static bool plug_headset = false;
 alignas(8) static uint32_t audio_core1_stack[8192];
+
+extern bool spk_active;
+static uint64_t audio_last_us = 0;
 queue_t audio_fifo;
 static uint8_t opus_buf[200];
 critical_section_t opus_cs;
@@ -47,7 +51,20 @@ void set_headset(bool state) {
 
 void audio_loop() {
     // 1. 读取 USB 音频数据
-    if (!tud_audio_available()) return;
+    if (!tud_audio_available()) {
+        // If spk_active is stuck (e.g. game crash without proper USB teardown),
+        // reset it after 2 s of silence so the HID haptics path can resume.
+        if (spk_active && audio_last_us != 0) {
+            uint64_t now = to_us_since_boot(get_absolute_time());
+            if (now - audio_last_us > 2000000ULL) {
+                printf("[Audio] No audio for 2s, clearing spk_active\n");
+                spk_active = false;
+                audio_last_us = 0;
+            }
+        }
+        return;
+    }
+    audio_last_us = to_us_since_boot(get_absolute_time());
 
     int16_t raw[192];
     uint32_t bytes_read = tud_audio_read(raw, sizeof(raw)); // 每次读入 384 bytes
