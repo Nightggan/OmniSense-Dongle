@@ -4,3 +4,6 @@
 [submodule "lib/opus"]
 	path = lib/opus
 	url = https://github.com/xiph/opus
+[submodule "config-web"]
+	path = config-web
+	url = https://github.com/loteran/ds5dongle-config.git
