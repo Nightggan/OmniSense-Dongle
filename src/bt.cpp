@@ -17,6 +17,7 @@
 #include "classic/sdp_server.h"
 #include "config.h"
 #include "state_mgr.h"
+#include "wake.h"
 #include "pico/util/queue.h"
 #if ENABLE_BATT_LED
 #include "battery_led.h"
@@ -466,6 +467,8 @@ static void l2cap_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t 
                     const auto mtu = l2cap_get_remote_mtu_for_local_cid(hid_interrupt_cid);
                     printf("[L2CAP] Remote Interrupt MTU: %d\n",mtu);
 
+                    wake_on_bt_connect();
+
                     gap_connectable_control(false);
                     gap_discoverable_control(false);
                     // tud_connect();
@@ -587,6 +590,12 @@ void set_feature_data(uint8_t reportId, uint8_t *data, uint16_t len) {
         printf_hexdump(get_feature, len + 2);
 #endif
     }
+}
+
+void bt_power_off_controller() {
+    uint8_t bluetooth_control[47]{};
+    bluetooth_control[0] = 0x02; // DualSense Bluetooth control: 1=on, 2=off.
+    set_feature_data(0x08, bluetooth_control, sizeof(bluetooth_control));
 }
 
 void init_feature() {
