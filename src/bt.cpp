@@ -22,6 +22,9 @@
 #if ENABLE_BATT_LED
 #include "battery_led.h"
 #endif
+#if ENABLE_BATT_COLOR
+#include "battery_color.h"
+#endif
 
 #define MTU_CONTROL 672
 #define MTU_INTERRUPT 672
@@ -350,6 +353,9 @@ static void hci_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t *p
             cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, false);
 #if ENABLE_BATT_LED
             battery_led_on_disconnect();
+#endif
+#if ENABLE_BATT_COLOR
+            battery_color_on_disconnect();
 #endif
             printf("[HCI] Disconnected reason=0x%02X, start inquiry\n", reason);
             gap_inquiry_start(30);

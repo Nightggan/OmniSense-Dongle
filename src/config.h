@@ -25,6 +25,7 @@ struct __attribute__((packed)) Config_body {
     uint8_t enable_touchpad;          // 1: touchpad active, 0: touchpad data zeroed (PS+<button> toggles runtime)
     uint8_t poweroff_button;          // ShortcutButton: which button + PS triggers power off (default 3=Triangle)
     uint8_t touchpad_button;          // ShortcutButton: which button + PS toggles touchpad (default 2=Circle)
+    uint8_t battery_color_enable;     // 1: change lightbar color based on battery level, 0: disabled
 };
 
 // Button IDs used in poweroff_button / touchpad_button

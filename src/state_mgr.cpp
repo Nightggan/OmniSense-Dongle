@@ -159,3 +159,9 @@ void state_update(const uint8_t *data, const uint8_t size) {
         sizeof(update.LedRed) * 3
     );
 }
+
+void state_set_led_color(uint8_t r, uint8_t g, uint8_t b) {
+    state[offsetof(SetStateData, LedRed)]   = r;
+    state[offsetof(SetStateData, LedGreen)] = g;
+    state[offsetof(SetStateData, LedBlue)]  = b;
+}

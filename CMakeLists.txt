@@ -51,6 +51,12 @@ if (ENABLE_BATT_LED)
 else ()
         set(ENABLE_BATT_LED_VALUE 0)
 endif ()
+option(ENABLE_BATT_COLOR "Change DualSense lightbar color based on battery level" ON)
+if (ENABLE_BATT_COLOR)
+        set(ENABLE_BATT_COLOR_VALUE 1)
+else ()
+        set(ENABLE_BATT_COLOR_VALUE 0)
+endif ()
 option(DISABLE_SPEAKER_PROC "Disable Speaker in controller" OFF)
 if (DISABLE_SPEAKER_PROC)
         set(DISABLE_SPEAKER_PROC_VALUE 1)
@@ -93,6 +99,9 @@ add_executable(ds5-bridge
 if (ENABLE_BATT_LED)
         target_sources(ds5-bridge PRIVATE src/battery_led.cpp)
 endif ()
+if (ENABLE_BATT_COLOR)
+        target_sources(ds5-bridge PRIVATE src/battery_color.cpp)
+endif ()
 
 # Cockos WDLResampler
 add_library(wdl_resampler STATIC
@@ -122,6 +131,7 @@ target_compile_definitions(ds5-bridge PRIVATE
         PICO_STDIO_USB_ENABLE_RESET_VIA_VENDOR_INTERFACE=0
         ENABLE_VERBOSE=${ENABLE_VERBOSE_VALUE}
         ENABLE_BATT_LED=${ENABLE_BATT_LED_VALUE}
+        ENABLE_BATT_COLOR=${ENABLE_BATT_COLOR_VALUE}
         SYS_CLOCK_KHZ=${SYS_CLOCK_KHZ_VALUE}
         DISABLE_SPEAKER_PROC=${DISABLE_SPEAKER_PROC_VALUE}
 )

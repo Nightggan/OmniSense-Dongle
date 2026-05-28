@@ -22,6 +22,9 @@
 #if ENABLE_BATT_LED
 #include "battery_led.h"
 #endif
+#if ENABLE_BATT_COLOR
+#include "battery_color.h"
+#endif
 
 // Pico SDK speciifically for waiting on conditions
 #include "pico/critical_section.h"
@@ -164,6 +167,9 @@ void on_bt_data(CHANNEL_TYPE channel, uint8_t *data, uint16_t len) {
 #if ENABLE_BATT_LED
             battery_led_note_report();
 #endif
+#if ENABLE_BATT_COLOR
+            battery_color_note_report();
+#endif
             return;
         }
 
@@ -174,6 +180,9 @@ void on_bt_data(CHANNEL_TYPE channel, uint8_t *data, uint16_t len) {
         critical_section_exit(&report_cs);
 #if ENABLE_BATT_LED
         battery_led_note_report();
+#endif
+#if ENABLE_BATT_COLOR
+        battery_color_note_report();
 #endif
     }
 }
@@ -312,6 +321,9 @@ int main() {
 #if ENABLE_BATT_LED
     battery_led_init();
 #endif
+#if ENABLE_BATT_COLOR
+    battery_color_init();
+#endif
 
 #if !ENABLE_SERIAL
     if (watchdog_caused_reboot()) {
@@ -357,6 +369,9 @@ int main() {
         if (spk_active) state_keepalive();
 #if ENABLE_BATT_LED
         battery_led_tick();
+#endif
+#if ENABLE_BATT_COLOR
+        battery_color_tick();
 #endif
     }
 }

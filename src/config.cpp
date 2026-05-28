@@ -107,6 +107,9 @@ void config_valid() {
     if (body->touchpad_button > BTN_SHORTCUT_MAX) {
         body->touchpad_button = BTN_CIRCLE;
     }
+    if (body->battery_color_enable > 1) {
+        body->battery_color_enable = 1;
+    }
 }
 
 void config_load() {
