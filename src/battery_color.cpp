@@ -15,9 +15,9 @@ extern uint8_t interrupt_in_data[63];
 namespace {
 
 // Color tiers based on PowerPercent (0–10 scale, each unit ≈ 10%).
-// pct >= 5  → Blue   (50 %+)
-// 2-4       → Green  (20–49 %)
-// pct == 1  → Yellow (10–19 %)
+// pct >= 7  → Blue   (70–100 %)
+// 4-6       → Green  (40–69 %)
+// 1-3       → Yellow (10–39 %)
 // pct == 0  → Red    (< 10 %)
 struct Color { uint8_t r, g, b; };
 
@@ -32,9 +32,9 @@ uint64_t last_report_us = 0;
 uint8_t  last_pct       = 0xFF;  // sentinel: "not yet set"
 
 Color color_for_pct(uint8_t pct) {
-    if (pct >= 5) return COLOR_BLUE;
-    if (pct >= 2) return COLOR_GREEN;
-    if (pct == 1) return COLOR_YELLOW;
+    if (pct >= 7) return COLOR_BLUE;
+    if (pct >= 4) return COLOR_GREEN;
+    if (pct >= 1) return COLOR_YELLOW;
     return COLOR_RED;
 }
 
