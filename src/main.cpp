@@ -89,6 +89,31 @@ static void suppress_touchpad(uint8_t *report) {
     memset(report + 32, 0, 9); // zero 9-byte TouchData (finger positions + timestamp)
 }
 
+// Byte offset (+mask) for each ShortcutButton in the raw BT report (data[] offset from 0).
+// BT report: data[3+7]=face buttons, data[3+8]=shoulder/etc, data[3+9]=PS/Pad/Mute
+struct BtnEntry { uint8_t off; uint8_t mask; };
+static constexpr BtnEntry SHORTCUT_BTN_MAP[] = {
+    {10, 0x10}, // 0: Square
+    {10, 0x20}, // 1: Cross
+    {10, 0x40}, // 2: Circle
+    {10, 0x80}, // 3: Triangle
+    {11, 0x01}, // 4: L1
+    {11, 0x02}, // 5: R1
+    {11, 0x10}, // 6: Create
+    {11, 0x20}, // 7: Options
+    {12, 0x04}, // 8: Mute
+};
+
+static bool shortcut_btn_pressed(const uint8_t *data, uint8_t btn) {
+    if (btn > BTN_SHORTCUT_MAX) return false;
+    return (data[SHORTCUT_BTN_MAP[btn].off] & SHORTCUT_BTN_MAP[btn].mask) != 0;
+}
+
+static void shortcut_btn_suppress(uint8_t *data, uint8_t btn) {
+    if (btn > BTN_SHORTCUT_MAX) return;
+    data[SHORTCUT_BTN_MAP[btn].off] &= ~SHORTCUT_BTN_MAP[btn].mask;
+}
+
 void on_bt_data(CHANNEL_TYPE channel, uint8_t *data, uint16_t len) {
     if (channel == INTERRUPT && data[1] == 0x31) {
         if ((data[56] & 1) != (interrupt_in_data[53] & 1)) {
@@ -96,17 +121,15 @@ void on_bt_data(CHANNEL_TYPE channel, uint8_t *data, uint16_t len) {
         }
 
         // Shortcut detection
-        // data[3+7] = byte 7 of USBGetStateData: bit7=Triangle, bit6=Circle
-        // data[3+9] = byte 9: bit0=PS(Home), bit1=Pad
-        const bool ps       = (data[12] & 0x01) != 0;
-        const bool triangle = (data[10] & 0x80) != 0;
-        const bool circle   = (data[10] & 0x40) != 0;
-        bool suppress_ps    = false;
+        // data[3+7] = byte 7 of USBGetStateData, data[3+9] = byte 9: bit0=PS(Home)
+        const bool ps    = (data[12] & 0x01) != 0;
+        bool suppress_ps = false;
 
-        // PS + Triangle → power off controller
+        // PS + poweroff_button → power off controller
         static bool poweroff_held = false;
-        if (get_config().enable_poweroff_shortcut && ps && triangle) {
-            data[10] &= ~0x80; // suppress Triangle
+        const uint8_t po_btn = get_config().poweroff_button;
+        if (get_config().enable_poweroff_shortcut && ps && shortcut_btn_pressed(data, po_btn)) {
+            shortcut_btn_suppress(data, po_btn);
             suppress_ps = true;
             if (!poweroff_held) {
                 poweroff_held = true;
@@ -117,10 +140,11 @@ void on_bt_data(CHANNEL_TYPE channel, uint8_t *data, uint16_t len) {
             poweroff_held = false;
         }
 
-        // PS + Circle → toggle touchpad (runtime only, no flash write)
+        // PS + touchpad_button → toggle touchpad (runtime only, no flash write)
         static bool touchpad_toggle_held = false;
-        if (ps && circle) {
-            data[10] &= ~0x40; // suppress Circle
+        const uint8_t tp_btn = get_config().touchpad_button;
+        if (ps && shortcut_btn_pressed(data, tp_btn)) {
+            shortcut_btn_suppress(data, tp_btn);
             suppress_ps = true;
             if (!touchpad_toggle_held) {
                 touchpad_toggle_held = true;

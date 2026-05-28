@@ -101,6 +101,12 @@ void config_valid() {
     if (body->enable_touchpad > 1) {
         body->enable_touchpad = 1;
     }
+    if (body->poweroff_button > BTN_SHORTCUT_MAX) {
+        body->poweroff_button = BTN_TRIANGLE;
+    }
+    if (body->touchpad_button > BTN_SHORTCUT_MAX) {
+        body->touchpad_button = BTN_CIRCLE;
+    }
 }
 
 void config_load() {

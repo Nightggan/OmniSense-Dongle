@@ -21,8 +21,24 @@ struct __attribute__((packed)) Config_body {
     uint8_t auto_haptics_enable;      // 0: off, 1: mix with native haptics, 2: replace native haptics
     uint8_t auto_haptics_gain;        // [0,200] percent applied to derived signal, default 100
     uint16_t auto_haptics_lowpass_hz; // LP cutoff in Hz [20-400], default 80
-    uint8_t enable_poweroff_shortcut; // 1: PS+Triangle powers off controller, 0: disabled
-    uint8_t enable_touchpad;          // 1: touchpad active, 0: touchpad data zeroed (PS+Circle toggles runtime)
+    uint8_t enable_poweroff_shortcut; // 1: PS+<button> powers off controller, 0: disabled
+    uint8_t enable_touchpad;          // 1: touchpad active, 0: touchpad data zeroed (PS+<button> toggles runtime)
+    uint8_t poweroff_button;          // ShortcutButton: which button + PS triggers power off (default 3=Triangle)
+    uint8_t touchpad_button;          // ShortcutButton: which button + PS toggles touchpad (default 2=Circle)
+};
+
+// Button IDs used in poweroff_button / touchpad_button
+enum ShortcutButton : uint8_t {
+    BTN_SQUARE   = 0,
+    BTN_CROSS    = 1,
+    BTN_CIRCLE   = 2,
+    BTN_TRIANGLE = 3,
+    BTN_L1       = 4,
+    BTN_R1       = 5,
+    BTN_CREATE   = 6,
+    BTN_OPTIONS  = 7,
+    BTN_MUTE     = 8,
+    BTN_SHORTCUT_MAX = BTN_MUTE,
 };
 
 struct __attribute__((packed)) Config {
