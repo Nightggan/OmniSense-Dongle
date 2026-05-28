@@ -1,0 +1,76 @@
+{
+  "app-id": "com.github.loteran.DS5DongleConfig",
+  "runtime": "org.kde.Platform",
+  "runtime-version": "6.8",
+  "sdk": "org.kde.Sdk",
+  "command": "ds5dongle-config",
+  "finish-args": [
+    "--device=all",
+    "--socket=wayland",
+    "--socket=fallback-x11",
+    "--share=ipc"
+  ],
+  "modules": [
+    {
+      "name": "libhidapi",
+      "buildsystem": "cmake-ninja",
+      "config-opts": [
+        "-DHIDAPI_WITH_HIDRAW=ON",
+        "-DHIDAPI_WITH_LIBUSB=OFF",
+        "-DHIDAPI_BUILD_HIDTEST=OFF"
+      ],
+      "sources": [
+        {
+          "type": "git",
+          "url": "https://github.com/libusb/hidapi.git",
+          "tag": "hidapi-0.14.0"
+        }
+      ]
+    },
+    {
+      "name": "python3-hidapi",
+      "buildsystem": "simple",
+      "build-commands": [
+        "pip3 install --no-build-isolation --prefix=${FLATPAK_DEST} ."
+      ],
+      "sources": [
+        {
+          "type": "archive",
+          "url": "https://files.pythonhosted.org/packages/source/h/hidapi/hidapi-0.14.0.tar.gz",
+          "sha256": "dc26b2c607ba56d7b66d0a65e7636bf52e2671f5e84e9a3b9a0c1bce1b2e07e2"
+        }
+      ]
+    },
+    {
+      "name": "python3-pyqt6",
+      "buildsystem": "simple",
+      "build-commands": [
+        "pip3 install --no-build-isolation --prefix=${FLATPAK_DEST} PyQt6 PyQt6-Qt6 PyQt6-sip"
+      ],
+      "sources": [
+        {
+          "type": "archive",
+          "url": "https://files.pythonhosted.org/packages/source/P/PyQt6/PyQt6-6.7.1.tar.gz",
+          "sha256": "placeholder-run-flatpak-pip-generator-to-get-real-sha256"
+        }
+      ]
+    },
+    {
+      "name": "ds5dongle-config",
+      "buildsystem": "simple",
+      "build-commands": [
+        "install -Dm755 main.py       /app/share/com.github.loteran.DS5DongleConfig/main.py",
+        "install -Dm755 hid_bridge.py /app/share/com.github.loteran.DS5DongleConfig/hid_bridge.py",
+        "install -Dm755 com.github.loteran.DS5DongleConfig.sh /app/bin/ds5dongle-config",
+        "install -Dm644 com.github.loteran.DS5DongleConfig.desktop /app/share/applications/com.github.loteran.DS5DongleConfig.desktop",
+        "install -Dm644 com.github.loteran.DS5DongleConfig.metainfo.xml /app/share/metainfo/com.github.loteran.DS5DongleConfig.metainfo.xml"
+      ],
+      "sources": [
+        {
+          "type": "dir",
+          "path": "."
+        }
+      ]
+    }
+  ]
+}

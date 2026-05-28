@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>com.github.loteran.DS5DongleConfig</id>
+  <name>DS5Dongle Config</name>
+  <summary>Configure DS5Dongle firmware settings</summary>
+  <description>
+    <p>
+      Desktop configuration tool for DS5Dongle — a Raspberry Pi Pico 2W firmware
+      that bridges USB audio and HID to a DualSense controller over Bluetooth.
+    </p>
+    <p>Features:</p>
+    <ul>
+      <li>Adjust haptics gain and speaker volume</li>
+      <li>Configure auto-haptics (audio-driven rumble) mode, intensity and low-pass filter</li>
+      <li>Set polling rate (250 / 500 / 1000 Hz)</li>
+      <li>Configure controller mode, power-off shortcuts and touchpad toggle</li>
+      <li>Enable battery-level lightbar color indicator</li>
+    </ul>
+  </description>
+
+  <metadata_license>MIT</metadata_license>
+  <project_license>MIT</project_license>
+  <developer id="com.github.loteran">
+    <name>loteran</name>
+  </developer>
+
+  <url type="homepage">https://github.com/loteran/DS5Dongle</url>
+  <url type="bugtracker">https://github.com/loteran/DS5Dongle/issues</url>
+
+  <launchable type="desktop-id">com.github.loteran.DS5DongleConfig.desktop</launchable>
+
+  <provides>
+    <binary>ds5dongle-config</binary>
+  </provides>
+
+  <requires>
+    <display_length compare="ge">600</display_length>
+  </requires>
+
+  <releases>
+    <release version="1.0.0" date="2026-05-28">
+      <description><p>Initial release.</p></description>
+    </release>
+  </releases>
+
+  <content_rating type="oars-1.1"/>
+</component>
