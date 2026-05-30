@@ -110,6 +110,11 @@ void config_valid() {
     if (body->battery_color_enable > 1) {
         body->battery_color_enable = 1;
     }
+    // Defaults to 0 (off) for configs saved before this field existed: the
+    // erased flash tail reads 0xFF, which the >1 clamp turns into 0.
+    if (body->wake_enable > 1) {
+        body->wake_enable = 0;
+    }
 }
 
 void config_load() {

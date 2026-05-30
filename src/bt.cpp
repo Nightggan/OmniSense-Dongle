@@ -350,6 +350,7 @@ static void hci_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t *p
             hid_control_cid = 0;
             hid_interrupt_cid = 0;
             feature_data.clear();
+            wake_on_bt_disconnect();
             cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, false);
 #if ENABLE_BATT_LED
             battery_led_on_disconnect();
@@ -380,6 +381,12 @@ static void l2cap_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t 
             // printf("[L2CAP] HID Interrupt data len=%u\n", size);
             // printf_hexdump(packet, size);
             bt_data_callback(INTERRUPT, packet, size);
+
+            // Wake-on-button: pass the report body (skip the 3-byte L2CAP/HID
+            // header) so the offsets match wake.cpp's expected layout.
+            if (size >= 13) {
+                wake_on_bt_input(packet + 3, size - 3);
+            }
 
             // 静默检测
             if (get_config().disable_inactive_disconnect) {

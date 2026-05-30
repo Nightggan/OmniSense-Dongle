@@ -19,6 +19,7 @@
 #endif
 #include "config.h"
 #include "cmd.h"
+#include "wake.h"
 #if ENABLE_BATT_LED
 #include "battery_led.h"
 #endif
@@ -347,6 +348,8 @@ int main() {
 
     config_load();
     touchpad_runtime_enabled = get_config().enable_touchpad != 0;
+
+    wake_init();
 
     bt_init();
     bt_register_data_callback(on_bt_data);

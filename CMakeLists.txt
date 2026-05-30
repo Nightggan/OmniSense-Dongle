@@ -136,7 +136,7 @@ target_compile_definitions(ds5-bridge PRIVATE
         DISABLE_SPEAKER_PROC=${DISABLE_SPEAKER_PROC_VALUE}
 )
 
-option(ENABLE_WAKE_HID "Wake the Windows host on PS-button press" OFF)
+option(ENABLE_WAKE_HID "Wake the Windows host on PS-button press" ON)
 if(ENABLE_WAKE_HID)
     target_compile_definitions(ds5-bridge PRIVATE
             ENABLE_WAKE_HID

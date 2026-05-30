@@ -125,7 +125,11 @@ uint8_t descriptor_configuration[] = {
     ITF_NUM_TOTAL, // bNumInterfaces
     0x01, // bConfigurationValue: 1
     0x00, // iConfiguration: 0
+#ifdef ENABLE_WAKE_HID
+    0xE0, // bmAttributes: SELF-POWERED, REMOTE-WAKEUP (needed to wake the host)
+#else
     0xC0, // bmAttributes: SELF-POWERED, NO REMOTE-WAKEUP
+#endif
     0xFA, // bMaxPower: 500mA (250 * 2mA)
 
 #if ENABLE_SERIAL
