@@ -25,6 +25,7 @@
     - [Windows](#windows)
 - [Configuration](#-configuration)
   - [Web app](#web-app--recommended)
+  - [Desktop app (Flatpak)](#desktop-app-flatpak)
   - [Auto Haptics settings](#auto-haptics-settings)
   - [Python CLI](#python-script-cli--no-chrome)
 - [All configuration parameters](#-all-configuration-parameters)
@@ -308,6 +309,42 @@ Open **[DS5 Bridge Config](https://loteran.github.io/ds5dongle-config/)** in **C
 2. Config is read automatically from the device
 3. Adjust settings
 4. Click **Save to Device** — written to flash, persists across reboots
+
+### Desktop app (Flatpak)
+
+A native desktop app (`config-app/`) is also available — no browser required, works on
+any Linux distribution. It exposes every setting from the web app plus **named presets**
+(save/load/delete your favourite configurations).
+
+**Install from the bundled `.flatpak`** (attached to each [release](https://github.com/loteran/DS5Dongle/releases)):
+
+```bash
+# 1. KDE runtime (one time — skip if already installed)
+flatpak install flathub org.kde.Platform//6.8
+
+# 2. Install the app
+flatpak install ./DS5DongleConfig.flatpak
+
+# 3. Launch
+flatpak run com.github.loteran.DS5DongleConfig
+```
+
+It also appears in your application menu as **DS5Dongle Config**.
+
+> **HID permissions:** the app needs read/write access to the Pico over USB HID. The
+> Flatpak ships with the `--device=all` permission so this works out of the box. If you
+> run the app *outside* Flatpak (e.g. `python3 config-app/main.py`), install the udev rule
+> first so your user can reach `/dev/hidraw*`:
+>
+> ```bash
+> sudo cp config-app/70-ds5dongle.rules /etc/udev/rules.d/
+> sudo udevadm control --reload-rules && sudo udevadm trigger --subsystem-match=hidraw
+> # then replug the Pico
+> ```
+
+**Presets** are stored as JSON in `~/.config/ds5dongle/presets/`. Use **Save As…** to
+capture the current settings, **Load** to recall them into the form (then click **Save to
+Device** to apply), and **Delete** to remove one.
 
 ### Controller shortcuts
 

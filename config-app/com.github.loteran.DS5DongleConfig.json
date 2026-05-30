@@ -10,11 +10,20 @@
     "--socket=fallback-x11",
     "--share=ipc"
   ],
+  "cleanup": [
+    "/include",
+    "/lib/pkgconfig",
+    "/lib/cmake",
+    "/share/man",
+    "*.a",
+    "*.la"
+  ],
   "modules": [
     {
       "name": "libhidapi",
       "buildsystem": "cmake-ninja",
       "config-opts": [
+        "-DCMAKE_BUILD_TYPE=Release",
         "-DHIDAPI_WITH_HIDRAW=ON",
         "-DHIDAPI_WITH_LIBUSB=OFF",
         "-DHIDAPI_BUILD_HIDTEST=OFF"
@@ -23,21 +32,64 @@
         {
           "type": "git",
           "url": "https://github.com/libusb/hidapi.git",
-          "tag": "hidapi-0.14.0"
+          "tag": "hidapi-0.15.0",
+          "commit": "d6b2a974608dec3b76fb1e36c189f22b9cf3650c"
         }
       ]
     },
     {
-      "name": "python3-hidapi",
+      "name": "python3-hid",
       "buildsystem": "simple",
       "build-commands": [
-        "pip3 install --no-build-isolation --prefix=${FLATPAK_DEST} ."
+        "pip3 install --no-index --no-build-isolation --prefix=${FLATPAK_DEST} ."
       ],
       "sources": [
         {
           "type": "archive",
-          "url": "https://files.pythonhosted.org/packages/source/h/hidapi/hidapi-0.14.0.tar.gz",
-          "sha256": "dc26b2c607ba56d7b66d0a65e7636bf52e2671f5e84e9a3b9a0c1bce1b2e07e2"
+          "url": "https://files.pythonhosted.org/packages/e9/f8/0357a8aa8874a243e96d08a8568efaf7478293e1a3441ddca18039b690c1/hid-1.0.9.tar.gz",
+          "sha256": "f4471f11f0e176d1b0cb1b243e55498cc90347a3aede735655304395694ac182"
+        }
+      ]
+    },
+    {
+      "name": "python3-sip",
+      "buildsystem": "simple",
+      "build-commands": [
+        "pip3 install --no-index --no-build-isolation --prefix=${FLATPAK_DEST} ."
+      ],
+      "sources": [
+        {
+          "type": "archive",
+          "url": "https://files.pythonhosted.org/packages/02/b1/79bff1c49a9e19ffe0211cb8905cc514c3f6b8f3f7ae55a40403d346c076/sip-6.15.3.tar.gz",
+          "sha256": "bb2516983f9f716d321e5157c00d0de0c12422eba73b8f43a44610a0f6622438"
+        }
+      ]
+    },
+    {
+      "name": "python3-pyqt-builder",
+      "buildsystem": "simple",
+      "build-commands": [
+        "pip3 install --no-index --no-build-isolation --prefix=${FLATPAK_DEST} ."
+      ],
+      "sources": [
+        {
+          "type": "archive",
+          "url": "https://files.pythonhosted.org/packages/61/f6/f3b504b4d55a7c4d3393cb90378501f1f5fc7f233bd85c0375674f84d2af/pyqt_builder-1.19.1.tar.gz",
+          "sha256": "6af6646ba29668751b039bfdced51642cb510e300796b58a4d68b7f956a024d8"
+        }
+      ]
+    },
+    {
+      "name": "python3-pyqt6-sip",
+      "buildsystem": "simple",
+      "build-commands": [
+        "pip3 install --no-index --no-build-isolation --prefix=${FLATPAK_DEST} ."
+      ],
+      "sources": [
+        {
+          "type": "archive",
+          "url": "https://files.pythonhosted.org/packages/90/24/a753e1af94b9ae5b2da63d4598457308da3cdbf0838c959381db086ccc86/pyqt6_sip-13.11.1.tar.gz",
+          "sha256": "869c5b48afe38e55b1ee0dd72182b0886e968cc509b98023ff50010b013ce1be"
         }
       ]
     },
@@ -45,13 +97,13 @@
       "name": "python3-pyqt6",
       "buildsystem": "simple",
       "build-commands": [
-        "pip3 install --no-build-isolation --prefix=${FLATPAK_DEST} PyQt6 PyQt6-Qt6 PyQt6-sip"
+        "pip3 install --no-index --no-build-isolation --prefix=${FLATPAK_DEST} --config-settings --confirm-license= --verbose ."
       ],
       "sources": [
         {
           "type": "archive",
-          "url": "https://files.pythonhosted.org/packages/source/P/PyQt6/PyQt6-6.7.1.tar.gz",
-          "sha256": "placeholder-run-flatpak-pip-generator-to-get-real-sha256"
+          "url": "https://files.pythonhosted.org/packages/ce/bf/ff284a136b39cb1873c18e4fca4a40a8847c84a1910c5fb38c6a77868968/pyqt6-6.8.1.tar.gz",
+          "sha256": "91d937d6166274fafd70f4dee11a8da6dbfdb0da53de05f5d62361ddf775e256"
         }
       ]
     },
