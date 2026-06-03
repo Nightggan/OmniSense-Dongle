@@ -148,76 +148,11 @@ The Pico needs to receive the game audio to generate haptics. **Do not set it as
 
 The loopback taps the **monitor of your current default output** — whatever it is (headset, speakers, DAC, HDMI TV…). Your default output is never changed.
 
-**Persistent loopback (recommended — starts automatically with PipeWire):**
+The loopback is tied to the dongle's presence: it is created **only while the dongle is plugged in** (started/stopped by udev), so its playback target always exists. This avoids an audio **feedback loop** — if a permanently-loaded loopback can't find the dongle it falls back to your speakers and pipes their monitor straight back into them.
 
-**Step 1 — PipeWire loopback config:**
+**Step 1 — name the dongle sink (WirePlumber rule):**
 
-```bash
-mkdir -p ~/.config/pipewire/pipewire.conf.d
-```
-
-Create `~/.config/pipewire/pipewire.conf.d/20-ds5-haptics-loopback.conf`:
-
-```ini
-context.modules = [
-  {
-    name  = libpipewire-module-loopback
-    flags = [ nofail ]
-    args  = {
-      node.description = "DS5 Haptics Capture"
-      capture.props    = {
-        node.name           = "ds5_haptics_capture"
-        media.class         = "Stream/Input/Audio"
-        stream.capture.sink = true
-        target.object       = "@DEFAULT_AUDIO_SINK@"
-        audio.position      = [ FL FR ]
-        stream.dont-remix   = true
-        node.passive        = true
-        node.linger         = true
-      }
-      playback.props   = {
-        node.name           = "ds5_haptics_playback"
-        target.object       = "alsa_output.hw_Controller_0"
-        audio.position      = [ AUX0 AUX1 ]
-        stream.dont-remix   = true
-        node.passive        = true
-        node.linger         = true
-        latency.msec        = 20
-      }
-    }
-  }
-]
-```
-
-`stream.capture.sink = true` taps the **monitor** of the default output (a read-only copy of whatever is playing) — your headset or speakers remain unchanged. `@DEFAULT_AUDIO_SINK@` follows dynamically when you switch output devices.
-
-**Step 2 — apply:**
-
-```bash
-systemctl --user restart pipewire
-```
-
-**Step 3 — verify:**
-
-```bash
-pw-dump Node 2>/dev/null | python3 -c "
-import sys,json
-for n in json.load(sys.stdin):
-    name = n.get('info',{}).get('props',{}).get('node.name','')
-    if 'ds5' in name or 'Controller' in name: print(name)
-"
-```
-
-You should see `alsa_output.hw_Controller_0`, `ds5_haptics_capture`, and `ds5_haptics_playback`.
-
----
-
-**Optional — WirePlumber rule for extra stability (WirePlumber 0.5+ only):**
-
-> **Check your version:** `wireplumber --version`  
-> Skip this step if you are on WirePlumber 0.4.x (Ubuntu 24.04 LTS, Debian stable, etc.).
-
-This step assigns the Pico a stable fixed name regardless of ALSA card index, and prevents the DualSense ACP audio profile from stealing your default output on reconnect. Without it everything still works, but on systems with multiple USB audio devices the card index in `hw_Controller_0` could occasionally differ.
+This gives the Pico a stable name (`ds5_dongle_sink`) regardless of ALSA card index, and prevents the DualSense ACP audio profile from stealing your default output on reconnect.
 
 ```bash
 mkdir -p ~/.config/wireplumber/wireplumber.conf.d
@@ -256,17 +191,44 @@ monitor.alsa.rules = [
 ]
 ```
 
-Then update the loopback config: change `target.object = "alsa_output.hw_Controller_0"` to `target.object = "ds5_dongle_sink"` and apply:
+**Step 2 — install the loopback service + udev rule:**
+
+These files ship in [`config-app/`](config-app/). Install them (the package does this automatically):
 
 ```bash
-systemctl --user restart wireplumber pipewire
+# systemd user service that runs the loopback (pw-loopback) while active
+install -Dm644 config-app/ds5-haptics-loopback.service ~/.config/systemd/user/ds5-haptics-loopback.service
+
+# udev: start it on plug, stop it on unplug  (root)
+sudo install -Dm644 config-app/70-ds5dongle.rules        /etc/udev/rules.d/70-ds5dongle.rules
+sudo install -Dm755 config-app/ds5dongle-loopback-stop   /usr/lib/ds5dongle/ds5dongle-loopback-stop
+
+systemctl --user daemon-reload
+sudo udevadm control --reload-rules
 ```
 
-**To remove the loopback:**
+The service captures the **monitor of your current default output** (`@DEFAULT_AUDIO_SINK@`, a read-only copy — your headset/speakers are unchanged) and pipes it to `ds5_dongle_sink`. Two safeguards prevent feedback:
+
+- `ExecStartPre` refuses to start unless `ds5_dongle_sink` exists.
+- `node.dont-reconnect=true` keeps the playback disconnected (instead of falling back to the speakers) if the dongle disappears at runtime.
+
+**Step 3 — verify (with the dongle plugged in):**
 
 ```bash
-rm ~/.config/pipewire/pipewire.conf.d/20-ds5-haptics-loopback.conf
+systemctl --user is-active ds5-haptics-loopback.service   # -> active
+pw-link -lo | grep -A2 ds5_haptics_playback               # -> linked to ds5_dongle_sink only
+```
+
+The playback must be linked **only** to `ds5_dongle_sink`, never to your speakers/HDMI.
+
+**To remove:**
+
+```bash
+systemctl --user stop ds5-haptics-loopback.service
+rm ~/.config/systemd/user/ds5-haptics-loopback.service
+sudo rm -f /etc/udev/rules.d/70-ds5dongle.rules /usr/lib/ds5dongle/ds5dongle-loopback-stop
 rm -f ~/.config/wireplumber/wireplumber.conf.d/51-ds5dongle.conf
+systemctl --user daemon-reload && sudo udevadm control --reload-rules
 systemctl --user restart wireplumber pipewire
 ```
 

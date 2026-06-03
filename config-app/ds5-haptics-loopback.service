@@ -1,0 +1,26 @@
+[Unit]
+Description=DS5Dongle auto-haptics audio loopback (active only while the dongle is present)
+Documentation=https://github.com/loteran/DS5Dongle
+After=pipewire.service wireplumber.service
+Wants=pipewire.service
+# This unit is started on demand by udev (ENV{SYSTEMD_USER_WANTS}) when the
+# DualSense dongle is plugged in, and stopped by udev when it is unplugged.
+# It must NOT be enabled at boot: running it without the dongle present would
+# make the playback stream fall back to the speakers and create an audio
+# feedback loop. The ExecStartPre guard below is a second line of defense.
+
+[Service]
+Type=simple
+# Safety guard: refuse to start unless the dongle sink (ds5_dongle_sink,
+# created by 51-ds5dongle.conf) actually exists. Prevents any feedback loop
+# if the service is ever started by mistake while the dongle is absent.
+ExecStartPre=/bin/sh -c 'pactl list short sinks | grep -q "\\bds5_dongle_sink\\b"'
+# Capture the monitor of the current default sink and pipe it to the dongle.
+# node.dont-reconnect=true on the playback side ensures that if the dongle
+# disappears at runtime, the stream stays disconnected instead of falling
+# back to the default output (no feedback loop).
+ExecStart=/usr/bin/pw-loopback -c 2 \
+  --capture-props="node.name=ds5_haptics_capture media.class=Stream/Input/Audio stream.capture.sink=true target.object=@DEFAULT_AUDIO_SINK@ audio.position=[FL,FR] stream.dont-remix=true node.passive=true" \
+  --playback=ds5_dongle_sink \
+  --playback-props="node.name=ds5_haptics_playback node.dont-reconnect=true audio.position=[AUX0,AUX1] stream.dont-remix=true node.passive=true"
+Restart=no
