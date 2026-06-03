@@ -165,13 +165,14 @@ monitor.alsa.rules = [
   {
     matches = [
       { alsa.components = "USB054c:0ce6"
-        node.name       = "~alsa_output\\.hw_.*" }
+        media.class     = "Audio/Sink" }
       { alsa.components = "USB054c:0df2"
-        node.name       = "~alsa_output\\.hw_.*" }
+        media.class     = "Audio/Sink" }
     ]
     actions = {
       update-props = {
-        node.name = "ds5_dongle_sink"
+        node.name        = "ds5_dongle_sink"
+        priority.session = 0
       }
     }
   }
@@ -190,6 +191,14 @@ monitor.alsa.rules = [
   }
 ]
 ```
+
+> **Match by ALSA components + media class, not node name.** Recent PipeWire/WirePlumber name the dongle sink `alsa_output.usb-…pro-output-0` (or `…Direct__Direct__sink`), not the legacy `alsa_output.hw_Controller_0`. Matching on `alsa.components` + `media.class` renames it regardless of profile or PipeWire version.
+
+> **Use the `pro-audio` card profile for the dongle.** The auto-haptics need the raw 4-channel sink with `AUX0…AUX3` positions. The `Direct` profile exposes `FL/FR/RL/RR` instead, which the `[AUX0,AUX1]` loopback mapping can't target. Set it once with:
+> ```bash
+> pactl set-card-profile alsa_card.usb-Sony_Interactive_Entertainment_DualSense_Wireless_Controller-00 pro-audio
+> ```
+> WirePlumber remembers the choice. (If you ever reset its state, re-apply it.)
 
 **Step 2 — install the loopback service + udev rule:**
 
