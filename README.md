@@ -151,6 +151,20 @@ Before starting, make sure you have everything:
 2. Under the latest release, download the file named **`ds5-bridge-X.X.X.uf2`**  
    (ignore all the other files — you only need the `.uf2`)
 
+**Which UF2 to pick:**
+
+| Asset | When to use |
+| --- | --- |
+| `ds5-bridge-<version>.uf2` | **Default.** Recommended for everyone. |
+| `ds5-bridge-wake-<version>.uf2` | Only if you need the dongle to **wake a sleeping Windows host**. |
+| `ds5-bridge-debug-<version>.uf2` | Troubleshooting (USB-serial verbose logs). |
+
+> ⚠️ The **wake** variant advertises USB `REMOTE_WAKEUP`. On Linux, a wake-capable
+> device is grabbed by Wine/Proton's libusb HID scanner, which can starve other
+> USB-HID tools (e.g. an Arctis headset control daemon) with `EBUSY` errors —
+> making them see the headset as permanently offline. Use the default UF2 unless
+> you specifically need host-wake.
+
 ---
 
 ### Step 2 — Flash the Pico

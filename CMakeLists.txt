@@ -136,7 +136,12 @@ target_compile_definitions(ds5-bridge PRIVATE
         DISABLE_SPEAKER_PROC=${DISABLE_SPEAKER_PROC_VALUE}
 )
 
-option(ENABLE_WAKE_HID "Wake the Windows host on PS-button press" ON)
+# REMOTE_WAKEUP (bmAttributes 0xE0) advertised by this feature makes the host
+# USB stack treat the dongle as wake-capable; Wine/Proton's libusb HID scanner
+# then grabs unrelated HID interfaces on the bus (e.g. an Arctis headset command
+# interface), starving other userspace tools with EBUSY. Keep OFF so the device
+# enumerates with 0xC0, identical to pre-wake firmware.
+option(ENABLE_WAKE_HID "Wake the Windows host on PS-button press" OFF)
 if(ENABLE_WAKE_HID)
     target_compile_definitions(ds5-bridge PRIVATE
             ENABLE_WAKE_HID

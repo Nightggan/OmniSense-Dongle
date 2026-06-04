@@ -154,6 +154,24 @@ jobs:
           cmake --build build/debug --target ds5-bridge
           cp build/debug/ds5-bridge.uf2 "artifacts/ds5-bridge-debug${{ inputs.asset_suffix }}.uf2"
 
+      - name: Build wake firmware
+        run: |
+          # Separate variant that advertises USB REMOTE_WAKEUP (bmAttributes
+          # 0xE0) so the dongle can wake a sleeping Windows host. Kept as its
+          # own UF2 because a wake-capable device is grabbed by Wine/Proton's
+          # libusb HID scanner, which starves other USB HID tools (e.g. an
+          # Arctis headset daemon) with EBUSY. The default/standard build keeps
+          # REMOTE_WAKEUP off; users who need host-wake flash this one instead.
+          VERSION_ARG=()
+          [ -n "${FW_VER:-}" ] && VERSION_ARG=(-DVERSION="$FW_VER")
+          cmake -S . -B build/wake -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DPICO_SDK_PATH="$PICO_SDK_PATH" \
+            -DENABLE_WAKE_HID=ON \
+            "${VERSION_ARG[@]}"
+          cmake --build build/wake --target ds5-bridge
+          cp build/wake/ds5-bridge.uf2 "artifacts/ds5-bridge-wake${{ inputs.asset_suffix }}.uf2"
+
       - name: Build Pico W firmware
         if: inputs.picow
         run: |
@@ -196,6 +214,13 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           path: artifacts/ds5-bridge-debug${{ inputs.asset_suffix }}.uf2
+          archive: false
+          if-no-files-found: error
+
+      - name: Upload wake UF2 artifact
+        uses: actions/upload-artifact@v7
+        with:
+          path: artifacts/ds5-bridge-wake${{ inputs.asset_suffix }}.uf2
           archive: false
           if-no-files-found: error
 
