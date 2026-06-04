@@ -18,16 +18,20 @@
 - [How it works internally](#-how-it-works-internally)
 - [Hardware required](#-hardware-required)
 - [Installation](#-installation)
-  - [1. Download the firmware](#1-download-the-pre-built-firmware)
-  - [2. Flash the Pico](#2-flash-the-pico)
-  - [3. Route audio to the Pico](#3-route-audio-to-the-pico)
+  - [What you need](#what-you-need)
+  - [Step 1 — Download the firmware](#step-1--download-the-firmware)
+  - [Step 2 — Flash the Pico](#step-2--flash-the-pico)
+  - [Step 3 — Pair your DualSense](#step-3--pair-your-dualsense)
+  - [Step 4 — Route audio to the Pico](#step-4--route-audio-to-the-pico)
     - [Linux (PipeWire)](#linux-pipewire)
     - [Windows](#windows)
 - [Configuration](#-configuration)
-  - [Web app](#web-app--recommended)
-  - [Desktop app (Flatpak)](#desktop-app-flatpak)
+  - [Step 5 — Open the config tool](#step-5--open-the-config-tool)
+    - [Web app (recommended)](#web-app--recommended)
+    - [Desktop app (Flatpak)](#desktop-app-flatpak)
   - [Auto Haptics settings](#auto-haptics-settings)
-  - [Python CLI](#python-script-cli--no-chrome)
+  - [Python CLI (advanced)](#python-script-cli--no-chrome)
+- [Troubleshooting](#-troubleshooting)
 - [All configuration parameters](#-all-configuration-parameters)
 - [Building from source](#-building-from-source)
 - [Technical notes](#-technical-notes)
@@ -121,44 +125,100 @@ Classic rumble (games that do send vibration commands via DirectInput/SDL) works
 
 ## 🚀 Installation
 
-### 1. Download the pre-built firmware
+> **In a nutshell — 4 steps:**
+> 1. 📥 Download the firmware file (`.uf2`)
+> 2. ⚡ Copy it onto the Pico (30 seconds, no software needed)
+> 3. 🎮 Pair your DualSense with the Pico via Bluetooth
+> 4. 🔊 Tell your PC to send a copy of its audio to the Pico
 
-Get the latest `ds5-bridge-<version>.uf2` from the [Releases](https://github.com/loteran/DS5Dongle/releases) page.
+---
 
-> This fork requires a **Raspberry Pi Pico 2 W** (RP2350). Audio processing is mandatory for auto-haptics, so there is no Pico W (RP2040) build.
+### What you need
 
-### 2. Flash the Pico
+Before starting, make sure you have everything:
 
-1. Hold **BOOTSEL** while plugging the Pico into USB → it mounts as **`RP2350`**
-2. Copy the UF2 onto it:
+- [ ] A **Raspberry Pi Pico 2 W** (the one with the "W" — Wi-Fi/Bluetooth chip)  
+  > ⚠️ The regular Pico 2 (without W) won't work — it has no Bluetooth.
+- [ ] A **USB-A to micro-USB cable** to connect the Pico to your PC
+- [ ] A **DualSense controller** (PlayStation 5 controller)
+- [ ] A PC running **Linux** or **Windows**
+
+---
+
+### Step 1 — Download the firmware
+
+1. Go to the **[Releases page](https://github.com/loteran/DS5Dongle/releases)**
+2. Under the latest release, download the file named **`ds5-bridge-X.X.X.uf2`**  
+   (ignore all the other files — you only need the `.uf2`)
+
+---
+
+### Step 2 — Flash the Pico
+
+"Flashing" means copying the firmware onto the Pico so it knows what to do. It works like a USB key.
+
+#### On Linux
+
+1. Hold the **BOOTSEL** button on the Pico (small white button on the board)
+2. While holding it, plug the Pico into your PC via USB
+3. Release the button — the Pico appears as a drive called **`RP2350`**
+4. Copy the firmware onto it:
 
 ```bash
-cp ds5-bridge-picow-<version>.uf2 /run/media/$USER/RP2350/
+cp ds5-bridge-X.X.X.uf2 /run/media/$USER/RP2350/
 ```
 
-The Pico reboots automatically. Done.
+> 💡 Replace `X.X.X` with the actual version number you downloaded.
 
-### 3. Route audio to the Pico
+#### On Windows
 
-The Pico needs to receive the game audio to generate haptics. **Do not set it as your default output** — your headset or speakers should remain the default. Instead, create a loopback that sends a silent copy of your audio to the Pico in the background.
+1. Hold **BOOTSEL**, plug the Pico in, release the button
+2. It appears as a drive in File Explorer, named **`RP2350`**
+3. Drag and drop the `.uf2` file onto that drive
+
+The Pico reboots by itself as soon as the file is copied. The drive disappears — that's normal, it means the flashing worked. ✅
+
+> ✅ **How to know it worked:** the Pico LED blinks a few times, then stays on or blinks slowly. If it goes back to the `RP2350` drive, try again with the right file (`.uf2` only, not `.elf` or `.bin`).
+
+---
+
+### Step 3 — Pair your DualSense
+
+The Pico acts as a Bluetooth host — your DualSense connects to it wirelessly, not directly to your PC.
+
+> ⚠️ **Important:** once paired with the Pico, the DualSense will no longer connect directly to your PC via Bluetooth. It will always go through the Pico instead. You can re-pair it directly at any time by following the same steps below without the Pico.
+
+**To pair for the first time:**
+
+1. Make sure the Pico is plugged in and powered (LED on)
+2. On the DualSense: hold **PS button + Create button** (small button top-left of the touchpad) for 5 seconds until the light bar flashes rapidly
+3. The Pico searches for a DualSense and pairs automatically — the DualSense light bar turns solid white when connected
+
+> ✅ **How to know it worked:** the DualSense light bar stops flashing and stays solid. Your PC should now see a **"DS5 Bridge"** gamepad in its device list (check Settings → Bluetooth & devices on Windows, or run `ls /dev/input/js*` on Linux).
+
+> 💡 **Next time:** just press the PS button normally. The DualSense reconnects to the Pico automatically (no need to re-pair).
+
+---
+
+### Step 4 — Route audio to the Pico
+
+The Pico needs to "hear" your game audio to turn it into vibrations. This step creates a silent background copy of your audio that goes to the Pico — **your headset or speakers are not affected at all.**
 
 ---
 
 #### Linux (PipeWire)
 
-The loopback taps the **monitor of your current default output** — whatever it is (headset, speakers, DAC, HDMI TV…). Your default output is never changed.
+> 💡 **What is PipeWire?** It's the audio system used by modern Linux distributions (Ubuntu 22.04+, Fedora 34+, Arch, etc.). These commands configure it to send a copy of your audio to the Pico automatically whenever it's plugged in.
 
-The loopback is tied to the dongle's presence: it is created **only while the dongle is plugged in** (started/stopped by udev), so its playback target always exists. This avoids an audio **feedback loop** — if a permanently-loaded loopback can't find the dongle it falls back to your speakers and pipes their monitor straight back into them.
+**1. Give the Pico a stable name**
 
-**Step 1 — name the dongle sink (WirePlumber rule):**
-
-This gives the Pico a stable name (`ds5_dongle_sink`) regardless of ALSA card index, and prevents the DualSense ACP audio profile from stealing your default output on reconnect.
+By default, PipeWire gives the Pico a random name that can change each time you plug it in. This command gives it a fixed name (`ds5_dongle_sink`) so the rest of the setup always finds it.
 
 ```bash
 mkdir -p ~/.config/wireplumber/wireplumber.conf.d
 ```
 
-Create `~/.config/wireplumber/wireplumber.conf.d/51-ds5dongle.conf`:
+Create the file `~/.config/wireplumber/wireplumber.conf.d/51-ds5dongle.conf` with this content:
 
 ```ini
 monitor.alsa.rules = [
@@ -192,174 +252,272 @@ monitor.alsa.rules = [
 ]
 ```
 
-> **Match by ALSA components + media class, not node name.** Recent PipeWire/WirePlumber name the dongle sink `alsa_output.usb-…pro-output-0` (or `…Direct__Direct__sink`), not the legacy `alsa_output.hw_Controller_0`. Matching on `alsa.components` + `media.class` renames it regardless of profile or PipeWire version.
-
-> **Use the `pro-audio` card profile for the dongle.** The auto-haptics need the raw 4-channel sink with `AUX0…AUX3` positions. The `Direct` profile exposes `FL/FR/RL/RR` instead, which the `[AUX0,AUX1]` loopback mapping can't target. Set it once with:
-> ```bash
-> pactl set-card-profile alsa_card.usb-Sony_Interactive_Entertainment_DualSense_Wireless_Controller-00 pro-audio
-> ```
-> WirePlumber remembers the choice. (If you ever reset its state, re-apply it.)
-
-**Step 2 — install the loopback service + udev rule:**
-
-These files ship in [`config-app/`](config-app/). Install them (the package does this automatically):
+Then reload WirePlumber to apply the rule:
 
 ```bash
-# systemd user service that runs the loopback (pw-loopback) while active
-install -Dm644 config-app/ds5-haptics-loopback.service ~/.config/systemd/user/ds5-haptics-loopback.service
+systemctl --user restart wireplumber
+```
 
-# udev: start it on plug, stop it on unplug  (root)
-sudo install -Dm644 config-app/70-ds5dongle.rules        /etc/udev/rules.d/70-ds5dongle.rules
-sudo install -Dm755 config-app/ds5dongle-loopback-stop   /usr/lib/ds5dongle/ds5dongle-loopback-stop
+**2. Set the audio profile on the Pico**
 
+The Pico exposes two audio profiles. The auto-haptics system needs the **pro-audio** one. Run this once:
+
+```bash
+pactl set-card-profile alsa_card.usb-Sony_Interactive_Entertainment_DualSense_Wireless_Controller-00 pro-audio
+```
+
+> 💡 This is remembered automatically — you only need to do it once.
+
+**3. Install the automatic loopback**
+
+This sets up the background audio copy. It uses a **systemd service** (a background program that runs automatically) and a **udev rule** (a rule that starts/stops it when you plug/unplug the Pico).
+
+All the needed files are already in the repo. Run these commands from inside the project folder:
+
+```bash
+# Copy the background service file
+install -Dm644 ds5-haptics-loopback.service \
+  ~/.config/systemd/user/ds5-haptics-loopback.service
+
+# Copy the plug/unplug rules (needs admin — that's what sudo is for)
+sudo install -Dm644 70-ds5dongle.rules        /etc/udev/rules.d/70-ds5dongle.rules
+sudo install -Dm755 ds5dongle-loopback-stop   /usr/lib/ds5dongle/ds5dongle-loopback-stop
+
+# Tell systemd and udev to reload their configs
 systemctl --user daemon-reload
 sudo udevadm control --reload-rules
 ```
 
-The service captures the **monitor of your current default output** (`@DEFAULT_AUDIO_SINK@`, a read-only copy — your headset/speakers are unchanged) and pipes it to `ds5_dongle_sink`. Two safeguards prevent feedback:
+> 💡 If you cloned the repo, these files are at the root of the project (not inside `config-app/`).
 
-- `ExecStartPre` refuses to start unless `ds5_dongle_sink` exists.
-- `node.dont-reconnect=true` keeps the playback disconnected (instead of falling back to the speakers) if the dongle disappears at runtime.
+**4. Unplug and replug the Pico**
 
-**Step 3 — verify (with the dongle plugged in):**
+The udev rule triggers on plug/unplug. Replug the Pico to start the loopback for the first time.
+
+**5. Verify everything is working**
 
 ```bash
-systemctl --user is-active ds5-haptics-loopback.service   # -> active
-pw-link -lo | grep -A2 ds5_haptics_playback               # -> linked to ds5_dongle_sink only
+# Should print "active"
+systemctl --user is-active ds5-haptics-loopback.service
+
+# Should show the loopback linked to ds5_dongle_sink (not your speakers)
+pw-link -lo | grep -A2 ds5_haptics_playback
 ```
 
-The playback must be linked **only** to `ds5_dongle_sink`, never to your speakers/HDMI.
+> ✅ **How to know it worked:** the first command prints `active`, and the second shows `ds5_dongle_sink` as the target. Now start a game, make noise, and feel the controller vibrate.
 
-**To remove:**
+> ⚠️ **If the loopback targets your speakers instead of the Pico** — check that the WirePlumber rule from step 1 is applied (`pw-dump | grep ds5_dongle_sink`). If empty, the rule file might have a typo.
+
+**Optional — send only one game's audio (not the whole system)**
+
+By default, all system audio goes to the Pico. If you only want one game to drive the haptics:
+
+1. Install `pavucontrol`: `sudo apt install pavucontrol` (Ubuntu) / `sudo pacman -S pavucontrol` (Arch)
+2. Open `pavucontrol` → **Playback** tab while the game is running
+3. Find the game's stream and change its output to **DS5 Bridge**
+
+Everything else (music, Discord, etc.) will only go to your headset/speakers.
+
+**To fully uninstall the audio routing:**
 
 ```bash
 systemctl --user stop ds5-haptics-loopback.service
 rm ~/.config/systemd/user/ds5-haptics-loopback.service
 sudo rm -f /etc/udev/rules.d/70-ds5dongle.rules /usr/lib/ds5dongle/ds5dongle-loopback-stop
 rm -f ~/.config/wireplumber/wireplumber.conf.d/51-ds5dongle.conf
-systemctl --user daemon-reload && sudo udevadm control --reload-rules
+systemctl --user daemon-reload
+sudo udevadm control --reload-rules
 systemctl --user restart wireplumber pipewire
 ```
-
-**Per-game routing (Steam / Proton):**
-
-To send only one game's audio to the Pico instead of your whole system output:
-
-1. Open `pavucontrol` → **Playback** tab while the game is running
-2. Find the game's audio stream
-3. Change its output to **DS5 Bridge**
-
-Everything else keeps playing through your normal output.
 
 ---
 
 #### Windows
 
-The Pico appears in Windows as a USB audio device. Windows has no native way to send audio to two outputs simultaneously — use **VoiceMeeter Banana** (free) to duplicate the stream to both your headset and the Pico.
+The Pico appears in Windows as a USB sound card called **DualSense Wireless Controller**. Windows can only send audio to one output at a time, so you need a small free tool (**VoiceMeeter Banana**) to duplicate the audio — one copy to your headset, one to the Pico.
 
-**VoiceMeeter Banana setup:**
+**1. Install VoiceMeeter Banana**
 
-1. Download and install **[VoiceMeeter Banana](https://vb-audio.com/Voicemeeter/banana.htm)**, then **restart your PC**
-2. In Windows Sound settings → set **VoiceMeeter Input** as the default playback device
-3. Open VoiceMeeter Banana:
-   - **Hardware Out A1** → your headset or speakers
-   - **Hardware Out A2** → **DualSense Wireless Controller** (the Pico)
-4. On the **VoiceMeeter VAIO** input strip → enable both **A1** and **A2** (both buttons lit)
+1. Download **[VoiceMeeter Banana](https://vb-audio.com/Voicemeeter/banana.htm)** and install it
+2. **Restart your PC** when prompted — this is required for the virtual audio drivers to load
 
-All audio now goes to your headset **and** the Pico at the same time.
+**2. Set VoiceMeeter as the default audio device**
+
+1. Right-click the speaker icon in the taskbar → **Sound settings** (or **Open Sound settings**)
+2. Under **Output**, select **VoiceMeeter Input** as the default device
+
+> 💡 All your apps will now route audio through VoiceMeeter. Don't worry — you'll configure VoiceMeeter to send that audio to your headset in the next step.
+
+**3. Configure VoiceMeeter Banana**
+
+Open VoiceMeeter Banana, then:
+
+- **Hardware Out A1** → select your headset or speakers (your normal audio output)
+- **Hardware Out A2** → select **DualSense Wireless Controller** (this is the Pico)
+- On the **VoiceMeeter VAIO** input strip (the first virtual input on the left) → click both **A1** and **A2** buttons so they're both lit
+
+> ✅ **How to know it worked:** play any audio — you should hear it normally through your headset, and the DualSense should vibrate in sync with the sound.
 
 ---
 
 ## 🎛️ Configuration
 
-### Web app — recommended
+### Step 5 — Open the config tool
 
-Open **[DS5 Bridge Config](https://loteran.github.io/ds5dongle-config/)** in **Chrome or Edge** (WebHID — Firefox not supported).
+Once everything above is working, use the config tool to tune the haptics to your taste.
 
-1. Click **Connect** → select the DS5Dongle from the browser dialog
-2. Config is read automatically from the device
-3. Adjust settings
-4. Click **Save to Device** — written to flash, persists across reboots
+#### Web app — recommended
 
-### Desktop app (Flatpak)
+The easiest option — works directly in your browser, no installation needed.
 
-A native desktop app (`config-app/`) is also available — no browser required, works on
-any Linux distribution. It exposes every setting from the web app plus **named presets**
-(save/load/delete your favourite configurations).
+1. Open **[DS5 Bridge Config](https://loteran.github.io/ds5dongle-config/)** in **Chrome or Edge**  
+   > ⚠️ Firefox is not supported (it doesn't support WebHID, the browser API used to communicate with the Pico)
+2. Click **Connect** → a dialog appears — select **DS5Dongle** from the list and click **Connect**
+3. The current settings are loaded automatically from the Pico
+4. Change any setting
+5. Click **Save to Device** — the settings are written to the Pico's memory and survive reboots
 
-**Install from the bundled `.flatpak`** (attached to each [release](https://github.com/loteran/DS5Dongle/releases)):
+#### Desktop app (Flatpak)
+
+A native Linux app — no browser needed. Also adds **named presets** (save/load your favourite configurations).
+
+Download the `.flatpak` file from the [latest release](https://github.com/loteran/DS5Dongle/releases), then install:
 
 ```bash
-# 1. KDE runtime (one time — skip if already installed)
+# 1. Install the KDE runtime (needed once — skip if already done)
 flatpak install flathub org.kde.Platform//6.8
 
 # 2. Install the app
 flatpak install ./DS5DongleConfig.flatpak
 
-# 3. Launch
+# 3. Launch it
 flatpak run com.github.loteran.DS5DongleConfig
 ```
 
-It also appears in your application menu as **DS5Dongle Config**.
+It also appears as **DS5Dongle Config** in your app menu.
 
-> **HID permissions:** the app needs read/write access to the Pico over USB HID. The
-> Flatpak ships with the `--device=all` permission so this works out of the box. If you
-> run the app *outside* Flatpak (e.g. `python3 config-app/main.py`), install the udev rule
-> first so your user can reach `/dev/hidraw*`:
->
-> ```bash
-> sudo cp config-app/70-ds5dongle.rules /etc/udev/rules.d/
-> sudo udevadm control --reload-rules && sudo udevadm trigger --subsystem-match=hidraw
-> # then replug the Pico
-> ```
+> 💡 **Presets** are saved in `~/.config/ds5dongle/presets/`. Use **Save As…** to name and save your current settings, **Load** to recall them, and **Delete** to remove one.
 
-**Presets** are stored as JSON in `~/.config/ds5dongle/presets/`. Use **Save As…** to
-capture the current settings, **Load** to recall them into the form (then click **Save to
-Device** to apply), and **Delete** to remove one.
+---
 
 ### Controller shortcuts
 
-These work at any time without opening the config page:
+These shortcuts work at any time, even without opening the config tool:
 
 | Shortcut | Action |
 |----------|--------|
 | **PS + Triangle** | Power off the controller |
-| **PS + Circle** | Toggle touchpad on/off (runtime only, not saved to flash) |
+| **PS + Circle** | Toggle touchpad on/off *(not saved — resets on reconnect)* |
 
-Both can be enabled/disabled from the config page.
+> 💡 Both shortcuts can be disabled from the config page if you don't want them.
+
+---
 
 ### Auto Haptics settings
 
-| Setting | Description | Default |
-|---------|-------------|---------|
-| **Mode** | 0=off · 1=mix · 2=replace | 2 |
-| **Intensity** | Strength as % of Haptics Gain | 100% |
-| **Low-pass cutoff** | 0=80Hz · 1=160Hz · 2=250Hz · 3=400Hz | 0 (80 Hz) |
+These are the three settings that control how the audio is converted to vibrations:
 
-**Tuning tips:**
-- Start with **Replace + 80 Hz + 100%** (defaults)
-- Increase intensity if vibrations feel too weak
-- Use **80 Hz** for heavy bass feel (racing, explosions)
-- Use **250–400 Hz** for more detail (FPS — footsteps, reloads)
-- Use **Mix** if the game already sends haptics and you want both
+| Setting | What it does | Default |
+|---------|-------------|---------|
+| **Mode** | **0** = disabled · **1** = mix audio haptics with game haptics · **2** = audio haptics only | 2 |
+| **Intensity** | How strong the vibrations are (percentage) | 100% |
+| **Low-pass cutoff** | Which frequencies trigger vibrations — lower = more bass-heavy | 0 (80 Hz) |
+
+**Which settings to use:**
+
+| You want… | Use these settings |
+|---|---|
+| Strong bass rumble (racing, explosions) | Mode 2 · 80 Hz · 100% |
+| More detail (FPS footsteps, reloads) | Mode 2 · 250–400 Hz · 100% |
+| Vibrations are too weak | Increase intensity to 120–150% |
+| Vibrations are too strong | Decrease intensity to 50–80% |
+| Game already sends haptics + you want audio too | Mode 1 (mix) |
+| Turn haptics off temporarily | Mode 0 |
+
+---
 
 ### Python script (CLI / no Chrome)
+
+For advanced users who prefer the command line:
 
 ```bash
 pip install hidapi
 
-# Read config
+# Show current config
 python3 scripts/set_ds5.py
 
-# Enable auto haptics — replace mode, 160 Hz, 120% intensity
+# Turn on auto haptics — audio-only mode, 160 Hz filter, 120% intensity
 python3 scripts/set_ds5.py --auto-haptics-enable 2 --auto-haptics-gain 120 --auto-haptics-lowpass 1
 
-# Disable auto haptics
+# Turn off auto haptics
 python3 scripts/set_ds5.py --auto-haptics-enable 0
 
-# All options
+# See all available options
 python3 scripts/set_ds5.py --help
 ```
+
+> 💡 On Linux, you may need to install the udev rule first so your user can access the device without `sudo`:
+> ```bash
+> sudo cp 70-ds5dongle.rules /etc/udev/rules.d/
+> sudo udevadm control --reload-rules && sudo udevadm trigger --subsystem-match=hidraw
+> # then replug the Pico
+> ```
+
+---
+
+## 🔍 Troubleshooting
+
+### The Pico doesn't appear as RP2350 when I hold BOOTSEL
+
+- Make sure you're holding BOOTSEL **before** plugging in the cable, and releasing it **after**
+- Try a different USB cable — many cheap cables are charge-only and don't carry data
+- Try a different USB port (USB 2.0 ports sometimes work better than USB 3.0)
+
+### The DualSense won't pair (light bar keeps flashing)
+
+- Make sure the Pico firmware was flashed correctly (repeat Step 2)
+- Hold **PS + Create** for at least 5 seconds — the light bar needs to blink rapidly before pairing starts
+- Move the controller closer to the Pico during pairing (within 1 metre)
+- Unplug and replug the Pico, then try pairing again
+
+### Linux: the loopback service is not active
+
+```bash
+# Check why it failed
+systemctl --user status ds5-haptics-loopback.service
+journalctl --user -u ds5-haptics-loopback.service -n 30
+```
+
+Common causes:
+- **`ds5_dongle_sink` not found** — the WirePlumber rule wasn't applied. Restart WirePlumber (`systemctl --user restart wireplumber`) and replug the Pico
+- **Service not found** — the `.service` file wasn't installed. Redo step 3 of the Linux audio setup
+- **`pw-loopback` not found** — install PipeWire tools: `sudo apt install pipewire-audio` (Ubuntu) / `sudo pacman -S pipewire` (Arch)
+
+### Linux: the DualSense audio profile keeps changing back
+
+Run this command once to lock it to pro-audio:
+
+```bash
+pactl set-card-profile alsa_card.usb-Sony_Interactive_Entertainment_DualSense_Wireless_Controller-00 pro-audio
+```
+
+If the problem persists, check your WirePlumber configuration file for typos.
+
+### Windows: I can't hear any audio after setting VoiceMeeter as default
+
+Open VoiceMeeter Banana and check:
+- **A1** on the VAIO input strip is lit (sends audio to your headset)
+- **Hardware Out A1** is set to your correct headset/speakers
+- VoiceMeeter is not muted (no mute button active)
+
+Also check that Windows Sound settings still shows **VoiceMeeter Input** as the default — some apps reset it.
+
+### The controller vibrates but the haptics feel wrong / too weak / too strong
+
+Open the [config tool](#step-5--open-the-config-tool) and adjust:
+- **Intensity**: start at 100%, go up to 150% if too weak or down to 50% if too strong
+- **Low-pass cutoff**: 80 Hz for deep bass rumble, 250–400 Hz for sharper impacts
+- **Mode**: if the game already sends native haptics and they clash, try Mode 2 (audio only)
 
 ---
 
