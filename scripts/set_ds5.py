@@ -1,7 +1,11 @@
 #!/usr/bin/env python3
 """
 DS5Dongle configuration tool.
-Requires: python-hidapi (pip install hidapi)  — NOT python-hid
+
+Works with either Python HID binding:
+  - cython-hidapi   (`pip install hidapi`,  module exposes `hid.device()`)
+  - the `hid` package (`pip install hid`,   module exposes `hid.Device(...)`)
+Most distros ship one or the other; both are supported transparently.
 """
 
 import struct
@@ -11,7 +15,7 @@ import argparse
 try:
     import hid
 except ImportError:
-    print("[ERROR] Missing dependency: install with  pip install hidapi")
+    print("[ERROR] Missing dependency: install with  pip install hidapi  (or  pip install hid)")
     sys.exit(1)
 
 SONY_VID = 0x054C
@@ -48,11 +52,25 @@ AUTO_HAP_MODES    = {
 # Device helpers
 # ---------------------------------------------------------------------------
 
+def _open_hid(vid, pid):
+    """Open the HID device with whichever python HID binding is installed.
+
+    cython-hidapi exposes ``hid.device()`` + ``.open(vid, pid)``; the ``hid``
+    package exposes ``hid.Device(vid, pid)``. Both raise on failure.
+    """
+    if hasattr(hid, "device"):          # cython-hidapi
+        device = hid.device()
+        device.open(vid, pid)
+        return device
+    if hasattr(hid, "Device"):          # 'hid' package (apmorton)
+        return hid.Device(vid, pid)
+    raise RuntimeError("Unsupported 'hid' module (expected hidapi or the hid package)")
+
+
 def open_device():
     for pid, label in [(DS5_PID, "DualSense"), (DSE_PID, "DualSense Edge")]:
         try:
-            device = hid.device()
-            device.open(SONY_VID, pid)
+            device = _open_hid(SONY_VID, pid)
             print(f"[INFO] Connected to {label}")
             return device
         except Exception:

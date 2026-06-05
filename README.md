@@ -263,6 +263,26 @@ monitor.alsa.rules = [
       }
     }
   }
+  {
+    # Disable the Pico's audio capture (mic) endpoint. The pro-audio profile is
+    # duplex, so PipeWire keeps the USB capture interface active alongside
+    # playback. On the Pico that capture traffic contends with the Bluetooth
+    # link and silently kills the haptics output (the controller stops
+    # vibrating). The dongle is a haptics/audio *output* device only, so we
+    # disable its source to free the BT link. Without this rule, auto-haptics
+    # work with `aplay` (playback-only) but not through PipeWire.
+    matches = [
+      { alsa.components = "USB054c:0ce6"
+        media.class     = "Audio/Source" }
+      { alsa.components = "USB054c:0df2"
+        media.class     = "Audio/Source" }
+    ]
+    actions = {
+      update-props = {
+        node.disabled = true
+      }
+    }
+  }
 ]
 ```
 
