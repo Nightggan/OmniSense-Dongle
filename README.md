@@ -224,6 +224,18 @@ The Pico needs to "hear" your game audio to turn it into vibrations. This step c
 
 > 💡 **What is PipeWire?** It's the audio system used by modern Linux distributions (Ubuntu 22.04+, Fedora 34+, Arch, etc.). These commands configure it to send a copy of your audio to the Pico automatically whenever it's plugged in.
 
+> ⚡ **Quick install (recommended).** Instead of the manual steps below, run the
+> installer from a checked-out tree — it sets everything up system-wide
+> (for all user accounts) and configures udev so the loopback starts/stops with
+> the dongle:
+>
+> ```bash
+> ./scripts/install-pipewire-config.sh
+> ```
+>
+> The manual steps below do exactly the same thing if you prefer to understand
+> or customise each piece.
+
 **1. Give the Pico a stable name**
 
 By default, PipeWire gives the Pico a random name that can change each time you plug it in. This command gives it a fixed name (`ds5_dongle_sink`) so the rest of the setup always finds it.
