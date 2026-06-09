@@ -1,6 +1,6 @@
-# DS5Dongle — Auto Haptics Edition
+<h1 align="center">DS5Dongle — Auto Haptics Edition</h1>
 
-☕ [Buy me a coffee](https://ko-fi.com/loteran) if you find it useful!
+<p align="center"><a href="https://ko-fi.com/W7W31VXIVC"><img src="https://ko-fi.com/img/githubbutton_sm.svg" alt="ko-fi"></a></p>
 
 > **Fork of [awalol/DS5Dongle](https://github.com/awalol/DS5Dongle)**  
 > Adds **Audio Auto Haptics**: your DualSense vibrates in sync with the game's sounds — footsteps, gunshots, explosions — even when the game has no haptic support.
