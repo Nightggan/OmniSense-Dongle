@@ -6,11 +6,11 @@
   "author": "loteran",
   "productName": "DS5 Audio Haptics BT",
   "license": "MIT",
-  "main": "dist/main/index.js",
+  "main": "out/main/index.js",
   "scripts": {
     "dev": "electron-vite dev",
     "build": "electron-vite build",
-    "build:linux": "npm run build && electron-builder --linux AppImage",
+    "build:linux": "npm run build && CXXFLAGS='-std=c++17' electron-builder --linux AppImage",
     "build:win": "npm run build && electron-builder --win nsis",
     "typecheck": "tsc -p tsconfig.node.json --noEmit && tsc -p tsconfig.web.json --noEmit",
     "lint": "eslint src --ext .ts,.tsx"

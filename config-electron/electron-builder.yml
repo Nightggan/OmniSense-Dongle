@@ -3,7 +3,7 @@ productName: DS5 Audio Haptics BT
 directories:
   output: dist-electron
 files:
-  - dist/**/*
+  - out/**/*
   - package.json
 asarUnpack:
   - node_modules/node-hid/**
@@ -11,7 +11,6 @@ asarUnpack:
 npmRebuild: true
 
 linux:
-  icon: resources/icon.png
   category: Utility
   target:
     - target: AppImage
@@ -22,7 +21,6 @@ extraResources:
     to: 70-ds5dongle.rules
 
 win:
-  icon: resources/icon.ico
   signAndEditExecutable: false
   target:
     - target: nsis

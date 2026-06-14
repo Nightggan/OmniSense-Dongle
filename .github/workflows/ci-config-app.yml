@@ -1,0 +1,16 @@
+name: CI — config app
+
+# Build check on every push that touches config-electron/.
+# Produces AppImage + NSIS as downloadable artifacts (no release upload).
+
+on:
+  push:
+    paths:
+      - config-electron/**
+  workflow_dispatch:
+
+jobs:
+  build:
+    uses: ./.github/workflows/build-config-app.yml
+    with:
+      ref: ${{ github.sha }}

@@ -1,0 +1,81 @@
+name: Build config app (reusable)
+
+# Reusable build for the Electron config app (config-electron/).
+# Builds AppImage (Linux x64) and NSIS installer (Windows x64) in a matrix.
+# When `upload_tag` is set the built binaries are attached to that release.
+
+on:
+  workflow_call:
+    inputs:
+      ref:
+        description: Git ref (branch, tag or SHA) to build
+        required: false
+        type: string
+        default: ""
+      upload_tag:
+        description: If set, attach built artifacts to this release tag
+        required: false
+        type: string
+        default: ""
+
+jobs:
+  build:
+    name: Build ${{ matrix.label }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            label: Linux AppImage
+            build_cmd: build:linux
+            artifact_glob: "dist-electron/*.AppImage"
+          - os: windows-latest
+            label: Windows NSIS
+            build_cmd: build:win
+            artifact_glob: "dist-electron/*.exe"
+
+    defaults:
+      run:
+        working-directory: config-electron
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install Linux build deps
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends \
+            libusb-1.0-0-dev libudev-dev \
+            rpm fakeroot
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Build
+        run: npm run ${{ matrix.build_cmd }}
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: config-app-${{ matrix.os }}
+          path: config-electron/${{ matrix.artifact_glob }}
+          if-no-files-found: error
+
+      - name: Attach to release
+        if: inputs.upload_tag != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          gh release upload "${{ inputs.upload_tag }}" ${{ matrix.artifact_glob }} \
+            --repo "${{ github.repository }}" --clobber

@@ -1,5 +1,5 @@
 node_modules/
-dist/
+out/
 dist-electron/
 *.log
 .DS_Store

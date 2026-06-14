@@ -1,0 +1,23 @@
+name: Release config app
+
+# Triggered when a release whose tag starts with "app-v" is published.
+# Builds AppImage + NSIS and attaches them to that release.
+#
+# Workflow:
+#   1. gh release create app-v1.0.0 --title "Config app v1.0.0" --notes "..."
+#   2. Publish the release → this workflow fires automatically.
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    if: startsWith(github.event.release.tag_name, 'app-v')
+    uses: ./.github/workflows/build-config-app.yml
+    with:
+      ref: ${{ github.event.release.tag_name }}
+      upload_tag: ${{ github.event.release.tag_name }}
