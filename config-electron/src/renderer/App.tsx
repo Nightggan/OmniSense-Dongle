@@ -8,6 +8,7 @@ import ControllerSection from './components/sections/ControllerSection';
 import PowerSection from './components/sections/PowerSection';
 import ShortcutsSection from './components/sections/ShortcutsSection';
 import LightbarSection from './components/sections/LightbarSection';
+import PresetBar from './components/PresetBar';
 import { useDevice } from './hooks/useDevice';
 import { useConfigStore } from './state/configStore';
 import { ds5 } from './ipc/client';
@@ -37,6 +38,8 @@ export default function App() {
         onConnect={device.connect}
         onDisconnect={device.disconnect}
       />
+
+      <PresetBar connected={device.connected} />
 
       <main className="main-scroll">
         {!device.connected && <Splash error={device.error} />}

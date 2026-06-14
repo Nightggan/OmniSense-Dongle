@@ -399,6 +399,63 @@ button:disabled {
   margin: 6px 0;
 }
 
+/* ---- Preset bar ---- */
+.preset-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 16px;
+  background: var(--bg-surface);
+  border-bottom: 1px solid rgba(255,255,255,.06);
+  flex-shrink: 0;
+}
+
+.preset-select {
+  flex: 1;
+  min-width: 140px;
+  max-width: 220px;
+}
+
+.preset-del {
+  padding: 4px 8px;
+  font-size: 14px;
+  line-height: 1;
+  color: var(--color-err);
+  border-color: rgba(255,77,79,.3);
+}
+
+.preset-divider {
+  width: 1px;
+  height: 20px;
+  background: rgba(255,255,255,.1);
+  margin: 0 4px;
+  flex-shrink: 0;
+}
+
+.preset-name-input {
+  background: var(--bg-input);
+  color: var(--text);
+  border: 1px solid rgba(255,255,255,.12);
+  border-radius: var(--radius);
+  padding: 4px 8px;
+  font-size: 12px;
+  font-family: inherit;
+  outline: none;
+  min-width: 140px;
+  flex: 1;
+  max-width: 200px;
+}
+
+.preset-name-input::placeholder { color: var(--text-dim); }
+.preset-name-input:focus { border-color: var(--accent-lit); }
+
+.preset-error {
+  font-size: 14px;
+  color: var(--color-warn);
+  cursor: help;
+  flex-shrink: 0;
+}
+
 /* ---- Footer ---- */
 .footer {
   height: var(--footer-h);

@@ -34,6 +34,7 @@ const IPC = {
   PRESETS_DELETE: "presets:delete"
 };
 const IPC_EVENTS = {
+  DEVICE_CHANGED: "device:changed",
   DEVICE_TELEMETRY: "device:telemetry"
 };
 const SONY_VID = 1356;
@@ -250,21 +251,102 @@ class WindowsBattery {
     return null;
   }
 }
+const PRESET_SCHEMA_VERSION = 1;
+const PRESET_NAME_RE = /^[\w\s-]+$/;
+function isValidPresetName(name) {
+  return name.trim().length > 0 && PRESET_NAME_RE.test(name);
+}
+function toSafeFilename(name) {
+  return name.trim().replace(/\s+/g, "_").toLowerCase();
+}
 class PresetStore {
+  presetsDir() {
+    const dir = path.join(electron.app.getPath("userData"), "presets");
+    fs.mkdirSync(dir, { recursive: true });
+    return dir;
+  }
+  filePath(name) {
+    return path.join(this.presetsDir(), `${toSafeFilename(name)}.json`);
+  }
   list() {
-    return [];
+    const dir = this.presetsDir();
+    const summaries = [];
+    for (const entry of fs.readdirSync(dir)) {
+      if (!entry.endsWith(".json")) continue;
+      try {
+        const raw = fs.readFileSync(path.join(dir, entry), "utf-8");
+        const file = JSON.parse(raw);
+        summaries.push({ name: file.name, savedAt: file.savedAt });
+      } catch {
+      }
+    }
+    return summaries.sort((a, b) => b.savedAt.localeCompare(a.savedAt));
   }
-  load(_name) {
-    throw new Error("not implemented");
+  load(name) {
+    const raw = fs.readFileSync(this.filePath(name), "utf-8");
+    const file = JSON.parse(raw);
+    return file.config;
   }
-  save(_name, _config) {
-    throw new Error("not implemented");
+  save(name, config) {
+    if (!isValidPresetName(name)) throw new Error(`Invalid preset name: "${name}"`);
+    const file = {
+      _schema: PRESET_SCHEMA_VERSION,
+      name,
+      savedAt: (/* @__PURE__ */ new Date()).toISOString(),
+      config
+    };
+    fs.writeFileSync(this.filePath(name), JSON.stringify(file, null, 2), "utf-8");
   }
-  delete(_name) {
-    throw new Error("not implemented");
+  delete(name) {
+    const path2 = this.filePath(name);
+    if (fs.existsSync(path2)) fs.unlinkSync(path2);
   }
 }
 const presetStore = new PresetStore();
+const usbModule = require("usb");
+const usbBus = usbModule.usb;
+function isDS5Dongle(device) {
+  const { idVendor, idProduct } = device.deviceDescriptor;
+  return idVendor === SONY_VID && (idProduct === DS5_PID || idProduct === EDGE_PID);
+}
+let attachListener = null;
+let detachListener = null;
+function startHotplugWatcher(cb) {
+  attachListener = (device) => {
+    if (isDS5Dongle(device)) cb("attach");
+  };
+  detachListener = (device) => {
+    if (isDS5Dongle(device)) cb("detach");
+  };
+  usbBus.on("attach", attachListener);
+  usbBus.on("detach", detachListener);
+  usbBus.setMaxListeners(20);
+}
+function stopHotplugWatcher() {
+  if (attachListener) {
+    usbBus.off("attach", attachListener);
+    attachListener = null;
+  }
+  if (detachListener) {
+    usbBus.off("detach", detachListener);
+    detachListener = null;
+  }
+}
+function waitForReattach(timeoutMs = 5e3) {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => {
+      usbBus.off("attach", onAttach);
+      reject(new Error("USB reconnect timeout"));
+    }, timeoutMs);
+    const onAttach = (device) => {
+      if (!isDS5Dongle(device)) return;
+      clearTimeout(timer);
+      usbBus.off("attach", onAttach);
+      setTimeout(resolve, 300);
+    };
+    usbBus.on("attach", onAttach);
+  });
+}
 const batteryProvider = process.platform === "linux" ? new LinuxUpower() : new WindowsBattery();
 function registerHandlers() {
   electron.ipcMain.handle(IPC.DEVICE_CONNECT, () => {
@@ -303,7 +385,7 @@ function registerHandlers() {
     hapticsDongle.saveConfig();
     if (reconnect) {
       hapticsDongle.reconnectUsb();
-      await new Promise((r) => setTimeout(r, 2500));
+      await waitForReattach(5e3);
       hapticsDongle.connect();
       return hapticsDongle.readConfig();
     }
@@ -330,6 +412,28 @@ function startTelemetryTimer(win) {
     const payload = { battery, rssi };
     win.webContents.send(IPC_EVENTS.DEVICE_TELEMETRY, payload);
   }, TELEMETRY_INTERVAL_MS);
+}
+function setupHotplugEvents(win) {
+  startHotplugWatcher((event) => {
+    if (win.isDestroyed()) return;
+    if (event === "attach") {
+      try {
+        const model = hapticsDongle.connect();
+        let firmwareVersion;
+        try {
+          firmwareVersion = hapticsDongle.readFirmwareVersion();
+        } catch {
+        }
+        win.webContents.send(IPC_EVENTS.DEVICE_CHANGED, { connected: true, model, firmwareVersion });
+      } catch {
+        win.webContents.send(IPC_EVENTS.DEVICE_CHANGED, { connected: false });
+      }
+    } else {
+      hapticsDongle.disconnect();
+      win.webContents.send(IPC_EVENTS.DEVICE_CHANGED, { connected: false });
+    }
+  });
+  electron.app.on("quit", stopHotplugWatcher);
 }
 const DEFAULT_WIDTH = 780;
 const DEFAULT_HEIGHT = 900;
@@ -366,6 +470,7 @@ electron.app.whenReady().then(() => {
   const win = createWindow();
   registerHandlers();
   startTelemetryTimer(win);
+  setupHotplugEvents(win);
 });
 electron.app.on("window-all-closed", () => {
   if (process.platform !== "darwin") electron.app.quit();

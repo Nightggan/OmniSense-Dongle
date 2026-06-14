@@ -1,6 +1,6 @@
 // Registers all ipcMain.handle channels and the periodic telemetry push.
 
-import { ipcMain, BrowserWindow } from 'electron';
+import { app, ipcMain, BrowserWindow } from 'electron';
 import type { DS5Config } from '../../shared/config';
 import { RECONNECT_FIELDS } from '../../shared/config';
 import { IPC, IPC_EVENTS } from '../../shared/ipc';
@@ -10,6 +10,7 @@ import { LinuxUpower } from '../battery/linuxUpower';
 import { WindowsBattery } from '../battery/windowsBattery';
 import type { BatteryProvider } from '../battery/BatteryProvider';
 import { presetStore } from '../presets/PresetStore';
+import { startHotplugWatcher, stopHotplugWatcher, waitForReattach } from '../hid/hotplug';
 
 const batteryProvider: BatteryProvider = process.platform === 'linux'
   ? new LinuxUpower()
@@ -56,10 +57,10 @@ export function registerHandlers(): void {
     hapticsDongle.saveConfig();
 
     if (reconnect) {
-      // reconnectUsb() triggers USB soft-reset and calls disconnect() internally.
-      // Step 6 will replace this timeout with a proper hotplug event wait.
+      // reconnectUsb() triggers USB soft-reset; the handle is invalid immediately.
       hapticsDongle.reconnectUsb();
-      await new Promise((r) => setTimeout(r, 2500));
+      // Wait for the device to re-enumerate instead of a blind sleep.
+      await waitForReattach(5000);
       hapticsDongle.connect();
       return hapticsDongle.readConfig();
     }
@@ -71,7 +72,7 @@ export function registerHandlers(): void {
     hapticsDongle.saveConfig();
   });
 
-  // Presets — TODO: implement in step 6
+  // Presets
   ipcMain.handle(IPC.PRESETS_LIST,   () => presetStore.list());
   ipcMain.handle(IPC.PRESETS_LOAD,   (_e, name: string) => presetStore.load(name));
   ipcMain.handle(IPC.PRESETS_SAVE,   (_e, name: string, cfg: DS5Config) => presetStore.save(name, cfg));
@@ -96,12 +97,29 @@ export function startTelemetryTimer(win: BrowserWindow): void {
   }, TELEMETRY_INTERVAL_MS);
 }
 
-// --- Hot-plug push — emitted by hotplug.ts, forwarded to renderer ---
+// --- Hot-plug push — auto-connect/disconnect forwarded to renderer ---
 
 export function setupHotplugEvents(win: BrowserWindow): void {
-  // TODO: step 6 — wire startHotplugWatcher() here
-  // On attach → hapticsDongle.connect() → win.webContents.send(IPC_EVENTS.DEVICE_CHANGED, { connected: true, model })
-  // On detach → hapticsDongle.disconnect() → win.webContents.send(IPC_EVENTS.DEVICE_CHANGED, { connected: false })
+  startHotplugWatcher((event) => {
+    if (win.isDestroyed()) return;
+
+    if (event === 'attach') {
+      try {
+        const model = hapticsDongle.connect();
+        let firmwareVersion: string | undefined;
+        try { firmwareVersion = hapticsDongle.readFirmwareVersion(); } catch { /* optional */ }
+        win.webContents.send(IPC_EVENTS.DEVICE_CHANGED, { connected: true, model, firmwareVersion });
+      } catch {
+        // Device attached but HID open failed (e.g. permission issue) — still notify as disconnected
+        win.webContents.send(IPC_EVENTS.DEVICE_CHANGED, { connected: false });
+      }
+    } else {
+      hapticsDongle.disconnect();
+      win.webContents.send(IPC_EVENTS.DEVICE_CHANGED, { connected: false });
+    }
+  });
+
+  app.on('quit', stopHotplugWatcher);
 }
 
 // Helper: detect if a config write requires USB reconnect

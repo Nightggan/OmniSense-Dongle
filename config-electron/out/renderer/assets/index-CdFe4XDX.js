@@ -12992,6 +12992,121 @@ function LightbarSection() {
     )
   ] });
 }
+function usePresets() {
+  const [presets, setPresets] = reactExports.useState([]);
+  const [error, setError] = reactExports.useState(null);
+  const { draft, setConfig } = useConfigStore();
+  const refresh = reactExports.useCallback(async () => {
+    try {
+      setPresets(await ds5.presets.list());
+      setError(null);
+    } catch {
+    }
+  }, []);
+  reactExports.useEffect(() => {
+    refresh();
+  }, [refresh]);
+  const load = reactExports.useCallback(async (name) => {
+    try {
+      const cfg = await ds5.presets.load(name);
+      setConfig(cfg);
+      setError(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to load preset");
+    }
+  }, [setConfig]);
+  const save = reactExports.useCallback(async (name) => {
+    if (!draft) {
+      setError("No config loaded");
+      return;
+    }
+    try {
+      await ds5.presets.save(name, draft);
+      await refresh();
+      setError(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to save preset");
+    }
+  }, [draft, refresh]);
+  const remove = reactExports.useCallback(async (name) => {
+    try {
+      await ds5.presets.delete(name);
+      await refresh();
+      setError(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to delete preset");
+    }
+  }, [refresh]);
+  return { presets, load, save, remove, refresh, error };
+}
+const PRESET_NAME_RE = /^[\w\s-]+$/;
+function isValidPresetName(name) {
+  return name.trim().length > 0 && PRESET_NAME_RE.test(name);
+}
+function PresetBar({ connected }) {
+  const { presets, load, save, remove, error } = usePresets();
+  const { draft } = useConfigStore();
+  const [selected, setSelected] = reactExports.useState("");
+  const [newName, setNewName] = reactExports.useState("");
+  const [busy, setBusy] = reactExports.useState(false);
+  async function handleLoad() {
+    if (!selected) return;
+    setBusy(true);
+    await load(selected);
+    setBusy(false);
+  }
+  async function handleDelete() {
+    if (!selected) return;
+    if (!confirm(`Delete preset "${selected}"?`)) return;
+    setBusy(true);
+    await remove(selected);
+    if (selected === selected) setSelected("");
+    setBusy(false);
+  }
+  async function handleSave() {
+    const name = newName.trim();
+    if (!name || !isValidPresetName(name)) return;
+    setBusy(true);
+    await save(name);
+    setNewName("");
+    setBusy(false);
+  }
+  const canLoad = connected && !!selected && !!draft;
+  const canDelete = !!selected;
+  const canSave = connected && !!draft && isValidPresetName(newName.trim());
+  return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "preset-bar", children: [
+    /* @__PURE__ */ jsxRuntimeExports.jsxs(
+      "select",
+      {
+        className: "select-input preset-select",
+        value: selected,
+        onChange: (e) => setSelected(e.target.value),
+        disabled: presets.length === 0,
+        children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "", children: "— Presets —" }),
+          presets.map((p) => /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: p.name, children: p.name }, p.name))
+        ]
+      }
+    ),
+    /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: "btn-secondary", disabled: !canLoad || busy, onClick: handleLoad, children: "Load" }),
+    /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: "btn-secondary preset-del", disabled: !canDelete || busy, onClick: handleDelete, children: "×" }),
+    /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "preset-divider" }),
+    /* @__PURE__ */ jsxRuntimeExports.jsx(
+      "input",
+      {
+        className: "preset-name-input",
+        type: "text",
+        placeholder: "Preset name…",
+        maxLength: 40,
+        value: newName,
+        onChange: (e) => setNewName(e.target.value),
+        onKeyDown: (e) => e.key === "Enter" && handleSave()
+      }
+    ),
+    /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: "btn-primary", disabled: !canSave || busy, onClick: handleSave, children: "Save" }),
+    error && /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "preset-error", title: error, children: "⚠" })
+  ] });
+}
 function useDevice() {
   const [state, setState] = reactExports.useState({
     connected: false,
@@ -13078,6 +13193,7 @@ function App() {
         onDisconnect: device.disconnect
       }
     ),
+    /* @__PURE__ */ jsxRuntimeExports.jsx(PresetBar, { connected: device.connected }),
     /* @__PURE__ */ jsxRuntimeExports.jsxs("main", { className: "main-scroll", children: [
       !device.connected && /* @__PURE__ */ jsxRuntimeExports.jsx(Splash, { error: device.error }),
       device.connected && !draft && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "splash", children: /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "splash-sub", children: "Loading configuration…" }) }),
