@@ -1,0 +1,38 @@
+appId: com.github.loteran.DS5AudioHapticsBT
+productName: DS5 Audio Haptics BT
+directories:
+  output: dist-electron
+files:
+  - dist/**/*
+  - package.json
+asarUnpack:
+  - node_modules/node-hid/**
+  - node_modules/usb/**
+npmRebuild: true
+
+linux:
+  icon: resources/icon.png
+  category: Utility
+  target:
+    - target: AppImage
+      arch:
+        - x64
+extraResources:
+  - from: ../config-app/70-ds5dongle.rules
+    to: 70-ds5dongle.rules
+
+win:
+  icon: resources/icon.ico
+  signAndEditExecutable: false
+  target:
+    - target: nsis
+      arch:
+        - x64
+
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: DS5 Audio Haptics BT
