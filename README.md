@@ -30,7 +30,7 @@
 - [Configuration](#-configuration)
   - [Step 5 — Open the config tool](#step-5--open-the-config-tool)
     - [Web app (recommended)](#web-app--recommended)
-    - [Desktop app (Flatpak)](#desktop-app-flatpak)
+    - [Desktop app — DS5 Audio Haptics BT](#desktop-app--ds5-audio-haptics-bt)
   - [Auto Haptics settings](#auto-haptics-settings)
   - [Python CLI (advanced)](#python-script-cli--no-chrome)
 - [Troubleshooting](#-troubleshooting)
@@ -425,26 +425,34 @@ The easiest option — works directly in your browser, no installation needed.
 4. Change any setting
 5. Click **Save to Device** — the settings are written to the Pico's memory and survive reboots
 
-#### Desktop app (Flatpak)
+#### Desktop app — DS5 Audio Haptics BT
 
-A native Linux app — no browser needed. Also adds **named presets** (save/load your favourite configurations).
+A native cross-platform app (Linux + Windows) — no browser needed. Auto-detects the dongle on plug/unplug and adds **named presets** (save/load your favourite configurations).
 
-Download the `.flatpak` file from the [latest release](https://github.com/loteran/DS5Dongle/releases), then install:
+Download from the [latest `app-v*` release](https://github.com/loteran/DS5Dongle/releases):
+
+**Linux (AppImage, x64)**
 
 ```bash
-# 1. Install the KDE runtime (needed once — skip if already done)
-flatpak install flathub org.kde.Platform//6.8
-
-# 2. Install the app
-flatpak install ./DS5DongleConfig.flatpak
-
-# 3. Launch it
-flatpak run com.github.loteran.DS5DongleConfig
+# Make executable and run
+chmod +x "DS5 Audio Haptics BT-*.AppImage"
+./"DS5 Audio Haptics BT-*.AppImage"
 ```
 
-It also appears as **DS5Dongle Config** in your app menu.
+For access without `sudo`, install the udev rule once (only needed if you skipped step 4's Linux setup):
 
-> 💡 **Presets** are saved in `~/.config/ds5dongle/presets/`. Use **Save As…** to name and save your current settings, **Load** to recall them, and **Delete** to remove one.
+```bash
+sudo install -Dm644 config-app/70-ds5dongle.rules /etc/udev/rules.d/70-ds5dongle.rules
+sudo udevadm control --reload-rules && sudo udevadm trigger
+```
+
+**Windows (installer, x64)**
+
+1. Download `DS5 Audio Haptics BT Setup *.exe` from the release assets
+2. Run the installer
+3. Launch **DS5 Audio Haptics BT** from the Start menu or the desktop shortcut
+
+> 💡 **Presets** are saved in `~/.config/ds5-audio-haptics-bt/presets/` (Linux) or `%APPDATA%\ds5-audio-haptics-bt\presets\` (Windows).
 
 ---
 
