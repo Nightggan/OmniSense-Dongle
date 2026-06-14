@@ -30,7 +30,7 @@ jobs:
             label: Linux AppImage
             build_cmd: build:linux
             artifact_glob: "dist-electron/*.AppImage"
-          - os: windows-latest
+          - os: windows-2022
             label: Windows NSIS
             build_cmd: build:win
             artifact_glob: "dist-electron/*.exe"
@@ -59,9 +59,13 @@ jobs:
             rpm fakeroot
 
       - name: Install dependencies
+        env:
+          npm_config_msvs_version: "2022"
         run: npm install
 
       - name: Build
+        env:
+          npm_config_msvs_version: "2022"
         run: npm run ${{ matrix.build_cmd }}
 
       - name: Upload artifact
