@@ -1,6 +1,9 @@
 MIT License
 
-Copyright (c) 2026 awalol
+Copyright (c) awalol
+Copyright (c) 2026 loteran — auto-haptics audio engine, battery color LED,
+    runtime wake toggle, PyQt6 config app, PipeWire loopback integration,
+    and all additions since the fork
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
