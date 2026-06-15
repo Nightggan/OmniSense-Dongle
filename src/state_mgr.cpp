@@ -5,7 +5,7 @@
 #include <cstddef>
 #include <cstring>
 
-#include "pico/platform.h"
+#include "pico.h"
 #include "utils.h"
 
 namespace {
