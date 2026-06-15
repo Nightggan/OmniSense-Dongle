@@ -69,8 +69,8 @@ if (PICO_W_BUILD)
         set(SYS_CLOCK_KHZ_VALUE 200000)
         set(DISABLE_SPEAKER_PROC_VALUE 1)
 else ()
-        set(CYW43_PIO_CLOCK_DIV_VALUE 5)
-        set(SYS_CLOCK_KHZ_VALUE 320000)
+        set(CYW43_PIO_CLOCK_DIV_VALUE 2)
+        set(SYS_CLOCK_KHZ_VALUE 150000)
 endif ()
 
 

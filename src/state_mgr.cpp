@@ -5,6 +5,7 @@
 #include <cstddef>
 #include <cstring>
 
+#include "pico/platform.h"
 #include "utils.h"
 
 namespace {
@@ -34,7 +35,7 @@ void state_init() {
     memcpy(state, state_init_data, sizeof(state));
 }
 
-void state_set(uint8_t *data, const uint8_t size) {
+void __not_in_flash_func(state_set)(uint8_t *data, const uint8_t size) {
     if (size > 63) {
         printf("[StateMgr] Warning: State Set over 63 bytes\n");
     }

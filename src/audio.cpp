@@ -49,7 +49,7 @@ void set_headset(bool state) {
     plug_headset = state;
 }
 
-void audio_loop() {
+void __not_in_flash_func(audio_loop)() {
     // 1. 读取 USB 音频数据
     if (!tud_audio_available()) {
         // If spk_active is stuck (e.g. game crash without proper USB teardown),
@@ -235,7 +235,7 @@ void audio_init() {
 static OpusEncoder *encoder;
 static WDL_Resampler resampler_audio;
 
-void core1_entry() {
+void __not_in_flash_func(core1_entry)() {
     int error = 0;
     encoder = opus_encoder_create(48000, 2,OPUS_APPLICATION_AUDIO, &error);
     if (error != 0) {
