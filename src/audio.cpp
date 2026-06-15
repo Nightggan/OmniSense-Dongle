@@ -93,8 +93,9 @@ void audio_loop() {
     const float lp_a = 1.0f - expf(-2.0f * M_PI * lp_fc / 48000.0f);
 
     // Persistent DSP state across calls
-    static float lp_l = 0.0f,  lp_r = 0.0f;   // 1-pole LP memory
-    static float env_l = 0.0f, env_r = 0.0f;  // envelope follower memory
+    static float lp_l = 0.0f,  lp_r = 0.0f;     // 1-pole LP memory (speaker ch0/1)
+    static float lp_h_l = 0.0f, lp_h_r = 0.0f;  // 1-pole LP memory (native haptic ch2/3, Mix mode)
+    static float env_l = 0.0f, env_r = 0.0f;    // envelope follower memory
     // Attack ~1 ms, release ~80 ms (values are per-frame at 48 kHz, not per-sample)
     constexpr float ENV_ATK = 0.40f;
     constexpr float ENV_REL = 0.025f;
@@ -147,9 +148,13 @@ void audio_loop() {
                 h_l = al;
                 h_r = ar;
             } else {
-                // Mix mode: add derived signal on top of native haptics then re-clip
-                float m_l = h_l + al;
-                float m_r = h_r + ar;
+                // Mix mode: LP-filter native haptic channels before mixing to prevent
+                // full-band audio leaking to actuators when ch2/3 mirror ch0/1
+                // (e.g. Windows/VoiceMeeter routing 4ch with duplicated stereo)
+                lp_h_l += lp_a * (h_l - lp_h_l);
+                lp_h_r += lp_a * (h_r - lp_h_r);
+                float m_l = lp_h_l + al;
+                float m_r = lp_h_r + ar;
                 h_l = m_l / (1.0f + (m_l < 0.0f ? -m_l : m_l));
                 h_r = m_r / (1.0f + (m_r < 0.0f ? -m_r : m_r));
             }
