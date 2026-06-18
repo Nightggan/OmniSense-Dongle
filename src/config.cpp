@@ -72,7 +72,7 @@ void config_valid() {
         printf("[Config] polling_rate_mode is invalid\n");
     }
     if (body->audio_buffer_length < 16 || body->audio_buffer_length > 128) {
-        body->audio_buffer_length = 64;
+        body->audio_buffer_length = 16;
         printf("[Config] haptics_buffer_length is invalid\n");
     }
     if (body->controller_mode > 2) {
@@ -114,6 +114,12 @@ void config_valid() {
     // erased flash tail reads 0xFF, which the >1 clamp turns into 0.
     if (body->wake_enable > 1) {
         body->wake_enable = 0;
+    }
+    if (body->auto_haptics_mute_replace > 1) {
+        body->auto_haptics_mute_replace = 0;
+    }
+    if (body->auto_haptics_mute_mix > 1) {
+        body->auto_haptics_mute_mix = 0;
     }
 }
 

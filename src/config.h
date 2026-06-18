@@ -27,6 +27,8 @@ struct __attribute__((packed)) Config_body {
     uint8_t touchpad_button;          // ShortcutButton: which button + PS toggles touchpad (default 2=Circle)
     uint8_t battery_color_enable;     // 1: change lightbar color based on battery level, 0: disabled
     uint8_t wake_enable;              // 1: power off controller on host sleep + wake host on reconnect, 0: disabled
+    uint8_t auto_haptics_mute_replace; // 1: mute speaker when Replace mode active
+    uint8_t auto_haptics_mute_mix;     // 1: mute speaker when Mix mode active
 };
 
 // Button IDs used in poweroff_button / touchpad_button

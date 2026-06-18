@@ -30,6 +30,9 @@ export function unpackConfig(raw: Buffer): DS5Config {
     poweroffButton:            raw.readUInt8(o.poweroffButton),
     touchpadButton:            raw.readUInt8(o.touchpadButton),
     batteryColorEnable:        raw.readUInt8(o.batteryColorEnable) !== 0,
+    wakeEnable:                raw.readUInt8(o.wakeEnable) !== 0,
+    autoHapticsMuteReplace:    raw.readUInt8(o.autoHapticsMuteReplace) !== 0,
+    autoHapticsMuteMix:        raw.readUInt8(o.autoHapticsMuteMix) !== 0,
   };
 
   return cfg;
@@ -54,7 +57,10 @@ export function packConfig(cfg: DS5Config): Buffer {
   buf.writeUInt8(cfg.enableTouchpad ? 1 : 0,  o.enableTouchpad);
   buf.writeUInt8(cfg.poweroffButton,           o.poweroffButton);
   buf.writeUInt8(cfg.touchpadButton,           o.touchpadButton);
-  buf.writeUInt8(cfg.batteryColorEnable ? 1 : 0, o.batteryColorEnable);
+  buf.writeUInt8(cfg.batteryColorEnable ? 1 : 0,      o.batteryColorEnable);
+  buf.writeUInt8(cfg.wakeEnable ? 1 : 0,              o.wakeEnable);
+  buf.writeUInt8(cfg.autoHapticsMuteReplace ? 1 : 0,  o.autoHapticsMuteReplace);
+  buf.writeUInt8(cfg.autoHapticsMuteMix ? 1 : 0,      o.autoHapticsMuteMix);
 
   return buf;
 }

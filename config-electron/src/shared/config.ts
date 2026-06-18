@@ -15,6 +15,9 @@ export interface DS5Config {
   poweroffButton: number;             // uint8 [0–8]
   touchpadButton: number;             // uint8 [0–8]
   batteryColorEnable: boolean;        // uint8
+  wakeEnable: boolean;               // uint8 — preserved but not exposed in UI
+  autoHapticsMuteReplace: boolean;   // uint8 — auto-mute speaker in Replace mode
+  autoHapticsMuteMix: boolean;       // uint8 — auto-mute speaker in Mix mode
 }
 
 export const DEFAULTS: DS5Config = {
@@ -24,7 +27,7 @@ export const DEFAULTS: DS5Config = {
   disableInactiveDisconnect: false,
   disablePicoLed: false,
   pollingRateMode: 0,
-  audioBufferLength: 64,
+  audioBufferLength: 16,
   controllerMode: 2,
   autoHapticsEnable: 2,
   autoHapticsGain: 100,
@@ -34,6 +37,9 @@ export const DEFAULTS: DS5Config = {
   poweroffButton: 3,  // Triangle
   touchpadButton: 2,  // Circle
   batteryColorEnable: true,
+  wakeEnable: false,
+  autoHapticsMuteReplace: false,
+  autoHapticsMuteMix: false,
 };
 
 export interface FieldConstraint {

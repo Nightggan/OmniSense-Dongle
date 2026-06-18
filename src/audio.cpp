@@ -83,7 +83,9 @@ void __not_in_flash_func(audio_loop)() {
     WDL_ResampleSample *in_buf;
     int nframes = resampler.ResamplePrepare(frames, OUTPUT_CHANNELS, &in_buf);
 
-    const float audio_gain   = mute[0] ? 0.0f : powf(10.0f, get_config().speaker_volume / 20.0f);
+    const bool auto_mute     = ((auto_mode == 2 || actual_ch == 2) && get_config().auto_haptics_mute_replace) ||
+                               (auto_mode == 1 && get_config().auto_haptics_mute_mix);
+    const float audio_gain   = (mute[0] || auto_mute) ? 0.0f : powf(10.0f, get_config().speaker_volume / 20.0f);
     const float haptics_gain = get_config().haptics_gain;
     const uint8_t auto_mode  = get_config().auto_haptics_enable;
     // For 2ch mode (Windows/Stereo Mix), always enable auto-haptics DSP regardless of auto_mode setting

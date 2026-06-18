@@ -14,9 +14,9 @@ export const CMD_WRITE_CONFIG  = 0x01;
 export const CMD_SAVE_CONFIG   = 0x02;
 export const CMD_RECONNECT_USB = 0x03;
 
-// Total size of the packed config struct (little-endian: ff BBBBBBBB H BBBBB)
-// f(4) f(4) B B B B B B B B H(2) B B B B B = 23 bytes
-export const CONFIG_SIZE = 23;
+// Total size of the packed config struct (little-endian: ff BBBBBBBB H BBBBBBBB)
+// f(4) f(4) B B B B B B B B H(2) B B B B B B B B = 26 bytes
+export const CONFIG_SIZE = 26;
 
 // Byte offsets within the 23-byte config buffer.
 // Must stay in sync with the firmware struct in src/config.h.
@@ -39,6 +39,9 @@ export const FIELD_OFFSETS = {
   poweroffButton:              20, // uint8
   touchpadButton:              21, // uint8
   batteryColorEnable:          22, // uint8 (bool)
+  wakeEnable:                  23, // uint8 (bool)
+  autoHapticsMuteReplace:      24, // uint8 (bool)
+  autoHapticsMuteMix:          25, // uint8 (bool)
 } as const;
 
 export type ControllerModel = 'DualSense' | 'DualSense Edge';

@@ -1,6 +1,7 @@
 import { useConfigStore } from '../../state/configStore';
 import SelectRow from '../SelectRow';
 import SliderRow from '../SliderRow';
+import ToggleRow from '../ToggleRow';
 import { AUTO_HAPTICS_LABELS } from '../../../shared/enums';
 
 export default function AutoHapticsSection() {
@@ -34,6 +35,20 @@ export default function AutoHapticsSection() {
         format={(v) => `${v} Hz`}
         disabled={!active}
         onChange={(v) => updateField('autoHapticsLowpassHz', v)}
+      />
+      <ToggleRow
+        label="Auto-mute speaker (Replace)"
+        description="Mute speaker output when Replace mode is active"
+        value={draft.autoHapticsMuteReplace}
+        disabled={draft.autoHapticsEnable !== 2}
+        onChange={(v) => updateField('autoHapticsMuteReplace', v)}
+      />
+      <ToggleRow
+        label="Auto-mute speaker (Mix)"
+        description="Mute speaker output when Mix mode is active"
+        value={draft.autoHapticsMuteMix}
+        disabled={draft.autoHapticsEnable !== 1}
+        onChange={(v) => updateField('autoHapticsMuteMix', v)}
       />
     </div>
   );
