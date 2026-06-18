@@ -9,6 +9,9 @@ asarUnpack:
   - node_modules/node-hid/**
   - node_modules/usb/**
 npmRebuild: true
+compression: maximum
+electronLanguages:
+  - en-US
 
 linux:
   category: Utility
@@ -29,6 +32,7 @@ extraResources:
 
 win:
   signAndEditExecutable: false
+  artifactName: "${name}-${version}.${ext}"
   target:
     - target: nsis
       arch:
