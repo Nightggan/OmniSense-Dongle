@@ -11,6 +11,7 @@
 #include <cstdio>
 #include "opus.h"
 #include "utils.h"
+#include "pico/flash.h"
 #include "pico/multicore.h"
 #include "pico/time.h"
 #include "pico/util/queue.h"
@@ -83,11 +84,11 @@ void __not_in_flash_func(audio_loop)() {
     WDL_ResampleSample *in_buf;
     int nframes = resampler.ResamplePrepare(frames, OUTPUT_CHANNELS, &in_buf);
 
+    const uint8_t auto_mode  = get_config().auto_haptics_enable;
     const bool auto_mute     = ((auto_mode == 2 || actual_ch == 2) && get_config().auto_haptics_mute_replace) ||
                                (auto_mode == 1 && get_config().auto_haptics_mute_mix);
     const float audio_gain   = (mute[0] || auto_mute) ? 0.0f : powf(10.0f, get_config().speaker_volume / 20.0f);
     const float haptics_gain = get_config().haptics_gain;
-    const uint8_t auto_mode  = get_config().auto_haptics_enable;
     // For 2ch mode (Windows/Stereo Mix), always enable auto-haptics DSP regardless of auto_mode setting
     const float auto_gain    = (auto_mode > 0 || actual_ch == 2) ? (get_config().auto_haptics_gain / 100.0f) * haptics_gain : 0.0f;
 
@@ -238,6 +239,9 @@ static OpusEncoder *encoder;
 static WDL_Resampler resampler_audio;
 
 void __not_in_flash_func(core1_entry)() {
+    // Register core1 as the flash-safe victim so core0's config_save() can
+    // safely call flash_range_erase/program when PICO_FLASH_ASSUME_CORE1_SAFE=0.
+    flash_safe_execute_core_init();
     int error = 0;
     encoder = opus_encoder_create(48000, 2,OPUS_APPLICATION_AUDIO, &error);
     if (error != 0) {
