@@ -27,7 +27,7 @@ export const DEFAULTS: DS5Config = {
   disableInactiveDisconnect: false,
   disablePicoLed: false,
   pollingRateMode: 0,
-  audioBufferLength: 16,
+  audioBufferLength: 32,
   controllerMode: 2,
   autoHapticsEnable: 2,
   autoHapticsGain: 100,

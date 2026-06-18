@@ -72,7 +72,7 @@ void config_valid() {
         printf("[Config] polling_rate_mode is invalid\n");
     }
     if (body->audio_buffer_length < 16 || body->audio_buffer_length > 128) {
-        body->audio_buffer_length = 16;
+        body->audio_buffer_length = 32;
         printf("[Config] haptics_buffer_length is invalid\n");
     }
     if (body->controller_mode > 2) {
