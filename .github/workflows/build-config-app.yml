@@ -1,7 +1,7 @@
 name: Build config app (reusable)
 
 # Reusable build for the Electron config app (config-electron/).
-# Builds AppImage (Linux x64) and NSIS installer (Windows x64) in a matrix.
+# Builds AppImage + deb + rpm (Linux x64) and NSIS installer (Windows x64) in a matrix.
 # When `upload_tag` is set the built binaries are attached to that release.
 
 on:
@@ -27,13 +27,11 @@ jobs:
       matrix:
         include:
           - os: ubuntu-latest
-            label: Linux AppImage
+            label: Linux (AppImage + deb + rpm)
             build_cmd: build:linux
-            artifact_glob: "dist-electron/*.AppImage"
           - os: windows-2022
             label: Windows NSIS
             build_cmd: build:win
-            artifact_glob: "dist-electron/*.exe"
 
     defaults:
       run:
@@ -68,11 +66,23 @@ jobs:
           npm_config_msvs_version: "2022"
         run: npm run ${{ matrix.build_cmd }}
 
-      - name: Upload artifact
+      - name: Upload artifact (Linux)
+        if: runner.os == 'Linux'
         uses: actions/upload-artifact@v4
         with:
           name: config-app-${{ matrix.os }}
-          path: config-electron/${{ matrix.artifact_glob }}
+          path: |
+            config-electron/dist-electron/*.AppImage
+            config-electron/dist-electron/*.deb
+            config-electron/dist-electron/*.rpm
+          if-no-files-found: error
+
+      - name: Upload artifact (Windows)
+        if: runner.os == 'Windows'
+        uses: actions/upload-artifact@v4
+        with:
+          name: config-app-${{ matrix.os }}
+          path: config-electron/dist-electron/*.exe
           if-no-files-found: error
 
       - name: Attach to release
@@ -81,5 +91,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
-          gh release upload "${{ inputs.upload_tag }}" ${{ matrix.artifact_glob }} \
+          shopt -s nullglob
+          FILES=(dist-electron/*.AppImage dist-electron/*.deb dist-electron/*.rpm dist-electron/*.exe)
+          [ ${#FILES[@]} -gt 0 ] && gh release upload "${{ inputs.upload_tag }}" "${FILES[@]}" \
             --repo "${{ github.repository }}" --clobber

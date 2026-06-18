@@ -10,7 +10,7 @@
   "scripts": {
     "dev": "electron-vite dev",
     "build": "electron-vite build",
-    "build:linux": "npm run build && CXXFLAGS='-std=c++17' electron-builder --linux AppImage",
+    "build:linux": "npm run build && CXXFLAGS='-std=c++17' electron-builder --linux",
     "build:win": "npm run build && electron-builder --win nsis",
     "typecheck": "tsc -p tsconfig.node.json --noEmit && tsc -p tsconfig.web.json --noEmit",
     "lint": "eslint src --ext .ts,.tsx"

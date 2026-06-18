@@ -1,0 +1,30 @@
+# Maintainer: loteran <https://github.com/loteran>
+pkgname=ds5-audio-haptics-bt
+pkgver=0.2.0
+pkgrel=1
+pkgdesc="Cross-platform configuration app for DS5Dongle — Auto Haptics Edition"
+arch=('x86_64')
+url="https://github.com/loteran/DS5Dongle"
+license=('MIT')
+depends=('hicolor-icon-theme' 'libusb' 'fuse2')
+source=(
+  "${pkgname}-${pkgver}.AppImage::https://github.com/loteran/DS5Dongle/releases/download/app-v${pkgver}/${pkgname}-${pkgver}.AppImage"
+  "70-ds5dongle.rules::https://raw.githubusercontent.com/loteran/DS5Dongle/master/config-app/70-ds5dongle.rules"
+)
+sha256sums=('SKIP' 'SKIP')
+noextract=("${pkgname}-${pkgver}.AppImage")
+
+prepare() {
+  chmod +x "${srcdir}/${pkgname}-${pkgver}.AppImage"
+}
+
+package() {
+  install -Dm755 "${srcdir}/${pkgname}-${pkgver}.AppImage" \
+    "${pkgdir}/opt/${pkgname}/${pkgname}.AppImage"
+  install -Dm644 "${srcdir}/70-ds5dongle.rules" \
+    "${pkgdir}/etc/udev/rules.d/70-ds5dongle.rules"
+  install -dm755 "${pkgdir}/usr/bin"
+  printf '#!/bin/sh\nexec /opt/%s/%s.AppImage "$@"\n' "${pkgname}" "${pkgname}" \
+    > "${pkgdir}/usr/bin/${pkgname}"
+  chmod +x "${pkgdir}/usr/bin/${pkgname}"
+}
