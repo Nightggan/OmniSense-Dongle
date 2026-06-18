@@ -1,6 +1,6 @@
 {
   "name": "ds5-audio-haptics-bt",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "private": true,
   "description": "Cross-platform configuration app for DS5 Audio Haptics BT firmware",
   "author": "loteran",
