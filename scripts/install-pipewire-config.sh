@@ -25,6 +25,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SRC="$SCRIPT_DIR/../config-app"
 
 die()  { printf '\033[31m[ERROR]\033[0m %s\n' "$*" >&2; exit 1; }
+warn() { printf '\033[33m[WARN]\033[0m %s\n' "$*"; }
 info() { printf '\033[36m[*]\033[0m %s\n' "$*"; }
 ok()   { printf '\033[32m[ok]\033[0m %s\n' "$*"; }
 
@@ -37,6 +38,7 @@ done
 
 command -v pw-loopback  >/dev/null || die "pw-loopback not found — install PipeWire (pipewire / pipewire-audio) first."
 command -v wireplumber  >/dev/null || die "WirePlumber not found — install it first."
+command -v pactl        >/dev/null || die "pactl not found — install pipewire-pulse (pipewire-audio) first."
 command -v "$SUDO"      >/dev/null || die "'$SUDO' not found — set SUDO=… to your privilege helper."
 
 # ── Install system files ──────────────────────────────────────────────────────
@@ -47,22 +49,56 @@ $SUDO install -Dm755 "$SRC/ds5dongle-loopback-stop"      /usr/lib/ds5dongle/ds5d
 $SUDO install -Dm644 "$SRC/ds5-haptics-loopback.service" /etc/systemd/user/ds5-haptics-loopback.service
 ok "System files installed."
 
-# ── Reload the subsystems ─────────────────────────────────────────────────────
+# ── Reload systemd + WirePlumber FIRST so the rename rules are active ─────────
+# WirePlumber must be running with the new 51-ds5dongle.conf before udev
+# re-triggers the device events. If we fire udev first, ds5_dongle_sink won't
+# exist when the loopback service's ExecStartPre runs, causing a timeout.
+info "Reloading systemd user units + WirePlumber…"
+systemctl --user daemon-reload
+systemctl --user restart wireplumber
+
+# Give WirePlumber a moment to settle before firing udev events.
+sleep 1
+
+# ── Reload udev rules + re-trigger Sony USB devices ───────────────────────────
 info "Reloading udev rules…"
 $SUDO udevadm control --reload-rules
 $SUDO udevadm trigger --subsystem-match=usb --attr-match=idVendor=054c >/dev/null 2>&1 || true
 
-info "Reloading your systemd user units + WirePlumber…"
-systemctl --user daemon-reload
-systemctl --user restart wireplumber
-
-# ── Pin pro-audio profile for the current user if the dongle is present ───────
+# ── Pin pro-audio profile + start loopback if the dongle is already plugged ───
 CARD="$(pactl list cards short 2>/dev/null | awk '/DualSense/{print $2; exit}')"
 if [ -n "${CARD:-}" ]; then
     info "Dongle detected — selecting the pro-audio profile…"
-    pactl set-card-profile "$CARD" pro-audio || info "Could not set pro-audio (will retry on next plug)."
-    systemctl --user start ds5-haptics-loopback.service 2>/dev/null || true
-    ok "Dongle configured."
+    pactl set-card-profile "$CARD" pro-audio || warn "Could not set pro-audio (will retry on next plug)."
+
+    # Use restart so a previously stuck service is properly cleared.
+    systemctl --user restart ds5-haptics-loopback.service 2>/dev/null || true
+
+    # Verify that the WirePlumber rename rule matched — ds5_dongle_sink must
+    # exist for the loopback to work. Give WirePlumber up to 3 s to apply it.
+    info "Verifying WirePlumber rename rule…"
+    SINK_FOUND=0
+    for _ in 1 2 3 4 5 6; do
+        if pw-dump 2>/dev/null | grep -q '"ds5_dongle_sink"'; then
+            SINK_FOUND=1; break
+        fi
+        sleep 0.5
+    done
+
+    if [ "$SINK_FOUND" -eq 1 ]; then
+        ok "ds5_dongle_sink found — WirePlumber rule applied correctly."
+        ok "Dongle configured."
+    else
+        warn "ds5_dongle_sink not found after WirePlumber restart."
+        warn "The loopback service may not start. Run this to diagnose:"
+        warn "  pw-dump | python3 -c \""
+        warn "  import json,sys"
+        warn "  for n in json.load(sys.stdin):"
+        warn "    p=n.get('info',{}).get('props',{})"
+        warn "    if '054c' in str(p) or 'DualSense' in str(p):"
+        warn "      print(p.get('node.name'), '|', p.get('alsa.components'), '|', p.get('media.class'))\""
+        warn "Then open a GitHub issue with that output."
+    fi
 else
     info "Dongle not plugged in — it will be configured automatically when you plug it in."
 fi
