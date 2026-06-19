@@ -569,9 +569,10 @@ journalctl --user -u ds5-haptics-loopback.service -n 30
 ```
 
 Common causes:
-- **`ds5_dongle_sink` not found** — the WirePlumber rule wasn't applied. Restart WirePlumber (`systemctl --user restart wireplumber`) and replug the Pico
+- **`ds5_dongle_sink` not found** — the WirePlumber rename rule didn't match. This can happen when your PipeWire/WirePlumber version appends extra text to the device's `alsa.components` property. Make sure you have the latest `51-ds5dongle.conf` (v1.2.12+) which uses regex matching. Re-run the install script after a `git pull`, then restart WirePlumber and replug the Pico
 - **Service not found** — the `.service` file wasn't installed. Redo step 3 of the Linux audio setup
 - **`pw-loopback` not found** — install PipeWire tools: `sudo apt install pipewire-audio` (Ubuntu) / `sudo pacman -S pipewire` (Arch)
+- **Custom audio sink / patchbay setup** — if you use a virtual upmix sink (e.g. a stereo→5.1 upmix via qpwgraph), the loopback service will capture the monitor of whichever sink is your system default. Make sure your upmix sink is the PipeWire default output. Do **not** connect the DualSense manually in qpwgraph — the USB audio clock domain conflict will freeze your entire audio graph. Let the service handle the connection via `pw-loopback`
 
 ### Linux: the DualSense audio profile keeps changing back
 
