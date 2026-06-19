@@ -21,7 +21,10 @@ jobs:
   build:
     uses: ./.github/workflows/build-firmware.yml
     with:
-      ref: ${{ inputs.tag }}
+      # Build from master so all build-system fixes (pico.h, CI deps…)
+      # are included. The version string and upload target still use the
+      # release tag, so the UF2 reports the correct release version.
+      ref: master
       version: ${{ inputs.tag }}
       asset_suffix: -${{ inputs.tag }}
       upload_tag: ${{ inputs.tag }}
