@@ -11,7 +11,6 @@
 #include <cstdio>
 #include "opus.h"
 #include "utils.h"
-#include "pico/flash.h"
 #include "pico/multicore.h"
 #include "pico/time.h"
 #include "pico/util/queue.h"
@@ -239,9 +238,6 @@ static OpusEncoder *encoder;
 static WDL_Resampler resampler_audio;
 
 void __not_in_flash_func(core1_entry)() {
-    // Register core1 as the flash-safe victim so core0's config_save() can
-    // safely call flash_range_erase/program when PICO_FLASH_ASSUME_CORE1_SAFE=0.
-    flash_safe_execute_core_init();
     int error = 0;
     encoder = opus_encoder_create(48000, 2,OPUS_APPLICATION_AUDIO, &error);
     if (error != 0) {

@@ -363,7 +363,9 @@ int main() {
     state_init();
 
 #if !ENABLE_SERIAL
-    watchdog_enable(1000, true);
+    // Prime USB before arming the watchdog so enumeration completes first.
+    tud_task();
+    watchdog_enable(4000, true);
 #endif
 
     while (1) {

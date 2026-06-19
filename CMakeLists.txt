@@ -83,8 +83,6 @@ project(ds5-bridge C CXX ASM)
 # Initialise the Raspberry Pi Pico SDK
 pico_sdk_init()
 
-include(cmake/relocate_to_ram.cmake)
-
 # Add executable. Default name is the project name, version 0.1
 
 add_executable(ds5-bridge
@@ -96,7 +94,6 @@ add_executable(ds5-bridge
         src/config.cpp
         src/cmd.cpp
         src/state_mgr.cpp
-        src/ram_mem.c
 )
 
 if (ENABLE_BATT_LED)
@@ -121,36 +118,13 @@ add_subdirectory(lib/opus)
 target_compile_options(wdl_resampler PRIVATE -fsigned-char)
 target_compile_options(ds5-bridge PRIVATE -fsigned-char)
 
-# Phase A.2 – WDL_Resampler: compile with -ffunction-sections so objcopy can
-# rename only the hot resampler section instead of the whole archive.
-target_compile_options(wdl_resampler PRIVATE -ffunction-sections)
-relocate_to_ram(ds5-bridge resample.cpp)
-
-# Phase A.3 – libopus encode hot path: relocate the two main encode entry points.
-# -ffunction-sections lets objcopy target individual functions.
-target_compile_options(opus PRIVATE -ffunction-sections)
-relocate_to_ram(ds5-bridge celt_encoder.c)
-relocate_to_ram(ds5-bridge silk_Encode.c)
-relocate_to_ram(ds5-bridge entenc.c)
-
-# Phase B – pico_util queue (audio_fifo accessed from both cores)
-relocate_to_ram(ds5-bridge queue.c)
-
-# Phase B – ram_mem.c: disable LTO so the linker does not inline / move these
-# RAM-resident overrides back into flash-resident sections.
-set_source_files_properties(src/ram_mem.c PROPERTIES COMPILE_FLAGS "-fno-lto")
-
 target_compile_definitions(wdl_resampler PRIVATE
         WDL_RESAMPLE_TYPE=float
 )
 target_compile_definitions(ds5-bridge PRIVATE
         CYW43_LWIP=0
         ENABLE_SERIAL=${ENABLE_SERIAL_VALUE}
-        # core1 runs opus+WDL in XIP by default; set to 0 so the SDK correctly
-        # parks core1 via flash_safe_execute() during config_save() flash writes.
-        PICO_FLASH_ASSUME_CORE1_SAFE=0
-        # Embed the XIP setup code in the binary so it re-runs after flash ops.
-        PICO_EMBED_XIP_SETUP=1
+        PICO_FLASH_ASSUME_CORE1_SAFE=1
         WDL_RESAMPLE_TYPE=float
         CYW43_PIO_CLOCK_DIV_INT=${CYW43_PIO_CLOCK_DIV_VALUE}
         PICO_STDIO_USB_USE_DEFAULT_DESCRIPTORS=0
