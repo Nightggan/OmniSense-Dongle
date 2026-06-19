@@ -197,39 +197,33 @@ jobs:
             "${VERSION_ARG[@]}"
           cmake --build build/no-batt-led --target ds5-bridge
 
-      # - name: Upload UF2 artifacts
-        # uses: actions/upload-artifact@v7
-        # with:
-          # name: ds5-bridge-uf2${{ inputs.asset_suffix }}
-          # path: artifacts/*.uf2
-          # if-no-files-found: error- name: Upload standard UF2 artifact
-
-      - uses: actions/upload-artifact@v7
+      - name: Upload standard UF2 artifact
+        uses: actions/upload-artifact@v4
         with:
+          name: ds5-bridge${{ inputs.asset_suffix }}
           path: artifacts/ds5-bridge${{ inputs.asset_suffix }}.uf2
-          archive: false
           if-no-files-found: error
 
-      - name: Upload Debug UF2 artifact
-        uses: actions/upload-artifact@v7
+      - name: Upload debug UF2 artifact
+        uses: actions/upload-artifact@v4
         with:
+          name: ds5-bridge-debug${{ inputs.asset_suffix }}
           path: artifacts/ds5-bridge-debug${{ inputs.asset_suffix }}.uf2
-          archive: false
           if-no-files-found: error
 
       - name: Upload wake UF2 artifact
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v4
         with:
+          name: ds5-bridge-wake${{ inputs.asset_suffix }}
           path: artifacts/ds5-bridge-wake${{ inputs.asset_suffix }}.uf2
-          archive: false
           if-no-files-found: error
 
       - name: Upload PicoW UF2 artifact
         if: inputs.picow
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v4
         with:
+          name: ds5-bridge-picow${{ inputs.asset_suffix }}
           path: artifacts/ds5-bridge-picow${{ inputs.asset_suffix }}.uf2
-          archive: false
           if-no-files-found: error
 
       - name: Attach UF2s to release
