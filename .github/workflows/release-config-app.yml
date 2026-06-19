@@ -2,7 +2,8 @@ name: Release config app
 
 # Triggered when a release whose tag starts with "app-v" is published.
 # Builds AppImage + deb + rpm + NSIS and attaches them to that release.
-# Also updates the AUR package (requires AUR_SSH_KEY_APP secret).
+# Also updates the AUR package (requires AUR_SSH_KEY_APP secret) and
+# submits a new COPR build (requires COPR_API_CONFIG secret).
 #
 # Workflow:
 #   1. gh release create app-v1.0.0 --title "Config app v1.0.0" --notes "..."
@@ -78,3 +79,31 @@ jobs:
           git add PKGBUILD .SRCINFO
           git diff --cached --quiet && echo "No changes to push" || \
             git commit -m "Update to v${APP_VERSION}" && git push
+
+  copr-update:
+    runs-on: ubuntu-latest
+    needs: build
+    if: startsWith(github.event.release.tag_name, 'app-v')
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install copr-cli
+        run: pip install copr-cli
+
+      - name: Configure COPR credentials
+        env:
+          COPR_API_CONFIG: ${{ secrets.COPR_API_CONFIG }}
+        run: |
+          mkdir -p ~/.config
+          echo "$COPR_API_CONFIG" > ~/.config/copr
+
+      - name: Submit COPR build
+        run: |
+          copr-cli buildscm loteran/ds5-audio-haptics-bt \
+            --clone-url https://github.com/loteran/DS5Dongle \
+            --commit master \
+            --spec ds5-audio-haptics-bt.spec \
+            --type git \
+            --method make_srpm \
+            --enable-net on \
+            --nowait
