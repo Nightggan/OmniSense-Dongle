@@ -8,7 +8,7 @@
 // frequently called memory primitives always execute from SRAM.
 
 #include <stddef.h>
-#include "pico/platform.h"
+#include "pico.h"
 
 void * __not_in_flash_func(memcpy)(void *dst, const void *src, size_t n)
 {

@@ -56,6 +56,10 @@ jobs:
             libusb-1.0-0-dev libudev-dev \
             rpm fakeroot
 
+      - name: Install Python setuptools (node-gyp / distutils, Python 3.12+)
+        if: runner.os == 'Windows'
+        run: pip install setuptools
+
       - name: Install dependencies
         env:
           npm_config_msvs_version: "2022"
