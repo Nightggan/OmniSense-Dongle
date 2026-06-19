@@ -1,46 +1,59 @@
-Name:           ds5-audio-haptics-bt
+%global app_name  ds5-audio-haptics-bt
+%global gh_url    https://github.com/loteran/DS5Dongle
+%global gh_raw    https://raw.githubusercontent.com/loteran/DS5Dongle/master
+
+Name:           %{app_name}
 Version:        0.3.0
 Release:        1%{?dist}
 Summary:        Configuration app for DS5Dongle audio haptics (DualSense BT dongle)
 License:        MIT
-URL:            https://github.com/loteran/DS5Dongle
-# Note: AppImage is x86_64 only — keep COPR chroots to x86_64.
-
-# The Electron app is distributed as an AppImage; the RPM wraps it.
-Source0:        https://github.com/loteran/DS5Dongle/releases/download/app-v%{version}/%{name}-%{version}.AppImage
-Source1:        https://raw.githubusercontent.com/loteran/DS5Dongle/master/config-app/70-ds5dongle.rules
-Source2:        https://raw.githubusercontent.com/loteran/DS5Dongle/master/config-app/%{name}.desktop
+URL:            %{gh_url}
+# Sources are downloaded at build time (AppImage binary, no compile step).
+# Keep COPR chroots to x86_64 — the AppImage only supports that arch.
 
 Requires:       fuse-libs
 Requires:       libusb1
+
+BuildRequires:  curl
 
 %description
 Cross-platform configuration app for DS5Dongle, a Raspberry Pi Pico-based
 DualSense (PS5 controller) audio-haptics dongle for Linux and Windows.
 
-The app lets you configure haptics gain, auto-haptics audio-reactive
-intensity, LED lightbar colour, Bluetooth power, and more via USB HID.
+Configures haptics gain, auto-haptics audio-reactive intensity, LED
+lightbar colour, Bluetooth power mode, and more via USB HID.
 
 %prep
-# Nothing to extract — binary AppImage, plain-text udev rules and .desktop.
+# Nothing to extract.
 
 %build
 # Nothing to compile.
 
 %install
-install -Dm755 %{SOURCE0} %{buildroot}%{_prefix}/lib/%{name}/%{name}.AppImage
+# Download AppImage and supporting files at RPM build time.
+# Requires --enable-net on in COPR (already set for this project).
+mkdir -p %{buildroot}%{_prefix}/lib/%{app_name}
+curl -fsSL --retry 3 \
+    "%{gh_url}/releases/download/app-v%{version}/%{app_name}-%{version}.AppImage" \
+    -o %{buildroot}%{_prefix}/lib/%{app_name}/%{app_name}.AppImage
+chmod 755 %{buildroot}%{_prefix}/lib/%{app_name}/%{app_name}.AppImage
 
-install -Dm644 %{SOURCE1} \
-    %{buildroot}%{_udevrulesdir}/70-ds5dongle.rules
-
-install -Dm644 %{SOURCE2} \
-    %{buildroot}%{_datadir}/applications/%{name}.desktop
-
-# Thin launcher wrapper so the app is on PATH
 install -d %{buildroot}%{_bindir}
-printf '#!/bin/sh\nexec %{_prefix}/lib/%{name}/%{name}.AppImage "$@"\n' \
-    > %{buildroot}%{_bindir}/%{name}
-chmod 755 %{buildroot}%{_bindir}/%{name}
+printf '#!/bin/sh\nexec %{_prefix}/lib/%{app_name}/%{app_name}.AppImage "$@"\n' \
+    > %{buildroot}%{_bindir}/%{app_name}
+chmod 755 %{buildroot}%{_bindir}/%{app_name}
+
+install -d %{buildroot}%{_udevrulesdir}
+curl -fsSL --retry 3 \
+    "%{gh_raw}/config-app/70-ds5dongle.rules" \
+    -o %{buildroot}%{_udevrulesdir}/70-ds5dongle.rules
+chmod 644 %{buildroot}%{_udevrulesdir}/70-ds5dongle.rules
+
+install -d %{buildroot}%{_datadir}/applications
+curl -fsSL --retry 3 \
+    "%{gh_raw}/config-app/%{app_name}.desktop" \
+    -o %{buildroot}%{_datadir}/applications/%{app_name}.desktop
+chmod 644 %{buildroot}%{_datadir}/applications/%{app_name}.desktop
 
 %post
 udevadm control --reload-rules 2>/dev/null || true
@@ -50,10 +63,10 @@ udevadm trigger --subsystem-match=usb --attr-match=idVendor=054c 2>/dev/null || 
 udevadm control --reload-rules 2>/dev/null || true
 
 %files
-%{_prefix}/lib/%{name}/%{name}.AppImage
-%{_bindir}/%{name}
+%{_prefix}/lib/%{app_name}/%{app_name}.AppImage
+%{_bindir}/%{app_name}
 %{_udevrulesdir}/70-ds5dongle.rules
-%{_datadir}/applications/%{name}.desktop
+%{_datadir}/applications/%{app_name}.desktop
 
 %changelog
 * Thu Jun 19 2026 loteran <axel.valadon@gmail.com> - 0.3.0-1
