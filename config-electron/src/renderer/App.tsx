@@ -9,6 +9,7 @@ import PowerSection from './components/sections/PowerSection';
 import ShortcutsSection from './components/sections/ShortcutsSection';
 import LightbarSection from './components/sections/LightbarSection';
 import PresetBar from './components/PresetBar';
+import UpdateBanner from './components/UpdateBanner';
 import { useDevice } from './hooks/useDevice';
 import { useConfigStore } from './state/configStore';
 import { ds5 } from './ipc/client';
@@ -38,6 +39,8 @@ export default function App() {
         onConnect={device.connect}
         onDisconnect={device.disconnect}
       />
+
+      <UpdateBanner />
 
       <PresetBar connected={device.connected} />
 

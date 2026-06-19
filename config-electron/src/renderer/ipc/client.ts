@@ -24,6 +24,9 @@ declare global {
         delete: (name: string) => Promise<void>;
       };
 
+      getVersion:   () => Promise<string>;
+      openUrl:      (url: string) => Promise<void>;
+
       // Return a cleanup function for useEffect
       onDeviceChanged: (cb: (p: DeviceChangedPayload) => void) => () => void;
       onTelemetry:     (cb: (p: DeviceTelemetryPayload) => void) => () => void;

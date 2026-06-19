@@ -27,6 +27,10 @@ contextBridge.exposeInMainWorld('ds5', {
     delete: (name: string)                 => ipcRenderer.invoke(IPC.PRESETS_DELETE, name),
   },
 
+  // App helpers
+  getVersion:   () => ipcRenderer.invoke(IPC.APP_GET_VERSION),
+  openUrl:      (url: string) => ipcRenderer.invoke(IPC.SHELL_OPEN_URL, url),
+
   // Push events — return a cleanup function so useEffect can unsubscribe on unmount
   onDeviceChanged: (cb: (payload: DeviceChangedPayload) => void): (() => void) => {
     const listener = (_e: Electron.IpcRendererEvent, p: DeviceChangedPayload) => cb(p);

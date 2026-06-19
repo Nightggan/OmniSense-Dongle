@@ -456,6 +456,23 @@ button:disabled {
   flex-shrink: 0;
 }
 
+/* ---- Update banner ---- */
+.update-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 16px;
+  background: rgba(0, 61, 165, 0.18);
+  border-bottom: 1px solid rgba(26, 109, 255, 0.35);
+  font-size: 12px;
+  flex-shrink: 0;
+}
+
+.update-banner span { flex: 1; color: var(--text); }
+
+.btn-update  { padding: 3px 10px; font-size: 12px; }
+.btn-dismiss { padding: 2px 6px; font-size: 16px; line-height: 1; }
+
 /* ---- Footer ---- */
 .footer {
   height: var(--footer-h);

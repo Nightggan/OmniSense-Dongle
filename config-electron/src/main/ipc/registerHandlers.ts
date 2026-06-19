@@ -1,6 +1,6 @@
 // Registers all ipcMain.handle channels and the periodic telemetry push.
 
-import { app, ipcMain, BrowserWindow } from 'electron';
+import { app, shell, ipcMain, BrowserWindow } from 'electron';
 import type { DS5Config } from '../../shared/config';
 import { RECONNECT_FIELDS } from '../../shared/config';
 import { IPC, IPC_EVENTS } from '../../shared/ipc';
@@ -77,6 +77,15 @@ export function registerHandlers(): void {
   ipcMain.handle(IPC.PRESETS_LOAD,   (_e, name: string) => presetStore.load(name));
   ipcMain.handle(IPC.PRESETS_SAVE,   (_e, name: string, cfg: DS5Config) => presetStore.save(name, cfg));
   ipcMain.handle(IPC.PRESETS_DELETE, (_e, name: string) => presetStore.delete(name));
+
+  ipcMain.handle(IPC.APP_GET_VERSION, () => app.getVersion());
+
+  // Only allow opening trusted GitHub release URLs
+  ipcMain.handle(IPC.SHELL_OPEN_URL, (_e, url: string) => {
+    if (/^https:\/\/github\.com\/loteran\/DS5Dongle(\/|$)/.test(url)) {
+      shell.openExternal(url);
+    }
+  });
 }
 
 // --- Telemetry push — 30 s interval, mirrors Python QTimer ---

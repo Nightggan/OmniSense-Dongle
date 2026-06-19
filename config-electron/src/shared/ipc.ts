@@ -15,6 +15,8 @@ export const IPC = {
   PRESETS_LOAD:      'presets:load',
   PRESETS_SAVE:      'presets:save',
   PRESETS_DELETE:    'presets:delete',
+  APP_GET_VERSION:   'app:getVersion',
+  SHELL_OPEN_URL:    'shell:openUrl',
 } as const;
 
 // Event channels — main pushes to renderer (fire-and-forget)
