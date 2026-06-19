@@ -4,7 +4,7 @@ Release:        1%{?dist}
 Summary:        Configuration app for DS5Dongle audio haptics (DualSense BT dongle)
 License:        MIT
 URL:            https://github.com/loteran/DS5Dongle
-ExclusiveArch:  x86_64
+# Note: AppImage is x86_64 only — keep COPR chroots to x86_64.
 
 # The Electron app is distributed as an AppImage; the RPM wraps it.
 Source0:        https://github.com/loteran/DS5Dongle/releases/download/app-v%{version}/%{name}-%{version}.AppImage

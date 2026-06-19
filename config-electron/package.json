@@ -3,7 +3,10 @@
   "version": "0.3.0",
   "private": true,
   "description": "Cross-platform configuration app for DS5 Audio Haptics BT firmware",
-  "author": "loteran",
+  "author": {
+    "name": "loteran",
+    "email": "axel.valadon@gmail.com"
+  },
   "productName": "DS5 Audio Haptics BT",
   "homepage": "https://github.com/loteran/DS5Dongle",
   "license": "MIT",
