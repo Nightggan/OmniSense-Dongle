@@ -43,11 +43,11 @@ printf '#!/bin/sh\nexec %{_prefix}/lib/%{app_name}/%{app_name}.AppImage "$@"\n' 
     > %{buildroot}%{_bindir}/%{app_name}
 chmod 755 %{buildroot}%{_bindir}/%{app_name}
 
-install -d %{buildroot}%{_udevrulesdir}
+install -d %{buildroot}/usr/lib/udev/rules.d
 curl -fsSL --retry 3 \
     "%{gh_raw}/config-app/70-ds5dongle.rules" \
-    -o %{buildroot}%{_udevrulesdir}/70-ds5dongle.rules
-chmod 644 %{buildroot}%{_udevrulesdir}/70-ds5dongle.rules
+    -o %{buildroot}/usr/lib/udev/rules.d/70-ds5dongle.rules
+chmod 644 %{buildroot}/usr/lib/udev/rules.d/70-ds5dongle.rules
 
 install -d %{buildroot}%{_datadir}/applications
 curl -fsSL --retry 3 \
@@ -65,7 +65,7 @@ udevadm control --reload-rules 2>/dev/null || true
 %files
 %{_prefix}/lib/%{app_name}/%{app_name}.AppImage
 %{_bindir}/%{app_name}
-%{_udevrulesdir}/70-ds5dongle.rules
+/usr/lib/udev/rules.d/70-ds5dongle.rules
 %{_datadir}/applications/%{app_name}.desktop
 
 %changelog
