@@ -348,11 +348,11 @@ The udev rule triggers on plug/unplug. Replug the Pico to start the loopback for
 # Should print "active"
 systemctl --user is-active ds5-haptics-loopback.service
 
-# Should show the loopback linked to ds5_dongle_sink (not your speakers)
-pw-link -lo | grep -A2 ds5_haptics_playback
+# Should show both loopbacks linked to ds5_dongle_sink (not your speakers)
+pw-link -lo | grep -A2 "ds5_haptics_playback"
 ```
 
-> ✅ **How to know it worked:** the first command prints `active`, and the second shows `ds5_dongle_sink` as the target. Now start a game, make noise, and feel the controller vibrate.
+> ✅ **How to know it worked:** the first command prints `active`, and the second shows `ds5_dongle_sink` as the target for `ds5_haptics_playback_arctis` and `ds5_haptics_playback_hdmi`. Now start a game, make noise, and feel the controller vibrate.
 
 > ⚠️ **If the loopback targets your speakers instead of the Pico** — check that the WirePlumber rule from step 1 is applied (`pw-dump | grep ds5_dongle_sink`). If empty, the rule file might have a typo.
 
@@ -455,13 +455,13 @@ sudo rpm -i ds5-audio-haptics-bt-*.rpm        # Fedora / RHEL
 # or: sudo zypper install ds5-audio-haptics-bt-*.rpm  # openSUSE
 ```
 
-**Any distro (AppImage)**
+**Any distro (tar.gz)**
 
-Download `ds5-audio-haptics-bt-*.AppImage` from the [latest `app-v*` release](https://github.com/loteran/DS5Dongle/releases):
+Download `ds5-audio-haptics-bt-*-linux-x64.tar.gz` from the [latest `app-v*` release](https://github.com/loteran/DS5Dongle/releases):
 
 ```bash
-chmod +x ds5-audio-haptics-bt-*.AppImage
-./ds5-audio-haptics-bt-*.AppImage
+tar -xzf ds5-audio-haptics-bt-*-linux-x64.tar.gz
+./ds5-audio-haptics-bt-linux-x64/ds5-audio-haptics-bt
 ```
 
 > For HID access without `sudo`, install the udev rule once (only needed if you skipped step 4):

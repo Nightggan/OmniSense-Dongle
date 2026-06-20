@@ -3,7 +3,7 @@
 %global gh_raw    https://raw.githubusercontent.com/loteran/DS5Dongle/master
 
 Name:           %{app_name}
-Version:        0.3.0
+Version:        0.3.1
 Release:        1%{?dist}
 Summary:        Configuration app for DS5Dongle audio haptics (DualSense BT dongle)
 License:        MIT
@@ -71,6 +71,7 @@ udevadm control --reload-rules 2>/dev/null || true
 %{_datadir}/applications/%{app_name}.desktop
 
 %changelog
-* Fri Jun 20 2026 loteran <axel.valadon@gmail.com> - 0.3.0-1
+* Fri Jun 20 2026 loteran <axel.valadon@gmail.com> - 0.3.1-1
+- Dual auto-haptics loopback: capture from Arctis headset AND HDMI
 - Switch from AppImage to tar.gz distribution (no FUSE dependency)
 - Install unpacked Electron binary to /usr/lib/ds5-audio-haptics-bt/
