@@ -22,14 +22,22 @@ Type=simple
 # If the sink never shows up (dongle truly absent) the guard fails and the
 # service does not start — no feedback loop.
 ExecStartPre=/bin/sh -c 'for i in $(seq 1 30); do pactl list short sinks | grep -q "\\bds5_dongle_sink\\b" && exit 0; sleep 0.5; done; exit 1'
-# Capture the monitor of the current default sink and pipe it to the dongle.
-# node.dont-reconnect=true on the playback side ensures that if the dongle
-# disappears at runtime, the stream stays disconnected instead of falling
-# back to the default output (no feedback loop).
-ExecStart=/usr/bin/pw-loopback -c 2 \
-  --capture-props="node.name=ds5_haptics_capture media.class=Stream/Input/Audio stream.capture.sink=true target.object=@DEFAULT_AUDIO_SINK@ audio.position=[FL,FR] stream.dont-remix=true node.passive=true" \
-  --playback=ds5_dongle_sink \
-  --playback-props="node.name=ds5_haptics_playback node.dont-reconnect=true audio.position=[AUX0,AUX1] stream.dont-remix=true node.passive=true"
+# Two passive loopbacks: one from the Arctis headset (ASM sonar chain), one
+# from HDMI. Each activates only when its sink plays audio; PipeWire mixes
+# both into the dongle's AUX0/AUX1. node.dont-reconnect=true on each playback
+# side ensures no fallback to speakers if the dongle disappears at runtime.
+ExecStart=/bin/sh -c '\
+  /usr/bin/pw-loopback -c 2 \
+    --capture-props="node.name=ds5_haptics_capture_arctis media.class=Stream/Input/Audio stream.capture.sink=true target.object=alsa_output.usb-SteelSeries_Arctis_Nova_Pro_Wireless-00.analog-stereo audio.position=[FL,FR] stream.dont-remix=true node.passive=true" \
+    --playback=ds5_dongle_sink \
+    --playback-props="node.name=ds5_haptics_playback_arctis node.dont-reconnect=true audio.position=[AUX0,AUX1] stream.dont-remix=true node.passive=true" \
+  & \
+  /usr/bin/pw-loopback -c 2 \
+    --capture-props="node.name=ds5_haptics_capture_hdmi media.class=Stream/Input/Audio stream.capture.sink=true target.object=alsa_output.pci-0000_09_00.1.hdmi-surround audio.position=[FL,FR] stream.dont-remix=true node.passive=true" \
+    --playback=ds5_dongle_sink \
+    --playback-props="node.name=ds5_haptics_playback_hdmi node.dont-reconnect=true audio.position=[AUX0,AUX1] stream.dont-remix=true node.passive=true" \
+  & \
+  wait'
 # Restart on any unexpected exit (pw-loopback should run as long as the dongle
 # is present). systemd does NOT restart after a commanded stop, so the udev
 # unplug handler still stops it cleanly with no feedback risk.
