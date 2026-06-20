@@ -37,11 +37,11 @@ jobs:
       - name: Set version
         run: echo "APP_VERSION=${GITHUB_REF_NAME#app-v}" >> $GITHUB_ENV
 
-      - name: Fetch AppImage SHA256
+      - name: Fetch tar.gz SHA256
         run: |
-          URL="https://github.com/loteran/DS5Dongle/releases/download/${GITHUB_REF_NAME}/ds5-audio-haptics-bt-${APP_VERSION}.AppImage"
-          curl -fsSL "$URL" -o /tmp/app.AppImage
-          echo "APP_SHA256=$(sha256sum /tmp/app.AppImage | awk '{print $1}')" >> $GITHUB_ENV
+          URL="https://github.com/loteran/DS5Dongle/releases/download/${GITHUB_REF_NAME}/ds5-audio-haptics-bt-${APP_VERSION}-linux-x64.tar.gz"
+          curl -fsSL "$URL" -o /tmp/app.tar.gz
+          echo "APP_SHA256=$(sha256sum /tmp/app.tar.gz | awk '{print $1}')" >> $GITHUB_ENV
 
       - name: Set up SSH for AUR
         env:
@@ -70,7 +70,7 @@ jobs:
           sha = os.environ['APP_SHA256']
           src = re.sub(r'pkgver = .*', f'pkgver = {ver}', src)
           src = re.sub(r'sha256sums = \S+', f'sha256sums = {sha}', src, count=1)
-          src = re.sub(r'ds5-audio-haptics-bt-[\d.]+\.AppImage', f'ds5-audio-haptics-bt-{ver}.AppImage', src)
+          src = re.sub(r'ds5-audio-haptics-bt-[\d.]+-linux-x64\.tar\.gz', f'ds5-audio-haptics-bt-{ver}-linux-x64.tar.gz', src)
           open('/tmp/aur/.SRCINFO', 'w').write(src)
           PYEOF
           cd /tmp/aur

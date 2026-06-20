@@ -17,7 +17,7 @@ linux:
   category: Utility
   artifactName: "${name}-${version}.${ext}"
   target:
-    - target: AppImage
+    - target: dir
       arch:
         - x64
     - target: deb

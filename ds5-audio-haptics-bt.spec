@@ -8,10 +8,9 @@ Release:        1%{?dist}
 Summary:        Configuration app for DS5Dongle audio haptics (DualSense BT dongle)
 License:        MIT
 URL:            %{gh_url}
-# Sources are downloaded at build time (AppImage binary, no compile step).
-# Keep COPR chroots to x86_64 — the AppImage only supports that arch.
+# Sources are downloaded at build time (tar.gz binary, no compile step).
+# Keep COPR chroots to x86_64 — the binary only supports that arch.
 
-Requires:       fuse-libs
 Requires:       libusb1
 
 BuildRequires:  curl
@@ -30,16 +29,18 @@ lightbar colour, Bluetooth power mode, and more via USB HID.
 # Nothing to compile.
 
 %install
-# Download AppImage and supporting files at RPM build time.
+# Download and extract tar.gz at RPM build time.
 # Requires --enable-net on in COPR (already set for this project).
 mkdir -p %{buildroot}%{_prefix}/lib/%{app_name}
 curl -fsSL --retry 3 \
-    "%{gh_url}/releases/download/app-v%{version}/%{app_name}-%{version}.AppImage" \
-    -o %{buildroot}%{_prefix}/lib/%{app_name}/%{app_name}.AppImage
-chmod 755 %{buildroot}%{_prefix}/lib/%{app_name}/%{app_name}.AppImage
+    "%{gh_url}/releases/download/app-v%{version}/%{app_name}-%{version}-linux-x64.tar.gz" \
+    | tar -xzf - --strip-components=1 \
+    -C %{buildroot}%{_prefix}/lib/%{app_name}
+chmod 755 %{buildroot}%{_prefix}/lib/%{app_name}/%{app_name}
+chmod 4755 %{buildroot}%{_prefix}/lib/%{app_name}/chrome-sandbox
 
 install -d %{buildroot}%{_bindir}
-printf '#!/bin/sh\nexec %{_prefix}/lib/%{app_name}/%{app_name}.AppImage "$@"\n' \
+printf '#!/bin/sh\nexec %{_prefix}/lib/%{app_name}/%{app_name} "$@"\n' \
     > %{buildroot}%{_bindir}/%{app_name}
 chmod 755 %{buildroot}%{_bindir}/%{app_name}
 
@@ -63,12 +64,13 @@ udevadm trigger --subsystem-match=usb --attr-match=idVendor=054c 2>/dev/null || 
 udevadm control --reload-rules 2>/dev/null || true
 
 %files
-%{_prefix}/lib/%{app_name}/%{app_name}.AppImage
+%{_prefix}/lib/%{app_name}/
+%attr(4755,root,root) %{_prefix}/lib/%{app_name}/chrome-sandbox
 %{_bindir}/%{app_name}
 /usr/lib/udev/rules.d/70-ds5dongle.rules
 %{_datadir}/applications/%{app_name}.desktop
 
 %changelog
-* Thu Jun 19 2026 loteran <axel.valadon@gmail.com> - 0.3.0-1
-- Initial Fedora/COPR package
-- Wraps AppImage with udev rules and .desktop launcher entry
+* Fri Jun 20 2026 loteran <axel.valadon@gmail.com> - 0.3.0-1
+- Switch from AppImage to tar.gz distribution (no FUSE dependency)
+- Install unpacked Electron binary to /usr/lib/ds5-audio-haptics-bt/

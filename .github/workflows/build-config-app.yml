@@ -1,7 +1,7 @@
 name: Build config app (reusable)
 
 # Reusable build for the Electron config app (config-electron/).
-# Builds AppImage + deb + rpm (Linux x64) and NSIS installer (Windows x64) in a matrix.
+# Builds tar.gz + deb + rpm (Linux x64) and NSIS installer (Windows x64) in a matrix.
 # When `upload_tag` is set the built binaries are attached to that release.
 
 on:
@@ -27,7 +27,7 @@ jobs:
       matrix:
         include:
           - os: ubuntu-latest
-            label: Linux (AppImage + deb + rpm)
+            label: Linux (tar.gz + deb + rpm)
             build_cmd: build:linux
           - os: windows-2022
             label: Windows NSIS
@@ -70,13 +70,23 @@ jobs:
           npm_config_msvs_version: "2022"
         run: npm run ${{ matrix.build_cmd }}
 
+      - name: Package tar.gz (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          DIRNAME="ds5-audio-haptics-bt-linux-x64"
+          cp -a dist-electron/linux-unpacked "dist-electron/${DIRNAME}"
+          tar -czf "dist-electron/ds5-audio-haptics-bt-${VERSION}-linux-x64.tar.gz" \
+            -C dist-electron "${DIRNAME}"
+          rm -rf "dist-electron/${DIRNAME}"
+
       - name: Upload artifact (Linux)
         if: runner.os == 'Linux'
         uses: actions/upload-artifact@v4
         with:
           name: config-app-${{ matrix.os }}
           path: |
-            config-electron/dist-electron/*.AppImage
+            config-electron/dist-electron/*.tar.gz
             config-electron/dist-electron/*.deb
             config-electron/dist-electron/*.rpm
           if-no-files-found: error
@@ -96,6 +106,6 @@ jobs:
         shell: bash
         run: |
           shopt -s nullglob
-          FILES=(dist-electron/*.AppImage dist-electron/*.deb dist-electron/*.rpm dist-electron/*.exe)
+          FILES=(dist-electron/*.tar.gz dist-electron/*.deb dist-electron/*.rpm dist-electron/*.exe)
           [ ${#FILES[@]} -gt 0 ] && gh release upload "${{ inputs.upload_tag }}" "${FILES[@]}" \
             --repo "${{ github.repository }}" --clobber
