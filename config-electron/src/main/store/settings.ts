@@ -13,6 +13,12 @@ export interface WindowBounds {
 
 export interface AppSettings {
   windowBounds?: WindowBounds;
+  // Telemetry consent: true = opted in, false = declined, undefined/null = never asked
+  telemetryConsent?: boolean | null;
+  // ISO date (YYYY-MM-DD) of the last successful telemetry send — rate-limit to once per day
+  telemetryLastSent?: string;
+  // Fallback installation ID (random UUID) when machine-id is unavailable
+  telemetryInstallId?: string;
 }
 
 // Called lazily so app.getPath() is only invoked after app.ready

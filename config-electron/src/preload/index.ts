@@ -31,6 +31,12 @@ contextBridge.exposeInMainWorld('ds5', {
   getVersion:   () => ipcRenderer.invoke(IPC.APP_GET_VERSION),
   openUrl:      (url: string) => ipcRenderer.invoke(IPC.SHELL_OPEN_URL, url),
 
+  // Telemetry consent — read and write from the renderer settings UI
+  getTelemetryConsent: (): Promise<boolean | null> =>
+    ipcRenderer.invoke(IPC.TELEMETRY_GET_CONSENT),
+  setTelemetryConsent: (value: boolean): Promise<void> =>
+    ipcRenderer.invoke(IPC.TELEMETRY_SET_CONSENT, value),
+
   // Push events — return a cleanup function so useEffect can unsubscribe on unmount
   onDeviceChanged: (cb: (payload: DeviceChangedPayload) => void): (() => void) => {
     const listener = (_e: Electron.IpcRendererEvent, p: DeviceChangedPayload) => cb(p);

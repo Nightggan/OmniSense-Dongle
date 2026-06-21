@@ -8,6 +8,7 @@
 ![Hardware](https://img.shields.io/badge/hardware-Raspberry%20Pi%20Pico%202%20W-c51a4a?logo=raspberrypi&logoColor=white)
 ![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20Windows-blue?logo=linux&logoColor=white)
 ![License](https://img.shields.io/badge/license-MIT-green)
+[![Usage stats](https://img.shields.io/badge/usage-stats-informational)](https://loteran.github.io/DS5Dongle/stats/)
 
 ---
 

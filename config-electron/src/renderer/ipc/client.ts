@@ -27,6 +27,10 @@ declare global {
       getVersion:   () => Promise<string>;
       openUrl:      (url: string) => Promise<void>;
 
+      // Telemetry consent — settings UI toggle
+      getTelemetryConsent: () => Promise<boolean | null>;
+      setTelemetryConsent: (value: boolean) => Promise<void>;
+
       // Return a cleanup function for useEffect
       onDeviceChanged:   (cb: (p: DeviceChangedPayload) => void) => () => void;
       onTelemetry:       (cb: (p: DeviceTelemetryPayload) => void) => () => void;
