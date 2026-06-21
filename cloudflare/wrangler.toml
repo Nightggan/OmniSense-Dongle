@@ -15,7 +15,7 @@ compatibility_date = "2024-01-01"
 [[d1_databases]]
 binding       = "DB"
 database_name = "ds5-telemetry"
-database_id   = "<YOUR_DATABASE_ID>"  # replace after step 3
+database_id   = "597e8e81-27ca-4f44-9687-6a610d0d2be6"
 
 # ── Routes (optional custom domain) ───────────────────────────────────────────
 # Uncomment and fill in if you want a custom subdomain:

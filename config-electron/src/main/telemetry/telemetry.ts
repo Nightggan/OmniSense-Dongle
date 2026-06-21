@@ -24,7 +24,7 @@ import { loadSettings, saveSettings } from '../store/settings';
 // Endpoint — replace this placeholder after deploying the Cloudflare Worker
 // ---------------------------------------------------------------------------
 export const TELEMETRY_ENDPOINT =
-  'https://ds5-telemetry.PLACEHOLDER.workers.dev/collect';
+  'https://ds5-telemetry.arctis-asm.workers.dev/collect';
 
 // Salt used for the SHA-256 machine-id hash. Changing this would break
 // continuity across installs; do not change without a migration plan.
