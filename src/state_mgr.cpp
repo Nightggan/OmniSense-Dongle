@@ -8,6 +8,8 @@
 #include "pico.h"
 #include "utils.h"
 
+extern bool spk_active;
+
 namespace {
     constexpr size_t kAudioControlOffset = offsetof(SetStateData, MuteLightMode) - sizeof(uint8_t);
     constexpr size_t kMuteControlOffset = offsetof(SetStateData, RightTriggerFFB) - sizeof(uint8_t);
@@ -63,15 +65,16 @@ void state_update(const uint8_t *data, const uint8_t size) {
         byte = (byte & ~(1 << bit)) | (value << bit);
     };
 
-    // Keep the haptic actuators in rumble-emulation mode (bit0=1) so the
-    // controller converts RumbleEmulationRight/Left into actuator output.
-    // Force UseRumbleNotHaptics=0 so the controller stays in haptics mode
-    // and continues processing 0x36 audio-haptics even after a game crash.
-    // Always forward motor values regardless of game flags so that any rumble
-    // command (EnableRumbleEmulation or UseRumbleNotHaptics variant) produces
-    // vibration.
+    // bit0=1: EnableRumbleEmulation (toujours actif)
+    // bit1 (UseRumbleNotHaptics): seul le mode legacy/bypass (=1) fait vibrer
+    //   les moteurs sur cette manette (le mode DSP =0 ne vibre jamais ici).
+    //   On force donc bit1=1 dès qu'une valeur moteur non nulle arrive du jeu.
+    //   Quand il n'y a pas de rumble, on laisse bit1=0 pour que le flux PCM
+    //   0x36 (audio-haptics) reste traité. state_update() n'étant appelé que
+    //   sur rapport HID, l'audio seul conserve l'état init (bit1=0).
+    const bool motors_on = (update.RumbleEmulationRight || update.RumbleEmulationLeft);
     set_bit(state[0], 0, true);
-    set_bit(state[0], 1, false);
+    set_bit(state[0], 1, motors_on);
     set_bit(state[38], 2, true);
     copy_if_allowed(
         true,
@@ -165,4 +168,14 @@ void state_set_led_color(uint8_t r, uint8_t g, uint8_t b) {
     state[offsetof(SetStateData, LedRed)]   = r;
     state[offsetof(SetStateData, LedGreen)] = g;
     state[offsetof(SetStateData, LedBlue)]  = b;
+}
+
+bool state_motors_active() {
+    return state[offsetof(SetStateData, RumbleEmulationRight)] != 0 ||
+           state[offsetof(SetStateData, RumbleEmulationLeft)]  != 0;
+}
+
+void state_clear_motors() {
+    state[offsetof(SetStateData, RumbleEmulationRight)] = 0;
+    state[offsetof(SetStateData, RumbleEmulationLeft)]  = 0;
 }

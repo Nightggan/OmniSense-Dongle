@@ -34,6 +34,7 @@ int reportSeqCounter = 0;
 uint8_t packetCounter = 0;
 bool spk_active = false;
 bool touchpad_runtime_enabled = true;
+static uint64_t last_rumble_report_us = 0;
 
 uint8_t interrupt_in_data[63] = {
     0x7f, 0x7d, 0x7f, 0x7e, 0x00, 0x00, 0xa7,
@@ -252,6 +253,7 @@ void tud_hid_set_report_cb(uint8_t itf, uint8_t report_id, hid_report_type_t rep
         switch (buffer[0]) {
             case 0x02: {
                 state_update(buffer + 1, bufsize - 1);
+                last_rumble_report_us = to_us_since_boot(get_absolute_time());
                 uint8_t outputData[78]{};
                 outputData[0] = 0x31;
                 outputData[1] = reportSeqCounter << 4;
@@ -376,7 +378,19 @@ int main() {
         tud_task();
         audio_loop();
         interrupt_loop();
-        if (spk_active) state_keepalive();
+        // Run keepalive when audio haptics are active OR when game motors are on.
+        // This sustains vibration for game rumble (DualSense needs periodic 0x31).
+        if (spk_active || state_motors_active()) {
+            // Safety: if no USB output report for 2s and audio is off, zero motors
+            // (handles game crash without proper cleanup).
+            if (!spk_active && state_motors_active()) {
+                const uint64_t now = to_us_since_boot(get_absolute_time());
+                if (now - last_rumble_report_us > 2000000ULL) {
+                    state_clear_motors();
+                }
+            }
+            state_keepalive();
+        }
 #if ENABLE_BATT_LED
         battery_led_tick();
 #endif

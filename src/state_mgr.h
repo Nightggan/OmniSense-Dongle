@@ -9,5 +9,7 @@ void state_init();
 void state_set(uint8_t *data, const uint8_t size);
 void state_update(const uint8_t *data, const uint8_t size);
 void state_set_led_color(uint8_t r, uint8_t g, uint8_t b);
+bool state_motors_active();
+void state_clear_motors();
 
 #endif //DS5_BRIDGE_STATE_MGR_H

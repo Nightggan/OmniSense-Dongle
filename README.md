@@ -600,6 +600,27 @@ Open the [config tool](#step-5--open-the-config-tool) and adjust:
 - **Low-pass cutoff**: 80 Hz for deep bass rumble, 250–400 Hz for sharper impacts
 - **Mode**: if the game already sends native haptics and they clash, try Mode 2 (audio only)
 
+### Linux: a game (e.g. Rocket League) has no controller rumble
+
+This is about **game/motor rumble** (vibration triggered by in-game events), not the audio
+auto-haptics. Under Steam/Proton, motor rumble for most games is routed through **Steam Input** —
+if it's disabled, the game often sends no rumble to the controller at all. Enable it for the game:
+
+- Steam → right-click the game → **Properties → Controller → Enable Steam Input**
+
+With Steam Input on, the game may see the controller twice (the Steam virtual pad **and** the raw
+DualSense), which causes **double input**. Hide the raw device from the game by adding this launch
+option (**Properties → General → Launch Options**):
+
+```
+SDL_GAMECONTROLLER_IGNORE_DEVICES=0x054c/0x0ce6 %command%
+```
+
+Steam Input still reads the DualSense and forwards rumble to the dongle, while the game now only
+sees the single virtual controller. If rumble works but you never had to do this before, a Proton
+update most likely changed how the raw device is hidden — this launch option restores the old
+behaviour.
+
 ---
 
 ## 📋 All configuration parameters
