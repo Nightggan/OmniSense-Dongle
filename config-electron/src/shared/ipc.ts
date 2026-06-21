@@ -17,12 +17,16 @@ export const IPC = {
   PRESETS_DELETE:    'presets:delete',
   APP_GET_VERSION:   'app:getVersion',
   SHELL_OPEN_URL:    'shell:openUrl',
+  // Telemetry consent — renderer reads and writes via settings UI
+  TELEMETRY_GET_CONSENT: 'telemetry:getConsent',
+  TELEMETRY_SET_CONSENT: 'telemetry:setConsent',
 } as const;
 
 // Event channels — main pushes to renderer (fire-and-forget)
 export const IPC_EVENTS = {
   DEVICE_CHANGED:   'device:changed',
   DEVICE_TELEMETRY: 'device:telemetry',
+  LOOPBACK_STATUS:  'loopback:status',
 } as const;
 
 // Typed contract for every invoke channel
@@ -38,6 +42,8 @@ export interface IpcContract {
   [IPC.PRESETS_LOAD]:      { args: [string];                result: DS5Config };
   [IPC.PRESETS_SAVE]:      { args: [string, DS5Config];     result: void };
   [IPC.PRESETS_DELETE]:    { args: [string];                result: void };
+  [IPC.TELEMETRY_GET_CONSENT]: { args: [];           result: boolean | null };
+  [IPC.TELEMETRY_SET_CONSENT]: { args: [boolean];   result: void };
 }
 
 // Event payload types
@@ -49,4 +55,10 @@ export interface DeviceChangedPayload {
 export interface DeviceTelemetryPayload {
   battery?: number | null; // percent
   rssi?: number | null;    // dBm
+}
+
+export interface LoopbackStatusPayload {
+  running: boolean;
+  deviceName?: string;
+  error?: string;
 }

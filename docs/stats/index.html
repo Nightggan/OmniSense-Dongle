@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>DS5Dongle — Anonymous Usage Stats</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background: #0d0d14;
+      color: #C8C8C8;
+      padding: 2rem 1rem 4rem;
+    }
+
+    .container { max-width: 960px; margin: 0 auto; }
+
+    header { margin-bottom: 2rem; }
+    header h1 {
+      font-size: 1.8rem;
+      color: #1a6dff;
+      margin-bottom: .3rem;
+    }
+    header p { color: #888899; font-size: .9rem; }
+    header a { color: #1a6dff; }
+
+    .kpi-row {
+      display: flex;
+      gap: 1rem;
+      margin-bottom: 2rem;
+      flex-wrap: wrap;
+    }
+    .kpi {
+      background: #13131f;
+      border: 1px solid rgba(255,255,255,.07);
+      border-radius: 8px;
+      padding: 1rem 1.5rem;
+      flex: 1;
+      min-width: 140px;
+    }
+    .kpi .value {
+      font-size: 2rem;
+      font-weight: bold;
+      color: #1a6dff;
+    }
+    .kpi .label {
+      font-size: .8rem;
+      color: #888899;
+      margin-top: .2rem;
+      text-transform: uppercase;
+    }
+
+    .charts-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.5rem;
+      margin-bottom: 1.5rem;
+    }
+    @media (max-width: 620px) {
+      .charts-grid { grid-template-columns: 1fr; }
+    }
+
+    .card {
+      background: #13131f;
+      border: 1px solid rgba(255,255,255,.07);
+      border-radius: 8px;
+      padding: 1.2rem;
+    }
+    .card h2 {
+      font-size: .85rem;
+      text-transform: uppercase;
+      letter-spacing: .06em;
+      color: #888899;
+      margin-bottom: 1rem;
+    }
+
+    .full-width { grid-column: 1 / -1; }
+
+    .chart-box { position: relative; width: 100%; height: 280px; }
+
+    footer {
+      text-align: center;
+      color: #888899;
+      font-size: .8rem;
+      margin-top: 2rem;
+    }
+    footer a { color: #1a6dff; }
+
+    #error-msg {
+      display: none;
+      background: #1a0d0d;
+      border: 1px solid #661a1a;
+      color: #ff8080;
+      border-radius: 6px;
+      padding: .8rem 1rem;
+      margin-bottom: 1.5rem;
+      font-size: .9rem;
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+
+  <header>
+    <h1>DS5Dongle — Usage Stats</h1>
+    <p>
+      Anonymous and aggregated usage data shared voluntarily by DS5Dongle users.
+      No personal data or IP address is stored. &nbsp;·&nbsp;
+      <a href="https://github.com/loteran/DS5Dongle" target="_blank">GitHub</a>
+    </p>
+  </header>
+
+  <div id="error-msg">Could not load statistics. The endpoint may be unreachable.</div>
+
+  <div class="kpi-row">
+    <div class="kpi">
+      <div class="value" id="kpi-total">—</div>
+      <div class="label">Unique users</div>
+    </div>
+    <div class="kpi">
+      <div class="value" id="kpi-linux">—</div>
+      <div class="label">Linux distros</div>
+    </div>
+    <div class="kpi">
+      <div class="value" id="kpi-versions">—</div>
+      <div class="label">App versions</div>
+    </div>
+    <div class="kpi">
+      <div class="value" id="kpi-updated">—</div>
+      <div class="label">Last updated</div>
+    </div>
+  </div>
+
+  <div class="charts-grid">
+    <div class="card">
+      <h2>Linux Distributions</h2>
+      <div class="chart-box"><canvas id="chart-linux"></canvas></div>
+    </div>
+    <div class="card">
+      <h2>Windows Versions</h2>
+      <div class="chart-box"><canvas id="chart-windows"></canvas></div>
+    </div>
+    <div class="card full-width">
+      <h2>App Versions</h2>
+      <div class="chart-box"><canvas id="chart-versions"></canvas></div>
+    </div>
+    <div class="card full-width">
+      <h2>Firmware Versions</h2>
+      <div class="chart-box"><canvas id="chart-firmware"></canvas></div>
+    </div>
+  </div>
+
+  <footer>
+    Stats are cached for 1 hour &nbsp;·&nbsp;
+    Data is anonymous — no personal data or IP address is stored. &nbsp;·&nbsp;
+    <a href="https://github.com/loteran/DS5Dongle" target="_blank">DS5Dongle on GitHub</a>
+  </footer>
+
+</div>
+
+<script>
+  // MAINTAINER: replace this URL with the real workers.dev URL after deployment.
+  // Example: "https://ds5-telemetry.YOUR-NAME.workers.dev/stats"
+  const STATS_URL = "https://ds5-telemetry.arctis-asm.workers.dev/stats";
+
+  Chart.defaults.color = '#888899';
+
+  const PALETTE = [
+    "#1a6dff", "#00d4aa", "#003da5", "#f0b429", "#9b59b6",
+    "#27ae60", "#e74c3c", "#3498db", "#8e44ad", "#16a085",
+    "#d35400", "#2ecc71", "#e67e22", "#1abc9c", "#c0392b",
+  ];
+
+  const ROW_H = 28;
+
+  function wrapLabel(label, maxLen) {
+    maxLen = maxLen || 20;
+    if (label.length <= maxLen || label.indexOf(' ') === -1) return label;
+    var mid = Math.floor(label.length / 2);
+    var splitAt = -1;
+    for (var i = 0; i < label.length; i++) {
+      if (label[i] === ' ' && (splitAt === -1 || Math.abs(i - mid) < Math.abs(splitAt - mid))) {
+        splitAt = i;
+      }
+    }
+    return splitAt === -1 ? label : [label.slice(0, splitAt), label.slice(splitAt + 1)];
+  }
+
+  function mkBarChart(id, labels, values, horizontal) {
+    var ctx = document.getElementById(id);
+    if (horizontal) {
+      ctx.parentElement.style.height = (labels.length * ROW_H + 40) + 'px';
+    }
+    return new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: labels,
+        datasets: [{
+          data: values,
+          backgroundColor: labels.map(function(_, i) { return PALETTE[i % PALETTE.length]; }),
+          borderWidth: 0,
+          borderRadius: 4,
+        }],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        indexAxis: horizontal ? 'y' : 'x',
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            backgroundColor: '#1a1a2a',
+            titleColor: '#C8C8C8',
+            bodyColor: '#C8C8C8',
+            callbacks: { label: function(c) { return ' ' + c.formattedValue; } },
+          },
+        },
+        scales: {
+          x: {
+            ticks: {
+              color: '#888899',
+              precision: 0,
+              ...(horizontal ? {} : {}),
+            },
+            grid: { color: '#1a1a2a' },
+          },
+          y: {
+            ticks: {
+              color: '#888899',
+              autoSkip: false,
+              precision: 0,
+              callback: horizontal
+                ? function(v) { return wrapLabel(this.getLabelForValue(v), 26); }
+                : undefined,
+            },
+            grid: { color: '#1a1a2a' },
+          },
+        },
+      },
+    });
+  }
+
+  function noDataMessage(id) {
+    var canvas = document.getElementById(id);
+    var ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#888899';
+    ctx.font = '14px system-ui';
+    ctx.textAlign = 'center';
+    ctx.fillText('No data yet', canvas.width / 2, canvas.height / 2);
+  }
+
+  fetch(STATS_URL)
+    .then(function(r) {
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      return r.json();
+    })
+    .then(function(data) {
+      // KPIs
+      document.getElementById('kpi-total').textContent    = data.total.toLocaleString();
+      document.getElementById('kpi-linux').textContent    = data.linux_distros.length;
+      document.getElementById('kpi-versions').textContent = data.versions.length;
+      document.getElementById('kpi-updated').textContent  =
+        new Date(data.generated_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+      // Linux distributions chart
+      if (data.linux_distros.length) {
+        mkBarChart('chart-linux',
+          data.linux_distros.map(function(r) { return r.label; }),
+          data.linux_distros.map(function(r) { return r.nb; }),
+          true);
+      } else {
+        noDataMessage('chart-linux');
+      }
+
+      // Windows versions chart
+      if (data.windows_versions.length) {
+        mkBarChart('chart-windows',
+          data.windows_versions.map(function(r) { return r.label; }),
+          data.windows_versions.map(function(r) { return r.nb; }),
+          true);
+      } else {
+        noDataMessage('chart-windows');
+      }
+
+      // App versions — ordered by version number descending
+      var sortedVersions = data.versions.slice().sort(function(a, b) {
+        var pa = String(a.label).split('.').map(function(n) { return parseInt(n, 10) || 0; });
+        var pb = String(b.label).split('.').map(function(n) { return parseInt(n, 10) || 0; });
+        for (var i = 0; i < Math.max(pa.length, pb.length); i++) {
+          var d = (pb[i] || 0) - (pa[i] || 0);
+          if (d) return d;
+        }
+        return 0;
+      });
+      if (sortedVersions.length) {
+        mkBarChart('chart-versions',
+          sortedVersions.map(function(r) { return r.label; }),
+          sortedVersions.map(function(r) { return r.nb; }),
+          false);
+      } else {
+        noDataMessage('chart-versions');
+      }
+
+      // Firmware versions chart
+      if (data.firmwares && data.firmwares.length) {
+        mkBarChart('chart-firmware',
+          data.firmwares.map(function(r) { return r.label; }),
+          data.firmwares.map(function(r) { return r.nb; }),
+          false);
+      } else {
+        noDataMessage('chart-firmware');
+      }
+    })
+    .catch(function(err) {
+      console.error(err);
+      document.getElementById('error-msg').style.display = 'block';
+    });
+</script>
+</body>
+</html>

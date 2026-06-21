@@ -3,7 +3,7 @@
 import type { DS5Config } from '../../shared/config';
 import type { DeviceStatus } from '../../shared/protocol';
 import type { PresetSummary } from '../../shared/presets';
-import type { DeviceChangedPayload, DeviceTelemetryPayload } from '../../shared/ipc';
+import type { DeviceChangedPayload, DeviceTelemetryPayload, LoopbackStatusPayload } from '../../shared/ipc';
 
 declare global {
   interface Window {
@@ -27,9 +27,15 @@ declare global {
       getVersion:   () => Promise<string>;
       openUrl:      (url: string) => Promise<void>;
 
+      // Telemetry consent — settings UI toggle
+      getTelemetryConsent: () => Promise<boolean | null>;
+      setTelemetryConsent: (value: boolean) => Promise<void>;
+
       // Return a cleanup function for useEffect
-      onDeviceChanged: (cb: (p: DeviceChangedPayload) => void) => () => void;
-      onTelemetry:     (cb: (p: DeviceTelemetryPayload) => void) => () => void;
+      onDeviceChanged:   (cb: (p: DeviceChangedPayload) => void) => () => void;
+      onTelemetry:       (cb: (p: DeviceTelemetryPayload) => void) => () => void;
+      onLoopbackStatus:  (cb: (p: LoopbackStatusPayload) => void) => () => void;
+      platform: string;
     };
   }
 }

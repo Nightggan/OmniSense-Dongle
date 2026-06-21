@@ -1,0 +1,13 @@
+{
+  "name": "ds5-win-loopback-poc",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Throwaway POC: WASAPI loopback of the current default output -> DS5 dongle USB audio, with latency reporting. Windows only.",
+  "main": "loopback-poc.js",
+  "scripts": {
+    "start": "node loopback-poc.js"
+  },
+  "dependencies": {
+    "audify": "^1.9.0"
+  }
+}

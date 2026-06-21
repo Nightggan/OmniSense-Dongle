@@ -30,16 +30,22 @@ export class DS5HapticsDevice {
       const infos = HID.devices(SONY_VID, pid);
       if (infos.length === 0) continue;
 
-      // Open by path — more reliable than VID/PID when multiple Sony HID devices coexist
-      const path = infos[0].path;
-      if (!path) continue;
-
-      try {
-        this.device = new HID.HID(path);
-        this._model = label;
-        return label;
-      } catch {
-        // try next candidate
+      // On Windows a multi-collection HID device exposes each top-level collection
+      // as a separate entry (gamepad on usagePage 0x01, vendor on 0xFF00+).
+      // Only the vendor interface supports our custom feature reports (0xF7–0xF9).
+      // Probe each candidate path until one responds to REPORT_READ_CONFIG.
+      for (const info of infos) {
+        if (!info.path) continue;
+        let dev: HID.HID | null = null;
+        try {
+          dev = new HID.HID(info.path);
+          dev.getFeatureReport(REPORT_READ_CONFIG, 64); // probe
+          this.device = dev;
+          this._model = label;
+          return label;
+        } catch {
+          try { dev?.close(); } catch { /* ignore */ }
+        }
       }
     }
 
@@ -77,9 +83,10 @@ export class DS5HapticsDevice {
   readConfig(): DS5Config {
     const dev = this.assertConnected();
 
-    // getFeatureReport returns number[] where [0] is the report id byte.
-    // Firmware fills the buffer starting from haptics_gain (skips config_version).
-    const raw = dev.getFeatureReport(REPORT_READ_CONFIG, 1 + CONFIG_SIZE);
+    // Request a generous buffer (like the Python reference) — the actual report
+    // size varies with firmware version. Windows HidD_GetFeature may reject the
+    // call if the size doesn't match the HID descriptor; 64 bytes always fits.
+    const raw = dev.getFeatureReport(REPORT_READ_CONFIG, 64);
     const body = Buffer.from(raw.slice(1, 1 + CONFIG_SIZE));
 
     return unpackConfig(body);

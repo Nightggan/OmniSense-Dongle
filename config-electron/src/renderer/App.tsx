@@ -8,6 +8,7 @@ import ControllerSection from './components/sections/ControllerSection';
 import PowerSection from './components/sections/PowerSection';
 import ShortcutsSection from './components/sections/ShortcutsSection';
 import LightbarSection from './components/sections/LightbarSection';
+import SettingsSection from './components/sections/SettingsSection';
 import PresetBar from './components/PresetBar';
 import UpdateBanner from './components/UpdateBanner';
 import { useDevice } from './hooks/useDevice';
@@ -62,6 +63,7 @@ export default function App() {
             <PowerSection />
             <ShortcutsSection />
             <LightbarSection />
+            <SettingsSection />
           </div>
         )}
       </main>

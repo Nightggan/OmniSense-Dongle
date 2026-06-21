@@ -4,7 +4,7 @@
 import { contextBridge, ipcRenderer } from 'electron';
 import { IPC, IPC_EVENTS } from '../shared/ipc';
 import type { DS5Config } from '../shared/config';
-import type { DeviceChangedPayload, DeviceTelemetryPayload } from '../shared/ipc';
+import type { DeviceChangedPayload, DeviceTelemetryPayload, LoopbackStatusPayload } from '../shared/ipc';
 
 contextBridge.exposeInMainWorld('ds5', {
   // Device
@@ -31,6 +31,12 @@ contextBridge.exposeInMainWorld('ds5', {
   getVersion:   () => ipcRenderer.invoke(IPC.APP_GET_VERSION),
   openUrl:      (url: string) => ipcRenderer.invoke(IPC.SHELL_OPEN_URL, url),
 
+  // Telemetry consent — read and write from the renderer settings UI
+  getTelemetryConsent: (): Promise<boolean | null> =>
+    ipcRenderer.invoke(IPC.TELEMETRY_GET_CONSENT),
+  setTelemetryConsent: (value: boolean): Promise<void> =>
+    ipcRenderer.invoke(IPC.TELEMETRY_SET_CONSENT, value),
+
   // Push events — return a cleanup function so useEffect can unsubscribe on unmount
   onDeviceChanged: (cb: (payload: DeviceChangedPayload) => void): (() => void) => {
     const listener = (_e: Electron.IpcRendererEvent, p: DeviceChangedPayload) => cb(p);
@@ -42,4 +48,10 @@ contextBridge.exposeInMainWorld('ds5', {
     ipcRenderer.on(IPC_EVENTS.DEVICE_TELEMETRY, listener);
     return () => ipcRenderer.removeListener(IPC_EVENTS.DEVICE_TELEMETRY, listener);
   },
+  onLoopbackStatus: (cb: (payload: LoopbackStatusPayload) => void): (() => void) => {
+    const listener = (_e: Electron.IpcRendererEvent, p: LoopbackStatusPayload) => cb(p);
+    ipcRenderer.on(IPC_EVENTS.LOOPBACK_STATUS, listener);
+    return () => ipcRenderer.removeListener(IPC_EVENTS.LOOPBACK_STATUS, listener);
+  },
+  platform: process.platform,
 });

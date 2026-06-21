@@ -4,13 +4,15 @@ import { app, shell, ipcMain, BrowserWindow } from 'electron';
 import type { DS5Config } from '../../shared/config';
 import { RECONNECT_FIELDS } from '../../shared/config';
 import { IPC, IPC_EVENTS } from '../../shared/ipc';
-import type { DeviceTelemetryPayload } from '../../shared/ipc';
+import type { DeviceTelemetryPayload, LoopbackStatusPayload } from '../../shared/ipc';
+import { loopbackEngine } from '../audio/LoopbackEngine';
 import { hapticsDongle } from '../hid/DS5HapticsDevice';
 import { LinuxUpower } from '../battery/linuxUpower';
 import { WindowsBattery } from '../battery/windowsBattery';
 import type { BatteryProvider } from '../battery/BatteryProvider';
 import { presetStore } from '../presets/PresetStore';
 import { startHotplugWatcher, stopHotplugWatcher, waitForReattach } from '../hid/hotplug';
+import { getConsent, setConsent, maybeSend } from '../telemetry/telemetry';
 
 const batteryProvider: BatteryProvider = process.platform === 'linux'
   ? new LinuxUpower()
@@ -25,6 +27,7 @@ export function registerHandlers(): void {
     const model = hapticsDongle.connect();
     let firmwareVersion: string | undefined;
     try { firmwareVersion = hapticsDongle.readFirmwareVersion(); } catch { /* optional */ }
+    loopbackEngine.start();
     return { model, firmwareVersion };
   });
 
@@ -86,6 +89,10 @@ export function registerHandlers(): void {
       shell.openExternal(url);
     }
   });
+
+  // Telemetry consent — read/write from the renderer settings UI
+  ipcMain.handle(IPC.TELEMETRY_GET_CONSENT, () => getConsent());
+  ipcMain.handle(IPC.TELEMETRY_SET_CONSENT, (_e, value: boolean) => setConsent(value));
 }
 
 // --- Telemetry push — 30 s interval, mirrors Python QTimer ---
@@ -109,6 +116,11 @@ export function startTelemetryTimer(win: BrowserWindow): void {
 // --- Hot-plug push — auto-connect/disconnect forwarded to renderer ---
 
 export function setupHotplugEvents(win: BrowserWindow): void {
+  // Forward loopback status events to renderer (Windows only — no-op on Linux)
+  loopbackEngine.on('status', (payload: LoopbackStatusPayload) => {
+    if (!win.isDestroyed()) win.webContents.send(IPC_EVENTS.LOOPBACK_STATUS, payload);
+  });
+
   startHotplugWatcher((event) => {
     if (win.isDestroyed()) return;
 
@@ -118,17 +130,20 @@ export function setupHotplugEvents(win: BrowserWindow): void {
         let firmwareVersion: string | undefined;
         try { firmwareVersion = hapticsDongle.readFirmwareVersion(); } catch { /* optional */ }
         win.webContents.send(IPC_EVENTS.DEVICE_CHANGED, { connected: true, model, firmwareVersion });
+        // Send telemetry once per day when a dongle is detected (fire-and-forget)
+        maybeSend({ firmware: firmwareVersion });
       } catch {
-        // Device attached but HID open failed (e.g. permission issue) — still notify as disconnected
         win.webContents.send(IPC_EVENTS.DEVICE_CHANGED, { connected: false });
       }
+      loopbackEngine.start();
     } else {
       hapticsDongle.disconnect();
+      loopbackEngine.stop();
       win.webContents.send(IPC_EVENTS.DEVICE_CHANGED, { connected: false });
     }
   });
 
-  app.on('quit', stopHotplugWatcher);
+  app.on('quit', () => { loopbackEngine.stop(); stopHotplugWatcher(); });
 }
 
 // Helper: detect if a config write requires USB reconnect
