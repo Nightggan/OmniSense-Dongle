@@ -60,7 +60,7 @@ jobs:
       - name: Clone and update AUR
         run: |
           git clone ssh://aur@aur.archlinux.org/ds5-audio-haptics-bt.git /tmp/aur
-          sed "s/pkgver=.*/pkgver=${APP_VERSION}/; s/sha256sums=('[^']*')/sha256sums=('${APP_SHA256}')/" \
+          sed "s/pkgver=.*/pkgver=${APP_VERSION}/; s/'PLACEHOLDER'/'${APP_SHA256}'/" \
             aur-config-app/PKGBUILD > /tmp/aur/PKGBUILD
           python3 - <<PYEOF
           import re
