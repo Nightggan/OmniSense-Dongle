@@ -514,3 +514,34 @@ button:disabled {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+/* ---- Loopback status banner (Windows only, inside Auto Haptics section) ---- */
+.loopback-banner {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 12px;
+  margin-top: 4px;
+  background: rgba(255,255,255,.04);
+  border-radius: var(--radius);
+  border: 1px solid rgba(255,255,255,.07);
+}
+
+.loopback-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.loopback-dot--ok   { background: var(--color-ok);   box-shadow: 0 0 5px var(--color-ok); }
+.loopback-dot--idle { background: #444; }
+.loopback-dot--error { background: var(--color-err); box-shadow: 0 0 5px var(--color-err); }
+
+.loopback-label {
+  font-size: 11px;
+  color: var(--text-dim);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

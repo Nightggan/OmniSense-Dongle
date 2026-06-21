@@ -4,7 +4,7 @@
 import { contextBridge, ipcRenderer } from 'electron';
 import { IPC, IPC_EVENTS } from '../shared/ipc';
 import type { DS5Config } from '../shared/config';
-import type { DeviceChangedPayload, DeviceTelemetryPayload } from '../shared/ipc';
+import type { DeviceChangedPayload, DeviceTelemetryPayload, LoopbackStatusPayload } from '../shared/ipc';
 
 contextBridge.exposeInMainWorld('ds5', {
   // Device
@@ -42,4 +42,10 @@ contextBridge.exposeInMainWorld('ds5', {
     ipcRenderer.on(IPC_EVENTS.DEVICE_TELEMETRY, listener);
     return () => ipcRenderer.removeListener(IPC_EVENTS.DEVICE_TELEMETRY, listener);
   },
+  onLoopbackStatus: (cb: (payload: LoopbackStatusPayload) => void): (() => void) => {
+    const listener = (_e: Electron.IpcRendererEvent, p: LoopbackStatusPayload) => cb(p);
+    ipcRenderer.on(IPC_EVENTS.LOOPBACK_STATUS, listener);
+    return () => ipcRenderer.removeListener(IPC_EVENTS.LOOPBACK_STATUS, listener);
+  },
+  platform: process.platform,
 });

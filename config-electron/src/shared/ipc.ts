@@ -23,6 +23,7 @@ export const IPC = {
 export const IPC_EVENTS = {
   DEVICE_CHANGED:   'device:changed',
   DEVICE_TELEMETRY: 'device:telemetry',
+  LOOPBACK_STATUS:  'loopback:status',
 } as const;
 
 // Typed contract for every invoke channel
@@ -49,4 +50,10 @@ export interface DeviceChangedPayload {
 export interface DeviceTelemetryPayload {
   battery?: number | null; // percent
   rssi?: number | null;    // dBm
+}
+
+export interface LoopbackStatusPayload {
+  running: boolean;
+  deviceName?: string;
+  error?: string;
 }

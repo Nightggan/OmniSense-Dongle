@@ -382,29 +382,13 @@ systemctl --user restart wireplumber pipewire
 
 #### Windows
 
-The Pico appears in Windows as a USB sound card called **DualSense Wireless Controller**. Windows can only send audio to one output at a time, so you need a small free tool (**VoiceMeeter Banana**) to duplicate the audio — one copy to your headset, one to the Pico.
+**No third-party tool required.** The **DS5 Audio Haptics BT** desktop app handles audio routing automatically on Windows.
 
-**1. Install VoiceMeeter Banana**
+When the dongle is connected and the app is running, it captures your PC's default audio output in the background (via WASAPI loopback) and streams it silently to the Pico — your headset or speakers are not affected at all.
 
-1. Download **[VoiceMeeter Banana](https://vb-audio.com/Voicemeeter/banana.htm)** and install it
-2. **Restart your PC** when prompted — this is required for the virtual audio drivers to load
+> ✅ **Nothing to configure.** Open the app, connect the dongle, and audio haptics are active immediately. Skip directly to [Step 5](#step-5--open-the-config-tool).
 
-**2. Set VoiceMeeter as the default audio device**
-
-1. Right-click the speaker icon in the taskbar → **Sound settings** (or **Open Sound settings**)
-2. Under **Output**, select **VoiceMeeter Input** as the default device
-
-> 💡 All your apps will now route audio through VoiceMeeter. Don't worry — you'll configure VoiceMeeter to send that audio to your headset in the next step.
-
-**3. Configure VoiceMeeter Banana**
-
-Open VoiceMeeter Banana, then:
-
-- **Hardware Out A1** → select your headset or speakers (your normal audio output)
-- **Hardware Out A2** → select **DualSense Wireless Controller** (this is the Pico)
-- On the **VoiceMeeter VAIO** input strip (the first virtual input on the left) → click both **A1** and **A2** buttons so they're both lit
-
-> ✅ **How to know it worked:** play any audio — you should hear it normally through your headset, and the DualSense should vibrate in sync with the sound.
+> 💡 **The app must be running** for audio haptics to work on Windows. If you close it, the loopback stops. A future release will add a system-tray mode so the app can run minimised in the background.
 
 ---
 
@@ -584,14 +568,12 @@ pactl set-card-profile alsa_card.usb-Sony_Interactive_Entertainment_DualSense_Wi
 
 If the problem persists, check your WirePlumber configuration file for typos.
 
-### Windows: I can't hear any audio after setting VoiceMeeter as default
+### Windows: the controller doesn't vibrate even though the app is running
 
-Open VoiceMeeter Banana and check:
-- **A1** on the VAIO input strip is lit (sends audio to your headset)
-- **Hardware Out A1** is set to your correct headset/speakers
-- VoiceMeeter is not muted (no mute button active)
-
-Also check that Windows Sound settings still shows **VoiceMeeter Input** as the default — some apps reset it.
+- Make sure the dongle is connected — the app shows a green indicator when it detects the Pico
+- Check the **Auto Haptics** section in the app: Mode must be **1 (Mix)** or **2 (Replace)**, not 0
+- The loopback captures your **default audio output** device. If audio is routed to a non-default device, it won't be captured. Check that the app's status banner shows the correct source device
+- Try playing audio with the volume at a reasonable level — very low volumes may not trigger noticeable haptics
 
 ### The controller vibrates but the haptics feel wrong / too weak / too strong
 
