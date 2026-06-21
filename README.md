@@ -19,6 +19,8 @@
   - [The solution — a $20 bridge](#the-solution--a-20-bridge)
   - [What this fork adds](#what-this-fork-adds--audio-auto-haptics)
 - [How it works internally](#-how-it-works-internally)
+  - [Pico DSP pipeline](#pico-dsp-pipeline)
+  - [Desktop app — Windows audio routing](#desktop-app--how-windows-audio-routing-works)
 - [Hardware required](#-hardware-required)
 - [Installation](#-installation)
   - [What you need](#what-you-need)
@@ -38,6 +40,7 @@
 - [All configuration parameters](#-all-configuration-parameters)
 - [Building from source](#-building-from-source)
 - [Technical notes](#-technical-notes)
+- [Usage statistics](#-usage-statistics)
 - [Credits](#-credits)
 
 ---
@@ -87,6 +90,8 @@ This works even if the game has **zero haptic support**. The Pico extracts the b
 
 ## ⚙️ How it works internally
 
+### Pico DSP pipeline
+
 The Pico receives the game audio over USB (it appears as a stereo USB sound card — 2 channels, 48 kHz). It then runs this signal through a small DSP chain entirely in firmware, with no CPU overhead on your PC:
 
 ```
@@ -113,6 +118,29 @@ Three modes let you control how the auto haptics interact with games that do sen
 | **2 — Replace** *(default)* | Audio-derived signal only — best for games with no haptic support |
 
 Classic rumble (games that do send vibration commands via DirectInput/SDL) works normally alongside the auto haptics — they go through a completely separate path and are unaffected.
+
+### Desktop app — how Windows audio routing works
+
+On Windows, the **DS5 Audio Haptics BT** desktop app routes audio to the Pico automatically, without any third-party tool (no VoiceMeeter, no virtual audio cable):
+
+```
+Windows default audio output
+(your speakers / headset — completely untouched)
+    │
+    │  WASAPI loopback — read-only, silent tap of the output mix
+    ▼
+DS5 Audio Haptics BT          ← Electron app
+    │  spawns a separate Node.js worker (RtAudio / WASAPI backend)
+    │  to avoid Electron's embedded-Node ABI constraints
+    │
+    │  USB audio — 48 kHz stereo PCM, 10 ms frames
+    ▼
+Raspberry Pi Pico 2 W         ← on-board DSP runs the haptics pipeline above
+```
+
+- **Non-destructive** — WASAPI loopback taps the Windows mix without rerouting anything. Your speakers and headset continue to work normally, at full volume.
+- **Automatic** — the app detects the dongle via USB hotplug and starts/stops the audio loopback automatically when you plug or unplug the Pico.
+- **Self-contained** — the installer includes everything. No additional software, driver, or audio configuration is required.
 
 ---
 
@@ -672,6 +700,16 @@ ls build/ds5-bridge.uf2
 - **[egormanga/SAxense](https://github.com/egormanga/SAxense)** — DualSense BT haptics proof of concept
 - **[nondebug/dualsense](https://github.com/nondebug/dualsense)** — DualSense protocol reverse engineering
 - **Cockos WDL** — resampler · **xiph/opus** — audio codec
+
+---
+
+## 📊 Usage statistics
+
+Anonymous, aggregated usage data shared voluntarily by users who opt in during first launch:
+
+**[→ DS5Dongle Usage Stats](https://loteran.github.io/DS5Dongle/stats/)**
+
+No personal data, no IP address, no account required. The app asks for consent once; you can change your choice at any time in the Settings tab.
 
 ---
 
