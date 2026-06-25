@@ -4,6 +4,3 @@
 [submodule "lib/opus"]
 	path = lib/opus
 	url = https://github.com/xiph/opus
-[submodule "config-web"]
-	path = config-web-custom
-	url = https://github.com/Nightggan/OmniSense-Dongle.git
