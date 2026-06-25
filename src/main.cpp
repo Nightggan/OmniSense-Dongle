@@ -34,21 +34,21 @@ bool spk_active = false;
 bool touchpad_runtime_enabled = true;
 static uint64_t last_rumble_report_us = 0;
 
-//Custom vars Omega
+//Custom vars Omni
 
 uint8_t right_trigger_real_position = 0;
 uint8_t left_trigger_real_position = 0;
 
-uint8_t host_puro_r = 0;
-uint8_t host_puro_g = 0;
-uint8_t host_puro_b = 0;
+uint8_t host_real_color_r = 0;
+uint8_t host_real_color_g = 0;
+uint8_t host_real_color_b = 0;
 
 uint8_t lb_controlled_red = 0;
 uint8_t lb_controlled_green = 0;
 uint8_t lb_controlled_blue = 0;
 
 bool check_lb_again = false;
-static uint32_t ultimo_tiempo_check_lb = 0;
+static uint32_t last_time_check_lb = 0;
 
 volatile bool flash_busy = false;
 volatile bool usb_reconnect_requested = false;
@@ -64,7 +64,7 @@ bool left_analog_down_triggered = false;
 bool request_temp_save = false;
 volatile float current_speaker_volume = -100.0f;
 
-//End Custom vars Omega
+//End Custom vars Omni
 
 uint8_t interrupt_in_data[63] = {
     0x7f, 0x7d, 0x7f, 0x7e, 0x00, 0x00, 0xa7,
@@ -138,17 +138,19 @@ static bool shortcut_btn_pressed(const uint8_t *data, uint8_t btn) {
     return (data[SHORTCUT_BTN_MAP[btn].off] & SHORTCUT_BTN_MAP[btn].mask) != 0;
 }
 
+//Not in active use on this fork, except for the power off button coded by loteran.
 static void shortcut_btn_suppress(uint8_t *data, uint8_t btn) {
     if (btn > BTN_SHORTCUT_MAX) return;
     data[SHORTCUT_BTN_MAP[btn].off] &= ~SHORTCUT_BTN_MAP[btn].mask;
 }
 
-//Custom Safe Config Save
+//Custom Safe Config Save. Made to not save if the flash is in use (web app or shortcut)
 void safe_config_save() {
-    // Si ya estamos operando en la flash, salimos para no bloquear el stack USB
+    // If the flash is busu, we return to avoid locking the stack USB
     if (flash_busy) return; 
     flash_busy = true;
-    // Ejecutamos el guardado
+    
+    //Vanilla save function
     bool success = config_save();
     
     if (success) {
@@ -158,45 +160,43 @@ void safe_config_save() {
     }
 }
 
+//Used only if the web app sends a save to flash request 0xF6 0x02
 void save_now_update()
 {
+    // 1. Tries to save to the flash
     safe_config_save();
 
-    // 2. Forzamos la actualización interna de state[] leyendo la nueva config
+    // 2. Enforce the update of the internal state[] reading the new config from the prior request 0xF6 0x01
     uint8_t dummy_buffer[sizeof(SetStateData) + 1] = {0};
     state_update(dummy_buffer + 1, sizeof(SetStateData));
 
-    // 3. ⚡ SOLUCIÓN DEFINITIVA: Despachamos el paquete al DualSense inmediatamente
-    // Esto vacía el buffer state[] recién modificado y lo eyecta al aire
+    // 3. Sending the new package with the new state[] to the controller
     uint8_t forced_pkt[78] = {0};
     forced_pkt[0] = 0x31;
     forced_pkt[1] = (uint8_t)(reportSeqCounter << 4);
     if (++reportSeqCounter == 256) reportSeqCounter = 0;
     forced_pkt[2] = 0x10;
     
-    // Inyectamos el estado actual que ya contiene tus gatillos nuevos
+    // Filling the forced package with the actual new state[]
     state_set(forced_pkt + 3, sizeof(SetStateData));
     
-    // Mandamos por Bluetooth en caliente
+    // Sending by BT the forced package to update the controller
     bt_write(forced_pkt, sizeof(forced_pkt));
 }
 
+//Used to supress all inputs (except touchpad WIP) on config mode. Using an offset of 3
 void suppress_all_inputs(uint8_t *data) {
-    // 1. Resetear Joysticks al centro (128)
-    data[3] = 128; data[4] = 128; // Analógico Izquierdo
-    data[5] = 128; data[6] = 128; // Analógico Derecho
+    // 1. Sets analogs on its center
+    data[3] = 128; data[4] = 128; // Left Analog
+    data[5] = 128; data[6] = 128; // Right Analog
 
-    // 2. Resetear Gatillos a 0
+    // 2. Triggers to 0
     data[7] = 0; 
     data[8] = 0;
 
-    // 3. Limpiar botones (usando máscaras binarias)
-    // Esto es más seguro que poner data[x] = 0, porque no borras 
-    // bytes que puedan contener información de otros sensores.
-    //data[9] &= 0xF0;  // Limpia D-Pad y botones básicos del byte 9
-    data[10] = 0;     // Limpia D-Pad y Botones Frontales
-    data[11] = 0;     // Limpia botones extras
-    data[12] = 0; // Limpia PS, Pad, Mute
+    data[10] = 0; // Cleans D-Pad, SQUARE, TRIANGLE, CIRCLE and CROSS
+    data[11] = 0; // Limpia botones extras (Create, Options, L1, R1, L3, R3)
+    data[12] = 0; // Limpia PS, Pad Click, Mute, DSE Paddles
 }
 
 //Custon on_bt_data adding trigger/lightbar modes and shortcuts
@@ -206,39 +206,38 @@ void __not_in_flash_func(on_bt_data)(CHANNEL_TYPE channel, uint8_t *data, uint16
         if ((data[56] & 1) != (interrupt_in_data[53] & 1)) {
             set_headset(data[56] & 1);
         }
-        // 🛠️ CAPTURA DE POTENCIÓMETROS REALES EN TIEMPO REAL:
-        left_trigger_real_position = data[7];  // Byte 7: L2 Analógico (0-255)
-        right_trigger_real_position = data[8];  // Byte 8: R2 Analógico (0-255)
-        // 🕹️ CAPTURA DE LOS EJES DEL ANALÓGICO IZQUIERDO:
-        uint8_t left_stick_x = data[3]; //0: Full Left - 128: Center - 255: Full Right
+        // Obtaining real triggers position
+        left_trigger_real_position = data[7];  // Byte 7: L2 (0-255)
+        right_trigger_real_position = data[8];  // Byte 8: R2 (0-255)
+        
+        // Obtaining real Left Analog position
+        uint8_t left_stick_x = data[3]; //0: Full Left - 128: Center - 255: Full Right (Not in use atm)
         uint8_t left_stick_y = data[4]; //0: Full Up - 128: Center - 255: Full Down
         
         static bool config_mode_switch_shortcut_lock = false;
-        // Config Shortcut: Mute
+
+        // Config Shortcut: Mute press
         if (shortcut_btn_pressed(data, 8)) {
             if(!config_mode_switch_shortcut_lock)
             {
-                printf("[Atajo] Mute presionado\n");
+                
                 config_mode_enabled = !config_mode_enabled;
                 config_mode_switch_shortcut_lock = true;
                 if(config_mode_enabled)
                 {
-                    request_temp_save = true;
+                    request_temp_save = true; //To apply breathing effect on mute led
                 }
             }
-
-            
         }
         else {
-            // Cuando dejes de presionar al menos uno de los dos, se libera el candado
+            // Freeing the lock after button release
             config_mode_switch_shortcut_lock = false;
         }
 
         if(config_mode_enabled)
         {
             
-
-            // Candado estático para que el atajo se ejecute UNA sola vez por pulsación
+            // Locks for shortcuts to run only one time per button press
             static bool lightbar_mode_switch_shortcut_lock = false;
             static bool lightbar_breathing_shortcut_lock = false;
             static bool right_trigger_mode_override_shortcut_lock = false;
@@ -246,98 +245,72 @@ void __not_in_flash_func(on_bt_data)(CHANNEL_TYPE channel, uint8_t *data, uint16
             static bool speaker_volume_up_shortcut_lock = false;
             static bool speaker_volume_down_shortcut_lock = false;
             
-            // Evaluamos usando puramente las funciones del dongle
-            // Atajo para cambiar modo de lightbar: Create
-            if (shortcut_btn_pressed(data, 6)) /* Create */ //&& shortcut_btn_pressed(data, 5) /* R1 */) {
+            
+            // Lightbar mode change: Create
+            if (shortcut_btn_pressed(data, 6))
             {    
-                /*
-
-                // 🛠️ SOLUCIÓN: Limpiamos los bytes reales que van hacia la PC (con el offset de 3 integrado)
-                // Esto "apaga" los botones para el juego en tiempo real
-                data[12] &= ~0x20; // Borra el bit de R1 (Byte 3 + 9 = 12)
-                data[16] &= ~0x10; // Borra el bit de Create (Byte 3 + 13 = 16)
-                */
                 if (!lightbar_mode_switch_shortcut_lock) {
                     Config_body new_config = get_config();
                     new_config.lightbar_mode = (new_config.lightbar_mode + 1) % 9; // Ciclar modos de luz
                     
                     set_config(new_config);
-                    request_temp_save = true;
+                    request_temp_save = true; //Temp save request to update the state
                     
-                    
-                    lightbar_mode_switch_shortcut_lock = true; // Bloqueamos hasta que sueltes los botones
+                    lightbar_mode_switch_shortcut_lock = true; // Locking the lock
                 }
             } else {
-                // Cuando dejes de presionar al menos uno de los dos, se libera el candado
+                // Unlocking the lock on button release
                 lightbar_mode_switch_shortcut_lock = false;
             }
             
-            //Atajo para breathing: Options
-            if (shortcut_btn_pressed(data, 7)){
-                
-                // Suprimimos los botones nativos usando la función del creador (con el offset correcto)
-                //shortcut_btn_suppress(data, 6); Create
-                //shortcut_btn_suppress(data, 4); L1
-
-                // Limpiamos los bytes reales que van hacia la PC
-                //data[12] &= ~0x10; // Borra el bit de L1 (Byte 3 + 9 = 12) y Create (Byte 3 + 13 = 16)
-                //data[16] &= ~0x10; // Borra el bit de Create (Byte 3 + 13 = 16)
-
+            //Breathing on/off: Options
+            if (shortcut_btn_pressed(data, 7))
+            {
                 if (!lightbar_breathing_shortcut_lock) {
                     Config_body new_config = get_config();
-                    new_config.lightbar_breathing = !new_config.lightbar_breathing; // Alternar breathing
-                    
+                    new_config.lightbar_breathing = !new_config.lightbar_breathing;
                     set_config(new_config);
                     request_temp_save = true;
-                    
-                    
-                    lightbar_breathing_shortcut_lock = true; // Bloqueamos hasta que sueltes los botones
+                    lightbar_breathing_shortcut_lock = true;
                 }
             } else {
                 lightbar_breathing_shortcut_lock = false;
             }
-
             
-            // Atajo para cambiar modo de trigger derecho: R1
+            // Right Trigger mode: R1
             if (shortcut_btn_pressed(data, 5) /* R1 */) {
                 if (!right_trigger_mode_override_shortcut_lock) {
                     Config_body new_config = get_config();
                     new_config.trigger_right_mode = (new_config.trigger_right_mode + 1) % 4; 
-                    
-                    set_config(new_config); // ⚡ Cambia la RAM al instante (Sin congelar)
-                    request_temp_save = true; // 📌 Agendamos el guardado para después
-                    
+                    set_config(new_config);
+                    request_temp_save = true;
                     right_trigger_mode_override_shortcut_lock = true; 
                 }
             } else {
                 right_trigger_mode_override_shortcut_lock = false;
             }
-            
-            
-            // Atajo para cambiar modo de trigger izquierdo: L1
-            if (shortcut_btn_pressed(data, 4) /* L1 */) {
+                        
+            // Left Trigger mode: L1
+            if (shortcut_btn_pressed(data, 4)) {
                 if (!left_trigger_mode_override_shortcut_lock) {
                     Config_body new_config = get_config();
                     new_config.trigger_left_mode = (new_config.trigger_left_mode + 1) % 4; 
-                    
-                    set_config(new_config); // ⚡ Cambia la RAM al instante
-                    request_temp_save = true; // 📌 Agendamos el guardado
-                    
+                    set_config(new_config);
+                    request_temp_save = true;
                     left_trigger_mode_override_shortcut_lock = true; 
                 }
             } else {
                 left_trigger_mode_override_shortcut_lock = false;
             }
 
-            //Left Analog Up/Down Holding Control
-            if(left_stick_y<10)
+            //Volume Control - Left Analog Up/Down Holding Control. Only updates the volume every 100ms on full analog hold.
+            if(left_stick_y<10) // Full up
             {
                 if(!left_analog_up_triggered)
                 {
                     left_analog_up_holding_time = to_ms_since_boot(get_absolute_time());
                     left_analog_up_triggered = true;
                 }
-                    
             }
             else
             {
@@ -350,7 +323,7 @@ void __not_in_flash_func(on_bt_data)(CHANNEL_TYPE channel, uint8_t *data, uint16
                 speaker_volume_up_shortcut_lock = true;
             }
             
-            if(left_stick_y>245)
+            if(left_stick_y>245) // Full down
             {
                 if(!left_analog_down_triggered)
                 {
@@ -371,37 +344,33 @@ void __not_in_flash_func(on_bt_data)(CHANNEL_TYPE channel, uint8_t *data, uint16
             }
             
             
-            //Speaker Volume Up Shortcut control
+            //Speaker Volume Up Shortcut control: Left Analog Up
             if (speaker_volume_up_shortcut_lock) {
                 Config_body new_config = get_config();
                 new_config.speaker_volume = new_config.speaker_volume + 2.0f;
-                
                 if (new_config.speaker_volume > 0.0f) {
                     new_config.speaker_volume = 0.0f;
                 }
                 current_speaker_volume = new_config.speaker_volume;
-                set_config(new_config); // ⚡ Cambia la RAM al instante (Sin congelar)
-                request_temp_save = true; // 📌 Agendamos el guardado para después
+                set_config(new_config);
+                request_temp_save = true;
                 left_analog_up_holding_time = 0;
                 left_analog_up_triggered = false;
-                printf("Volume Up!\n");
                 speaker_volume_up_shortcut_lock = false;
             }
 
-            //Speaker Volume Down Shortcut control
+            //Speaker Volume Down Shortcut control: Left Analog Down
             if (speaker_volume_down_shortcut_lock) {
                 Config_body new_config = get_config();
                 new_config.speaker_volume = new_config.speaker_volume - 2.0f;
-                
                 if (new_config.speaker_volume < -100.0f) {
                     new_config.speaker_volume = -100.0f;
                 }
                 current_speaker_volume = new_config.speaker_volume;
-                set_config(new_config); // ⚡ Cambia la RAM al instante (Sin congelar)
-                request_temp_save = true; // 📌 Agendamos el guardado para después
+                set_config(new_config);
+                request_temp_save = true;
                 left_analog_down_holding_time = 0;
                 left_analog_down_triggered = false;
-                printf("Volume Down!\n");
                 speaker_volume_down_shortcut_lock = false;
             }
             
@@ -410,25 +379,24 @@ void __not_in_flash_func(on_bt_data)(CHANNEL_TYPE channel, uint8_t *data, uint16
             && !right_trigger_mode_override_shortcut_lock && !lightbar_breathing_shortcut_lock
             && !lightbar_mode_switch_shortcut_lock && !speaker_volume_down_shortcut_lock && !speaker_volume_up_shortcut_lock)
             {
-                current_speaker_volume = get_config().speaker_volume;
+                current_speaker_volume = get_config().speaker_volume; //Updating the volatile var for audio loop to use without a full flash save 
                 printf("Speaker Volume Config: %d \n", (int)current_speaker_volume);
                 request_temp_save = false;
-                // 2. Forzamos la actualización interna de state[] leyendo la nueva config
+                // 2. Enforce the update of the internal state[] reading the new config modified by the shortcuts
                 uint8_t dummy_buffer[sizeof(SetStateData) + 1] = {0};
                 state_update(dummy_buffer + 1, sizeof(SetStateData));
                 
-                // 3. ⚡ SOLUCIÓN DEFINITIVA: Despachamos el paquete al DualSense inmediatamente
-                // Esto vacía el buffer state[] recién modificado y lo eyecta al aire
+                // 3. Sending the new package with the new state[] to the controller
                 uint8_t forced_pkt[78] = {0};
                 forced_pkt[0] = 0x31;
                 forced_pkt[1] = (uint8_t)(reportSeqCounter << 4);
                 if (++reportSeqCounter == 256) reportSeqCounter = 0;
                 forced_pkt[2] = 0x10;
                 
-                // Inyectamos el estado actual que ya contiene tus gatillos nuevos
+                // Filling the forced package with the actual new state[]
                 state_set(forced_pkt + 3, sizeof(SetStateData));
                 
-                // Mandamos por Bluetooth en caliente
+                // Sending by BT the forced package to update the controller
                 bt_write(forced_pkt, sizeof(forced_pkt));
                 request_flash_save = true;
                 
@@ -440,31 +408,24 @@ void __not_in_flash_func(on_bt_data)(CHANNEL_TYPE channel, uint8_t *data, uint16
             //Only safe save to flash when out of config mode after request_flash_save is true
             if (request_flash_save) {
                 
-            
-                save_requested = true; 
+                save_requested = true;//Telling main loop to call flash save after some ms.
                 request_flash_save = false;    
-                current_speaker_volume = get_config().speaker_volume;
-                // 2. Forzamos la actualización interna de state[] leyendo la nueva config
+                current_speaker_volume = get_config().speaker_volume; //Updating the volatile var for audio loop to use without a full flash save
+                
                 uint8_t dummy_buffer[sizeof(SetStateData) + 1] = {0};
                 state_update(dummy_buffer + 1, sizeof(SetStateData));
 
-                // 3. ⚡ SOLUCIÓN DEFINITIVA: Despachamos el paquete al DualSense inmediatamente
-                // Esto vacía el buffer state[] recién modificado y lo eyecta al aire
                 uint8_t forced_pkt[78] = {0};
                 forced_pkt[0] = 0x31;
                 forced_pkt[1] = (uint8_t)(reportSeqCounter << 4);
                 if (++reportSeqCounter == 256) reportSeqCounter = 0;
                 forced_pkt[2] = 0x10;
                 
-                // Inyectamos el estado actual que ya contiene tus gatillos nuevos
                 state_set(forced_pkt + 3, sizeof(SetStateData));
-                
-                // Mandamos por Bluetooth en caliente
                 bt_write(forced_pkt, sizeof(forced_pkt));
 
-            
             }
-
+            // Vanilla power off combo
             // data[3+7] = byte 7 of USBGetStateData, data[3+9] = byte 9: bit0=PS(Home)
             const bool ps    = (data[12] & 0x01) != 0;
             bool suppress_ps = false;
@@ -483,15 +444,10 @@ void __not_in_flash_func(on_bt_data)(CHANNEL_TYPE channel, uint8_t *data, uint16
             } else {
                 poweroff_held = false;
             }
-
-            
-
             if (suppress_ps) {
                 data[12] &= ~0x01; // suppress PS
             }
         }
-
-        
 
         if (get_config().polling_rate_mode != 2) {
         memcpy(interrupt_in_data, data + 3, 63);
@@ -625,48 +581,47 @@ static void state_keepalive() {
     // Read actual config
     const auto &cfg = get_config();
 
-    // Offset de Valid_Flag1 para inyectar corriente máxima a los servomotores
+    // Offset of Valid_Flag1 to push max amps to the trigger motors
     size_t out_motor_flag_offset = 3 + offsetof(SetStateData, HostTimestamp) + sizeof(uint32_t);
 
-    // --- 🔫 MODO METRALLA NATIVO MAQUINA (0x06): GATILLO DERECHO ---
+    // Pushing trigger mode 3 (Machine Gun) every loop, otherwise it falls back to relax mode
     if (cfg.trigger_right_mode == 3) {
         size_t r_off = 3 + offsetof(SetStateData, RightTriggerFFB);
         
 
-        // Solo actúa si detecta físicamente tu dedo hundiendo el gatillo R2
+        // Only applies if the user is actually pushing the trigger beyond a threshold of 15 (0 to 255)
         if (right_trigger_real_position > 15) {
-            pkt[3 + 0] |= 0x04; // Valid_Flag0: Avisa que actualizamos el gatillo derecho
+            pkt[3 + 0] |= 0x04; // Valid_Flag0: Telling that the R2 is being updated
             if (out_motor_flag_offset < 78) {
-                pkt[out_motor_flag_offset] |= 0x03; // Forza calibración y etapa de potencia
+                pkt[out_motor_flag_offset] |= 0x03; // Enforcing power stage
             }
 
-            // Mapeo idéntico a tu captura del DualSense Explorer:
+            
             pkt[r_off + 0] = 0x06; // L2/R2 trigger effect mode (Machine Gun)
-            pkt[r_off + 1] = 0x20; // Parameter 1: Inicio del efecto (32 analógico)
-            pkt[r_off + 2] = 0xFF; // Parameter 2: Fin del efecto (255 analógico)
-            pkt[r_off + 3] = 0x06; // Parameter 3: Frecuencia / Velocidad de ráfaga
-            pkt[r_off + 4] = 0x06; // Parameter 4: Fuerza / Amplitud del martillazo
+            pkt[r_off + 1] = 0x20; // Parameter 1: Start of the effect (32)
+            pkt[r_off + 2] = 0xFF; // Parameter 2: End of the efect (255)
+            pkt[r_off + 3] = 0x06; // Parameter 3: Frecuency of the trigger
+            pkt[r_off + 4] = 0x06; // Parameter 4: Force / Hammering amplitude
             pkt[r_off + 5] = 0x00; // Parameter 5
             pkt[r_off + 6] = 0x00; // Parameter 6
         } else {
-            // Estado de reposo absoluto al soltar el dedo
+            // Full relax state after releasing the finger
             pkt[r_off + 0] = 0x05; 
             memset(&pkt[r_off + 1], 0, 6);
         }
     }
 
-    // --- 🔫 MODO METRALLA NATIVO MAQUINA (0x06): GATILLO IZQUIERDO ---
+    
     if (cfg.trigger_left_mode == 3) {
         
         size_t l_off = 3 + offsetof(SetStateData, LeftTriggerFFB);
         if (left_trigger_real_position > 15) {
             
-            pkt[3 + 0] |= 0x08; // Valid_Flag0: Avisa que actualizamos el gatillo izquierdo
+            pkt[3 + 0] |= 0x08; // Valid_Flag0: Telling that the L2 is being updated
             if (out_motor_flag_offset < 78) {
                 pkt[out_motor_flag_offset] |= 0x03; 
             }
 
-            // Mapeo idéntico a tu captura del DualSense Explorer:
             pkt[l_off + 0] = 0x06; 
             pkt[l_off + 1] = 0x20; 
             pkt[l_off + 2] = 0xFF; 
@@ -797,45 +752,44 @@ int main() {
         if (usb_reconnect_requested) {
             if (usb_is_enabled) {
                 tud_disconnect();
-                usb_is_enabled = false; // El cerrojo evita el spam
+                usb_is_enabled = false; // Avoiding spam
             }
             reconnect_start_time = to_ms_since_boot(get_absolute_time());
             usb_reconnect_requested = false;
         }
 
-        if(save_config_now)
+        if(save_config_now)//Only requested by web app on 0xF6 0x02 flash write
         {
             save_config_now = false;
             save_now_update();
         }
-        // ⏱️ PHASE 1: Petition to save config
+        // Petition to save later
         if (save_requested) {
             pending_save_time = to_ms_since_boot(get_absolute_time());
             
-            save_requested = false; // Bajamos la bandera inmediata
+            save_requested = false; // Avoiding spam
         }
 
-        // ⏱️ FASE 2: Ejecución tras 150ms de gracia
-        // Esto le da a TinyUSB tiempo para enviar el ACK a Chrome antes de congelar la Flash
+        // Only safe save after a 150ms cooldown to avoid TinyUSB to not being able to answer to the host
         if (pending_save_time != 0 && (to_ms_since_boot(get_absolute_time()) - pending_save_time > 500)) {
             safe_config_save();
-            pending_save_time = 0; // Reseteamos el temporizador
+            pending_save_time = 0;
         }
 
         audio_loop();
-        if(check_lb_again)
+        if(check_lb_again)//Enforce to check lightbar host color after a cooldown to avoid flashing between 2 host color request
         {
             uint32_t tiempo_actual_local = to_ms_since_boot(get_absolute_time());
-            if (tiempo_actual_local - ultimo_tiempo_check_lb > 3050) {
+            if (tiempo_actual_local - last_time_check_lb > 3050) {
                 uint8_t dummy_buffer[sizeof(SetStateData) + 1] = {0};
                 state_update(dummy_buffer + 1, sizeof(SetStateData));
-                ultimo_tiempo_check_lb = tiempo_actual_local;
+                last_time_check_lb = tiempo_actual_local;
             }
 
         }
         else
         {
-            ultimo_tiempo_check_lb = to_ms_since_boot(get_absolute_time());
+            last_time_check_lb = to_ms_since_boot(get_absolute_time());
         }
         
         state_keepalive();

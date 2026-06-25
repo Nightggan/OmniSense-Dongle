@@ -16,9 +16,9 @@
 
 extern uint8_t interrupt_in_data[63]; // defined in main.cpp
 extern bool spk_active; // main.cpp: true while host USB speaker stream is open
-extern uint8_t host_puro_r;
-extern uint8_t host_puro_g;
-extern uint8_t host_puro_b;
+extern uint8_t host_real_color_r;
+extern uint8_t host_real_color_g;
+extern uint8_t host_real_color_b;
 extern uint8_t lb_controlled_red;
 extern uint8_t lb_controlled_green;
 extern uint8_t lb_controlled_blue;
@@ -89,9 +89,8 @@ namespace{
     constexpr Color COLOR_YELLOW = {255, 180,   0};
     constexpr Color COLOR_RED    = {255,   0,   0};
 
-    // Color tiers based on PowerPercent (0–10 scale, each unit ≈ 10%).
-    // pct >= 7  → Blue   (70–100 %)
-    // 4-6       → Green  (40–69 %)
+    // Color tiers based on PowerPercent (0–10 scale, each unit ≈ 10%)
+    // pct >=4      → Green  (40–100 %)
     // 1-3       → Yellow (10–39 %)
     // pct == 0  → Red    (< 10 %)
     Color color_for_pct(uint8_t pct) {
@@ -105,11 +104,8 @@ namespace{
     
     static uint8_t base_r = 0, base_g = 0, base_b = 0;
     
-    
-    
-    
     uint8_t lb_r = 0, lb_g = 0, lb_b = 0;
-    // For the modes that use fixed colors, configurable from the app.
+    // For the modes that use fixed colors, configurable from the app and shortcut.
     
     int lb_mode = 0;
     bool g_lightbar_override = false; // true when firmware is controlling the LED, false when host controls it
@@ -162,6 +158,7 @@ namespace{
         const uint8_t pstate = pwr >> 4;
         const bool charging = bt_is_connected() && (pstate == 1);
 
+        
         if (!charging) {
             g_charge_eta = ChargeEta{};          // clears charging/valid/minutes
             ring_count = ring_head = 0;
@@ -257,11 +254,6 @@ namespace{
             default: *r = v; *g = p; *b = q; break;
         }
     }
-
-    // Compute lb_r/lb_g/lb_b for an OLED lightbar mode (0..7). HOST (8) is handled
-    // by the caller (no firmware color). noinline keeps the float/HSV literals out
-    // of lightbar_service's / oled_loop's literal pool (same Thumb reach constraint
-    // the render_screen_* functions hit).
     
     void lightbar_compute_mode(int mode, uint32_t now_ms) {
         Config_body local_config = get_config();
@@ -286,8 +278,6 @@ namespace{
                 lb_controlled_blue = lb_b;
             }else if (mode == 6) {
                 // BATTERY: reflect battery level in brightness, solid color from config
-                
-                
 
                 const uint8_t b   = interrupt_in_data[52];
                 const uint8_t pct = b & 0x0F;
@@ -318,6 +308,7 @@ namespace{
                 lb_controlled_blue = lb_b;
             }
         }
+        //Breathing mode only applies for mode 0 and solid fav slots (mode 2 to 5)
         if(g_lightbar_override_breathing) {
             if((mode<=5)&&(mode!=1)) {
                 if(mode==0)
@@ -327,9 +318,9 @@ namespace{
                     const uint16_t scale = (uint16_t)(32 + (s + 127) / 2); // 32..191
                     
                     
-                    base_r = host_puro_r;
-                    base_g = host_puro_g;
-                    base_b = host_puro_b;
+                    base_r = host_real_color_r;
+                    base_g = host_real_color_g;
+                    base_b = host_real_color_b;
                     
                     
                     uint8_t led_final_r = (uint8_t)((base_r * scale) / 255);
@@ -347,11 +338,10 @@ namespace{
                 }
                 else
                 {
-                    // 🛠️ REPARACIÓN PARA MODOS FAVORITOS:
-                    // Recuperamos el índice exacto de la ranura seleccionada (modos 2, 3, 4, 5)
+                    
+                    // Mode selected to fav slots 2-5 to 0-3
                     const int slot = mode - 2;
                     
-                    // Asignamos el color original guardado a las variables base puras
                     base_r = local_config.lb_fav_r[slot];
                     base_g = local_config.lb_fav_g[slot];
                     base_b = local_config.lb_fav_b[slot];
@@ -360,7 +350,7 @@ namespace{
                     const int s = sin_lut(phase); 
                     const uint16_t scale = (uint16_t)(32 + (s + 127) / 2); 
                     
-                    // Calculamos la atenuación sobre la base protegida sin alterar las globales fijos
+                    // The attenuation is applied on the final var to be applied, not the base color of the fav selected
                     lb_r = (uint8_t)((base_r * scale) / 255);
                     lb_g = (uint8_t)((base_g * scale) / 255);
                     lb_b = (uint8_t)((base_b * scale) / 255);
@@ -376,16 +366,15 @@ namespace{
         
     }
 
-    // The single owner of the controller LED. Runs every frame (~10 Hz) from
-    // oled_loop, on every screen, so a chosen mode "sticks" everywhere instead of
-    // only while the Lightbar screen renders. Priority:
-    //   1. Charging  -> amber-orange breathing pulse (status indicator).
-    //   2. lb_mode != HOST -> the selected OLED mode/color.
-    //   3. HOST (or disconnected) -> hand the LED back to the host/game.
+    // The single owner of the controller LED. Runs every frame (~10 Hz)
+    //   1. Charging  -> Breathing green color, overrides all other modes
+    //   2. Low Battery -> Fast breathing red color, overrides all other modes if it is not charging
+    //   2. Selected mode -> 0: default (host controlled), 1: disabled, 2: Fav 0, 3: Fav 1, 4: Fav 2, 5: Fav 3, 6: battery level, 7: rainbow, 8: favs fade
     // When the firmware owns the LED it (a) writes state[] so the color rides every
     // host/audio packet and (b) actively pushes it via send_lightbar_color so it
-    // updates even when the host is idle and animations keep moving. g_lightbar_
-    // override gates state_update() so host AllowLedColor writes can't stomp us.
+    // updates even when the host is idle and animations keep moving.
+    // If a second host tries to send another color (not black) (Like Steam vs Xbox GP Game), state_mgr (state_update) waits for 3 seconds,
+    // if the host is still sending another color after the 3 secs, host color changes (only for mode 0). Ignores the host if it is sending a black color (Full zeroes)
     
     void lightbar_service() {
         if (!bt_is_connected()) { return; }// if we're not connected, we shouldn't be controlling the lightbar at all, so we just return here and do nothing, which means the lightbar will be off (or in its default state) when not connected, and we won't be trying to send any BT packets or update the LED color when there's no connection, which is what we want.
@@ -395,16 +384,14 @@ namespace{
         const uint32_t now_ms = (uint32_t)time_us_32() / 1000;
         g_lightbar_override = true; // assume control until we check the mode; if the mode is HOST, we'll set this to false to hand control back to the host
         
-        //state_get_led_ram(&host_puro_r, &host_puro_g, &host_puro_b);
 
         const uint8_t b   = interrupt_in_data[52];
         const uint8_t pct = b & 0x0F;
         bool valid_battery_reading = (pct <= 10); // Valid readings are 0-10; 0x0F indicates an invalid reading
         bool low_battery = valid_battery_reading && (pct <= 1); // Consider battery low if we have a valid reading and it's 10% or less
-        // Charging status trumps all: a distinct breathing amber pulse while charging, so it's obvious at a glance and doesn't require parsing a number or remembering which color tier is which.
+        // Charging status trumps all: overrides all other modes
         if (g_charge_eta.charging) {
-            // ~4.6 s breathing cycle (256 phase steps × 18 ms). Base amber
-            // (255,100,0) sine-enveloped from dim (24) to bright (240).
+            //Fast breathing green color to indicate it is charging
             const uint8_t  phase = (uint8_t)(now_ms / 18);
             const int      s     = sin_lut(phase);                          // -127..127
             const uint16_t scale = (uint16_t)(24 + ((s + 127) * 216) / 254); // 24..240
@@ -414,7 +401,7 @@ namespace{
         }
         else
         {
-            if(valid_battery_reading&&low_battery) {// If the battery level is critically low, override all modes with a distinct breathing red to alert the user to charge soon. This ensures the warning is visible even if the user has set a different mode or color, and even if the controller is idle or the host isn't updating the LED.
+            if(valid_battery_reading&&low_battery) {// If the battery level is critically low, override all modes with a distinct fast breathing red to alert the user to charge soon. This ensures the warning is visible even if the user has set a different mode or color.
                 lb_r = COLOR_RED.r;
                 lb_g = COLOR_RED.g;
                 lb_b = COLOR_RED.b;
@@ -427,7 +414,7 @@ namespace{
                 lb_b = (uint8_t)((lb_b * scale) / 255);
             }
             else if (lb_mode == 0) {
-                // Reflect the host's current LED on the OLED bars, then stand down.
+                // Reflect the host's current LED
 
                 if(g_lightbar_override_breathing)
                 {
@@ -436,11 +423,9 @@ namespace{
                 }
                 else
                 {
-                    lb_r = host_puro_r;
-                    lb_g = host_puro_g;
-                    lb_b = host_puro_b;
-                    
-                    g_lightbar_override = false; // hand control back to the host
+                    lb_r = host_real_color_r;
+                    lb_g = host_real_color_g;
+                    lb_b = host_real_color_b;//Asigned the host real color to the temp var for it to to be sent to the controller
                 }
             
             } 
@@ -450,7 +435,7 @@ namespace{
             }
         }
 
-        lb_controlled_red = lb_r;
+        lb_controlled_red = lb_r; //Asigned the calculated new color with all the effects applied to the extern var for main.cpp to use on keep_alive
         lb_controlled_green = lb_g;
         lb_controlled_blue = lb_b;
         state_set_led_color(lb_r, lb_g, lb_b);  // ride every host/audio frame

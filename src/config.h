@@ -31,14 +31,8 @@ struct __attribute__((packed)) Config_body {
     //Trigger modes
     uint8_t trigger_left_mode;       // 0: Suelto, 1: Rígido, 2: Disparo, 3: Metralla
     uint8_t trigger_right_mode;      // 0: Suelto, 1: Rígido, 2: Disparo, 3: Metralla
-
-    //New Audio Leak Mode
     uint8_t auto_mute_mode; //Disable Speaker on Auto Haptics mode 1 and 2
-
-    //Master Speaker volume
-    float speaker_volume; // [Min -100,0 to Max 0]
-
-
+    float speaker_volume;     //Master Speaker volume [Min -100 to Max 0]
 };
 
 // Button IDs used in poweroff_button / touchpad_button

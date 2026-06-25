@@ -41,12 +41,9 @@ queue_t audio_fifo;
 static uint8_t opus_buf[200];
 critical_section_t opus_cs;
 
-//Custom vars Omega
-extern uint8_t lb_controlled_red;
-extern uint8_t lb_controlled_green;
-extern uint8_t lb_controlled_blue;
-extern volatile float current_speaker_volume;
-//End Custom vars Omega
+//Custom vars Omni
+extern volatile float current_speaker_volume; //Live speaker volume prior to save to the flash
+//End Custom vars Omni
 struct audio_raw_element {
     float data[512 * 2];
 };
@@ -206,6 +203,8 @@ void __not_in_flash_func(audio_loop)() {
         // SetStateData
         pkt[11] = 0x10 | 0 << 6 | 1 << 7;
         pkt[12] = 63;
+
+        //After some testing it is not needed to push the lightbar color on the audio package
         /*pkt[13 + 4] |= 0x04; //Lightbar full control
         state_set(pkt + 13, 63);
         //Mute light
@@ -230,33 +229,30 @@ void __not_in_flash_func(audio_loop)() {
         pkt[77] = SAMPLE_SIZE;
         memcpy(pkt + 78, haptic_buf, SAMPLE_SIZE);
 
-        // =========================================================================
-        // ⚡ INYECCIÓN DE POTENCIA MÁXIMA PARA MODO METRALLA EN PAQUETES DE AUDIO (0x36)
-        // Evita que el flujo de PipeWire/Steam pisotee los hercios del hardware
-        // =========================================================================
+        // Override of the trigger motors mode to push the machine gun integrated mode on the audio package (0x36)
+
         const auto &cfg = get_config();
         uint32_t tiempo_ms = to_ms_since_boot(get_absolute_time());
         
-        // El bloque SetStateData empieza en pkt[13]. 
-        // Calculamos los desfasajes correctos dentro del reporte extendido 0x36:
+        // Offset of 13 on the audio package
         size_t r_off = 13 + offsetof(SetStateData, RightTriggerFFB);
         size_t l_off = 13 + offsetof(SetStateData, LeftTriggerFFB);
         size_t audio_motor_flag_offset = 13 + offsetof(SetStateData, HostTimestamp) + sizeof(uint32_t);
 
-        // Variables analógicas externas que capturas en main.cpp
+        //Actual value of the trigger position to set the machine gun mode
         extern uint8_t right_trigger_real_position;
         extern uint8_t left_trigger_real_position;
 
-        // --- Sincronismo Gatillo Derecho ---
+        // --- Right Trigger ---
         if (cfg.trigger_right_mode == 3) {
             
 
             if (right_trigger_real_position > 15) {
-                pkt[13] |= 0x04; // Forzar flag de validez del gatillo derecho en Valid_Flag0
+                pkt[13] |= 0x04; // Enforce valid flag of the right trigger with Valid_Flag0
                 if (audio_motor_flag_offset < REPORT_SIZE) {
                     pkt[audio_motor_flag_offset] |= 0x03; // Inyectar amperaje máximo
                 }
-                // Copiamos exactamente tus parámetros nativos exitosos del explorador
+                
                 pkt[r_off + 0] = 0x06; // Modo Machine Gun
                 pkt[r_off + 1] = 0x20; // Parámetro 1
                 pkt[r_off + 2] = 0xFF; // Parámetro 2
@@ -269,12 +265,12 @@ void __not_in_flash_func(audio_loop)() {
             }
         }
 
-        // --- Sincronismo Gatillo Izquierdo ---
+        // --- Left Trigger ---
         if (cfg.trigger_left_mode == 3) {
             
 
             if (left_trigger_real_position > 15) {
-                pkt[13] |= 0x08; // Forzar flag de validez del gatillo izquierdo en Valid_Flag0
+                pkt[13] |= 0x08; // Enforce valid flag of the left trigger with Valid_Flag0
                 if (audio_motor_flag_offset < REPORT_SIZE) {
                     pkt[audio_motor_flag_offset] |= 0x03; 
                 }

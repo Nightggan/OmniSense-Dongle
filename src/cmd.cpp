@@ -14,11 +14,11 @@
 #include "pico/time.h"
 #include "state_mgr.h"
 
-//Custom vars Omega
+//Custom vars Omni
 extern volatile bool usb_reconnect_requested;
 extern bool save_requested;
 extern bool save_config_now;
-//End Custom vars Omega
+//End Custom vars Omni
 bool is_pico_cmd(uint8_t report_id) {
     if (report_id == 0xf6 ||
         report_id == 0xf7 ||
@@ -34,7 +34,7 @@ uint16_t pico_cmd_get(uint8_t report_id, uint8_t *buffer, uint16_t reqlen) {
     if (report_id == 0xf7) {
         printf("[HID] Receive 0xf7 getting config\n");
         // Skip config_version (internal field), expose from haptics_gain so
-        // clients see a 17-byte layout matching their struct definition.
+        // clients see a layout matching their struct definition.
         const Config_body& body = get_config();
         constexpr size_t offset = offsetof(Config_body, haptics_gain);
         constexpr size_t body_len = sizeof(Config_body) - offset;

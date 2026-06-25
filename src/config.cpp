@@ -105,7 +105,7 @@ void config_valid() {
         body->wake_enable = 0;
     }
     if (body->lightbar_mode > 8) {
-        body->lightbar_mode = 0;//default to "default" mode if invalid HOST
+        body->lightbar_mode = 0;//default to "HOST" mode if invalid
     }
     if (body->lb_fav_r[0] == 0xFF && body->lb_fav_g[0] == 0xFF && body->lb_fav_b[0] == 0xFF) {
         // Default FAV0 to bright cyan to make it obvious if the config isn't loaded
@@ -136,16 +136,18 @@ void config_valid() {
     }
 
     if (body->trigger_left_mode > 3) {
-        body->trigger_left_mode = 0; //suelto by default if invalid
+        body->trigger_left_mode = 0; //Relexed/Host controlled by default if invalid
     }
     if (body->trigger_right_mode > 3) {
-        body->trigger_right_mode = 0; //suelto by default if invalid
+        body->trigger_right_mode = 0; //Relexed/Host controlled by default if invalid
     }
 
+    //Default to 0 to allow sound pass to speaker/headphones even on haptics modes
     if (body->auto_mute_mode > 1) body->auto_mute_mode = 0;
 
+    //Default speaker volume to -100 (min) to not scare your sleeping wife
     if (std::isnan(body->speaker_volume) || body->speaker_volume < -100 || body->speaker_volume > 0) {
-        body->speaker_volume = -25;
+        body->speaker_volume = -100;
         printf("[Config] Speaker Volume is invalid\n");
     }
 }
