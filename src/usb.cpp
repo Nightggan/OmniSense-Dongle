@@ -108,7 +108,7 @@ static bool audio10_get_req_entity(uint8_t rhport, tusb_control_request_t const 
                     case AUDIO10_CS_REQ_GET_CUR:
                         TU_LOG2("    Get Volume of entity: %u\r\n", entityID); {
                             if (entityID == UAC1_ENTITY_SPK_FEATURE_UNIT) {
-                                volume[index] = get_config().speaker_volume;
+                                volume[index] = -100;
                             }
                             int16_t vol = volume[index] * 256; // convert to 1/256 dB units
                             return tud_audio_buffer_and_schedule_control_xfer(rhport, p_request, &vol, sizeof(vol));

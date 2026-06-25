@@ -12,7 +12,13 @@
 #include "config.h"
 #include "device/usbd.h"
 #include "pico/time.h"
+#include "state_mgr.h"
 
+//Custom vars Omega
+extern volatile bool usb_reconnect_requested;
+extern bool save_requested;
+extern bool save_config_now;
+//End Custom vars Omega
 bool is_pico_cmd(uint8_t report_id) {
     if (report_id == 0xf6 ||
         report_id == 0xf7 ||
@@ -76,12 +82,10 @@ void pico_cmd_set(uint8_t report_id, uint8_t const *buffer, uint16_t bufsize) {
     }
     if (buffer[0] == 0x02) {
         printf("[CMD] Enter config save func\n");
-        config_save();
+        save_config_now = true;
     }
     if (buffer[0] == 0x03) {
         printf("[CMD] Enter tud reconnect func\n");
-        tud_disconnect();
-        sleep_ms(150);
-        tud_connect();
+        usb_reconnect_requested = true;
     }
 }

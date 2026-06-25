@@ -41,6 +41,12 @@ queue_t audio_fifo;
 static uint8_t opus_buf[200];
 critical_section_t opus_cs;
 
+//Custom vars Omega
+extern uint8_t lb_controlled_red;
+extern uint8_t lb_controlled_green;
+extern uint8_t lb_controlled_blue;
+extern volatile float current_speaker_volume;
+//End Custom vars Omega
 struct audio_raw_element {
     float data[512 * 2];
 };
@@ -84,9 +90,9 @@ void __not_in_flash_func(audio_loop)() {
     int nframes = resampler.ResamplePrepare(frames, OUTPUT_CHANNELS, &in_buf);
 
     const uint8_t auto_mode  = get_config().auto_haptics_enable;
-    const bool auto_mute     = ((auto_mode == 2 || actual_ch == 2) && get_config().auto_haptics_mute_replace) ||
-                               (auto_mode == 1 && get_config().auto_haptics_mute_mix);
-    const float audio_gain   = (mute[0] || auto_mute) ? 0.0f : powf(10.0f, get_config().speaker_volume / 20.0f);
+    const bool auto_mute     = ((auto_mode == 2 || actual_ch == 2) && get_config().auto_mute_mode) ||
+                               (auto_mode == 1 && get_config().auto_mute_mode);
+    const float audio_gain   = (mute[0] || auto_mute) ? 0.0f : powf(10.0f, current_speaker_volume / 20.0f);
     const float haptics_gain = get_config().haptics_gain;
     // For 2ch mode (Windows/Stereo Mix), always enable auto-haptics DSP regardless of auto_mode setting
     const float auto_gain    = (auto_mode > 0 || actual_ch == 2) ? (get_config().auto_haptics_gain / 100.0f) * haptics_gain : 0.0f;
@@ -200,11 +206,91 @@ void __not_in_flash_func(audio_loop)() {
         // SetStateData
         pkt[11] = 0x10 | 0 << 6 | 1 << 7;
         pkt[12] = 63;
+        /*pkt[13 + 4] |= 0x04; //Lightbar full control
         state_set(pkt + 13, 63);
+        //Mute light
+        //If in config state mode 
+        if(config_mode_enabled)
+        {
+            size_t muteLightModeOffset = 13 + offsetof(SetStateData, MuteLightMode);
+            pkt[muteLightModeOffset] = 0x02;
+        }
+        else
+        {
+            size_t muteLightModeOffset = 3 + offsetof(SetStateData, MuteLightMode);
+            pkt[muteLightModeOffset] = 0x00;
+        }
+        //Lightbar colors
+        pkt[60] = lb_controlled_red;
+        pkt[61] = lb_controlled_green;
+        pkt[62] = lb_controlled_blue;
+        */
         // Haptics Audio Data
         pkt[76] = 0x12 | 0 << 6 | 1 << 7;
         pkt[77] = SAMPLE_SIZE;
         memcpy(pkt + 78, haptic_buf, SAMPLE_SIZE);
+
+        // =========================================================================
+        // ⚡ INYECCIÓN DE POTENCIA MÁXIMA PARA MODO METRALLA EN PAQUETES DE AUDIO (0x36)
+        // Evita que el flujo de PipeWire/Steam pisotee los hercios del hardware
+        // =========================================================================
+        const auto &cfg = get_config();
+        uint32_t tiempo_ms = to_ms_since_boot(get_absolute_time());
+        
+        // El bloque SetStateData empieza en pkt[13]. 
+        // Calculamos los desfasajes correctos dentro del reporte extendido 0x36:
+        size_t r_off = 13 + offsetof(SetStateData, RightTriggerFFB);
+        size_t l_off = 13 + offsetof(SetStateData, LeftTriggerFFB);
+        size_t audio_motor_flag_offset = 13 + offsetof(SetStateData, HostTimestamp) + sizeof(uint32_t);
+
+        // Variables analógicas externas que capturas en main.cpp
+        extern uint8_t right_trigger_real_position;
+        extern uint8_t left_trigger_real_position;
+
+        // --- Sincronismo Gatillo Derecho ---
+        if (cfg.trigger_right_mode == 3) {
+            
+
+            if (right_trigger_real_position > 15) {
+                pkt[13] |= 0x04; // Forzar flag de validez del gatillo derecho en Valid_Flag0
+                if (audio_motor_flag_offset < REPORT_SIZE) {
+                    pkt[audio_motor_flag_offset] |= 0x03; // Inyectar amperaje máximo
+                }
+                // Copiamos exactamente tus parámetros nativos exitosos del explorador
+                pkt[r_off + 0] = 0x06; // Modo Machine Gun
+                pkt[r_off + 1] = 0x20; // Parámetro 1
+                pkt[r_off + 2] = 0xFF; // Parámetro 2
+                pkt[r_off + 3] = 0x0A; // Parámetro 3
+                pkt[r_off + 4] = 0x06; // Parámetro 4
+                memset(&pkt[r_off + 5], 0, 2);
+            } else {
+                pkt[r_off + 0] = 0x05; // Forzar suelto si no hay presión
+                memset(&pkt[r_off + 1], 0, 6);
+            }
+        }
+
+        // --- Sincronismo Gatillo Izquierdo ---
+        if (cfg.trigger_left_mode == 3) {
+            
+
+            if (left_trigger_real_position > 15) {
+                pkt[13] |= 0x08; // Forzar flag de validez del gatillo izquierdo en Valid_Flag0
+                if (audio_motor_flag_offset < REPORT_SIZE) {
+                    pkt[audio_motor_flag_offset] |= 0x03; 
+                }
+                pkt[l_off + 0] = 0x06; 
+                pkt[l_off + 1] = 0x20; 
+                pkt[l_off + 2] = 0xFF; 
+                pkt[l_off + 3] = 0x0A; 
+                pkt[l_off + 4] = 0x06; 
+                memset(&pkt[l_off + 5], 0, 2);
+            } else {
+                pkt[l_off + 0] = 0x05; 
+                memset(&pkt[l_off + 1], 0, 6);
+            }
+        }
+        // ========================================================================
+
 #if !DISABLE_SPEAKER_PROC
         // Speaker Audio Data
         pkt[142] = (plug_headset ? 0x16 : 0x13) | 0 << 6 | 1 << 7; // Speaker: 0x13

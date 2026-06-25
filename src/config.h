@@ -10,7 +10,6 @@
 struct __attribute__((packed)) Config_body {
     uint8_t config_version; // Config Version
     float haptics_gain; // [1.0,2.0]
-    float speaker_volume; // [-100,0]
     uint8_t inactive_time; // [5,60] min
     uint8_t disable_inactive_disconnect; // bool: 0 disable,1 enable
     uint8_t disable_pico_led; // bool
@@ -22,13 +21,24 @@ struct __attribute__((packed)) Config_body {
     uint8_t auto_haptics_gain;        // [0,200] percent applied to derived signal, default 100
     uint16_t auto_haptics_lowpass_hz; // LP cutoff in Hz [20-400], default 80
     uint8_t enable_poweroff_shortcut; // 1: PS+<button> powers off controller, 0: disabled
-    uint8_t enable_touchpad;          // 1: touchpad active, 0: touchpad data zeroed (PS+<button> toggles runtime)
     uint8_t poweroff_button;          // ShortcutButton: which button + PS triggers power off (default 3=Triangle)
-    uint8_t touchpad_button;          // ShortcutButton: which button + PS toggles touchpad (default 2=Circle)
-    uint8_t battery_color_enable;     // 1: change lightbar color based on battery level, 0: disabled
     uint8_t wake_enable;              // 1: power off controller on host sleep + wake host on reconnect, 0: disabled
-    uint8_t auto_haptics_mute_replace; // 1: mute speaker when Replace mode active
-    uint8_t auto_haptics_mute_mix;     // 1: mute speaker when Mix mode active
+    uint8_t lightbar_mode;            // 0: default, 1: disabled, 2: Fav 0, 3: Fav 1, 4: Fav 2, 5: Fav 3, 6: battery level, 7: rainbow, 8: favs fade
+    uint8_t lb_fav_r[4];
+    uint8_t lb_fav_g[4];
+    uint8_t lb_fav_b[4];
+    uint8_t lightbar_breathing;        // 1 - Enabled, 0 - Disabled
+    //Trigger modes
+    uint8_t trigger_left_mode;       // 0: Suelto, 1: Rígido, 2: Disparo, 3: Metralla
+    uint8_t trigger_right_mode;      // 0: Suelto, 1: Rígido, 2: Disparo, 3: Metralla
+
+    //New Audio Leak Mode
+    uint8_t auto_mute_mode; //Disable Speaker on Auto Haptics mode 1 and 2
+
+    //Master Speaker volume
+    float speaker_volume; // [Min -100,0 to Max 0]
+
+
 };
 
 // Button IDs used in poweroff_button / touchpad_button
