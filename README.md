@@ -61,6 +61,18 @@ Changes are saved to flash upon exiting the mode. Inputs are blocked and do not 
 
 ## Credits
 
-This project is a fork of **[DS5Dongle](https://github.com/loteran/DS5Dongle)**. All credit for the base development and memory architecture goes to the original creators.
+This project is a direct fork of **[DS5Dongle](https://github.com/loteran/DS5Dongle)**. All credit for the base development and memory architecture goes to the original creators.
+
+---
+
+## Credited projects
+
+Thanks to the following projects, whitout them this would be impossible.
+
+- Original project by awalol **[DS5Dongle](https://github.com/awalol/DS5Dongle)**
+- Audio Auto-Haptics by loteran **[DS5Dongle - Auto Haptics Edition](https://github.com/loteran/DS5Dongle)**
+- OLED Edition by MarcelineVPQ **[DS5Dongle-OLED-Edition](https://github.com/MarcelineVPQ/DS5Dongle-OLED-Edition)**
+
+
 
 *Licensed under the **MIT License**.*

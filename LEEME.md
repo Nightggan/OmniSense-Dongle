@@ -62,4 +62,16 @@ Los cambios se guardan en flash al salir del modo. Los atajos son bloqueados y n
 
 Este proyecto es un fork de **[DS5Dongle](https://github.com/loteran/DS5Dongle)**. Todo el mérito del desarrollo base y la arquitectura de memoria es de sus creadores originales.
 
-*Licenciado bajo la **MIT License**.*
+---
+
+## Proyectos acreditados
+
+Gracias a los siguientes proyectos, sin ellos esto no sería posible.
+
+- Proyecto original por awalol **[DS5Dongle](https://github.com/awalol/DS5Dongle)**
+- Audio Auto-Haptics por loteran **[DS5Dongle - Auto Haptics Edition](https://github.com/loteran/DS5Dongle)**
+- OLED Edition por MarcelineVPQ **[DS5Dongle-OLED-Edition](https://github.com/MarcelineVPQ/DS5Dongle-OLED-Edition)**
+
+
+
+*Licensed under the **MIT License**.*
