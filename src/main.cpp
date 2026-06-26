@@ -193,10 +193,10 @@ void suppress_all_inputs(uint8_t *data) {
     // 2. Triggers to 0
     data[7] = 0; 
     data[8] = 0;
-
-    data[10] = 0; // Cleans D-Pad, SQUARE, TRIANGLE, CIRCLE and CROSS
-    data[11] = 0; // Limpia botones extras (Create, Options, L1, R1, L3, R3)
-    data[12] = 0; // Limpia PS, Pad Click, Mute, DSE Paddles
+    
+    data[10] = 0x08; // Cleans D-Pad, SQUARE, TRIANGLE, CIRCLE and CROSS
+    data[11] = 0; // Cleans extra buttons (Create, Options, L1, R1, L3, R3)
+    data[12] = 0; // Cleans PS, Pad Click, Mute, DSE Paddles
 }
 
 //Custon on_bt_data adding trigger/lightbar modes and shortcuts
