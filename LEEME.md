@@ -44,6 +44,37 @@ Los cambios se guardan en flash al salir del modo. Los atajos son bloqueados y n
 
 ---
 
+### Modos de la barra de luz:
+
+| Modo | Función |
+| :--- | :--- |
+| 0 | Controlado por el Host |
+| 1 | Apagada |
+| 2 | Favorito 0 |
+| 3 | Favorito 1 |
+| 4 | Favorito 2 |
+| 5 | Favorito 3 |
+| 6 | Indicador de batería |
+| 7 | Arcoíris |
+| 8 | Desvanecimiento entre favoritos |
+
+### Modo 0 Host:
+
+Si 2 host envian datos diferentes (ej: Steam y GamePass) el dongle prioriza el primer color válido recibido a menos que el primer host deje de enviar datos.
+
+### Indicador de Batería:
+
+| Porcentaje | Color |
+| :--- | :--- |
+| > 40% | Verde |
+| 10% - 39% | Amarillo |
+| < 10% | Desvanecimiento rápido en rojo |
+
+- Si la batería está crítica (<10%) se reemplaza cualquier modo seleccionado para alertar continuamente.
+- Si el control está cargando se indica con un desvanecimiento en verde reemplazando cualquier otro modo aunque la batería esté en niveles críticos.
+
+---
+
 ## Work in Progress (Próximas funciones)
 
 - Compatibilidad total con el micrófono integrado con su atajo dedicado desde el mando.

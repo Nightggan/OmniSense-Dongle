@@ -45,6 +45,37 @@ Changes are saved to flash upon exiting the mode. Inputs are blocked and do not 
 
 ---
 
+### Lightbar modes:
+
+| Mode | Function |
+| :--- | :--- |
+| 0 | Host controlled |
+| 1 | Disabled |
+| 2 | Favorite 0 |
+| 3 | Favorite 1 |
+| 4 | Favorite 2 |
+| 5 | Favorite 3 |
+| 6 | Battery Indicator |
+| 7 | Rainbow |
+| 8 | Fade between favorites |
+
+### Mode 0 Host:
+
+If 2 hosts send different data (like Steam and GamePass) the dongle prioritize the first valid color received unless the first host stops sending data.
+
+### Battery Indicator:
+
+| percentage | Color |
+| :--- | :--- |
+| > 40% | Green |
+| 10% - 39% | Yellow |
+| < 10% | Fast red fade |
+
+- If the battery is critical (<10%) the dongle overrides any selected mode to alert the user.
+- If the controller is charging the dongle indicates it with a green fade overriding any other mode selected even if the battery is critically low.
+
+---
+
 ## Work in Progress
 
 - Full support for the integrated microphone with a dedicated controller shortcut.
