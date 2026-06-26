@@ -18,7 +18,7 @@ In addition to the base features of loteran fork, such as Audio Auto-Haptics, th
 
 ## Configuration and Web-App
 
-1. Access the web app [here](https://nightggan.github.io/OmniSense-Dongle/)
+1. Access the web app [here](https://nightggan.github.io/OmniSense-Config-Web/)
 2. Connect your dongle via USB and pair your DualSense controller.
 3. Click **"Connect"** and adjust your preferences.
 
