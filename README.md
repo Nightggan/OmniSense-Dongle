@@ -18,8 +18,6 @@ In addition to the base features of loteran fork, such as Audio Auto-Haptics, th
 
 ## Configuration and Web-App
 
-To configure your OmniSense Dongle, use the new Web-App located in the `custom-config-web` folder.
-
 1. Access the web app [here](https://nightggan.github.io/OmniSense-Dongle/)
 2. Connect your dongle via USB and pair your DualSense controller.
 3. Click **"Connect"** and adjust your preferences.
