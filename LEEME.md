@@ -12,6 +12,7 @@ Además de las funciones base del fork de loteran, como Auto Hápticas por audio
 - **Modos de Gatillo:** Toma el control total de los gatillos adaptativos incluso en juegos sin soporte. Añade modos **Rígido**, **Disparo** y **Ametralladora**.
 - **Modo Configuración desde el mando:** Cambia los modos de la barra de luz, gatillos y volúmen del parlante directamente desde el DualSense.
 - **Configuración Web:** Gestiona todas las funciones mediante una aplicación web personalizada.
+- **No se necesitan aplicaciones complementarias:** Todas las funciones se manejan desde el dongle, sin necesidad de nada corriendo en el host.
 
 ---
 

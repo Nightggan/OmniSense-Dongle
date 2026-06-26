@@ -13,6 +13,7 @@ In addition to the base features of loteran fork, such as Audio Auto-Haptics, th
 - **Trigger Modes:** Take full control of adaptive triggers, even in games without native support. Includes **Rigid**, **Weapon Click**, and **Machine Gun** modes.
 - **On-Controller Config Mode:** Change lightbar modes, trigger modes, and speaker volume directly from the DualSense.
 - **Web Configuration:** Manage all features through a custom web application.
+- **No need for companion apps:** All the functions are drived from the dongle, without the need of a companion app running on the host.
 
 ---
 
