@@ -72,7 +72,7 @@ If 2 hosts send different data (like Steam and GamePass) the dongle prioritize t
 | < 10% | Fast red fade |
 
 - If the battery is critical (<10%) the dongle overrides any selected mode to alert the user.
-- If the controller is charging the dongle indicates it with a green fade overriding any other mode selected even if the battery is critically low.
+- If the controller is charging, the dongle indicates it with a green fade overriding any other mode selected even if the battery is critically low.
 
 ---
 
