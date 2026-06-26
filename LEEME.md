@@ -19,7 +19,7 @@ Además de las funciones base del fork de loteran, como Auto Hápticas por audio
 
 Para configurar tu OmniSense Dongle, utiliza la nueva Web-App ubicada en la carpeta `custom-config-web`.
 
-1. Descarga el archivo de la Web-App y ábrelo en un navegador compatible (Chrome/Edge).
+1. Accede a la aplicación web [aquí](https://nightggan.github.io/OmniSense-Dongle/)
 2. Conecta tu dongle vía USB.
 3. Haz clic en **"Conectar"** y ajusta tus preferencias.
 
