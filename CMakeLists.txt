@@ -96,13 +96,13 @@ endif ()
 # Pull in Raspberry Pi Pico SDK (must be before project)
 include(pico_sdk_import.cmake)
 
-project(ds5-bridge C CXX ASM)
+project(omnisense-dongle C CXX ASM)
 
 # Initialise the Raspberry Pi Pico SDK
 pico_sdk_init()
 
 # Add executable. Default name is the project name, version 0.1
-add_executable(ds5-bridge
+add_executable(omnisense-dongle
         src/usb_descriptors.cpp
         src/main.cpp
         src/usb.cpp
@@ -116,7 +116,7 @@ add_executable(ds5-bridge
 )
 
 if (ENABLE_BATT_LED)
-        target_sources(ds5-bridge PRIVATE src/battery_led.cpp)
+        target_sources(omnisense-dongle PRIVATE src/battery_led.cpp)
 endif ()
 
 # Cockos WDLResampler
@@ -148,7 +148,7 @@ add_custom_command(
     VERBATIM
 )
 add_custom_target(opus_ram_relocate ALL DEPENDS ${CMAKE_BINARY_DIR}/opus_ram_relocate.stamp)
-add_dependencies(ds5-bridge opus_ram_relocate)
+add_dependencies(omnisense-dongle opus_ram_relocate)
 
 target_compile_options(wdl_resampler PRIVATE -fsigned-char)
 
@@ -179,9 +179,9 @@ add_custom_command(TARGET wdl_resampler POST_BUILD
 # locally). RENAMES are |-separated old=new pairs; objcopy skips an absent section,
 # so this is idempotent across incremental relinks.
 function(relocate_to_ram _suffix _renames _comment)
-    add_custom_command(TARGET ds5-bridge PRE_LINK
+    add_custom_command(TARGET omnisense-dongle PRE_LINK
         COMMAND ${CMAKE_COMMAND}
-            "-DOBJROOT=${CMAKE_BINARY_DIR}/CMakeFiles/ds5-bridge.dir"
+            "-DOBJROOT=${CMAKE_BINARY_DIR}/CMakeFiles/omnisense-dongle.dir"
             "-DOBJCOPY=${CMAKE_OBJCOPY}"
             "-DSUFFIX=${_suffix}"
             "-DRENAMES=${_renames}"
@@ -260,7 +260,7 @@ relocate_to_ram(lib/btstack/src/btstack_run_loop.c.o
 set_source_files_properties(src/ram_mem.c PROPERTIES COMPILE_OPTIONS
         "-fno-builtin;-fno-tree-loop-distribute-patterns")
 
-target_compile_options(ds5-bridge PRIVATE -fsigned-char)
+target_compile_options(omnisense-dongle PRIVATE -fsigned-char)
 target_compile_definitions(wdl_resampler PRIVATE
         WDL_RESAMPLE_TYPE=float
 )
@@ -270,8 +270,8 @@ else()
     set(PICO_FLASH_SPI_CLKDIV 2)
 endif()
 target_compile_definitions(bs2_default PRIVATE PICO_FLASH_SPI_CLKDIV=${PICO_FLASH_SPI_CLKDIV})
-target_compile_definitions(ds5-bridge PRIVATE PICO_EMBED_XIP_SETUP=1)
-target_compile_definitions(ds5-bridge PRIVATE
+target_compile_definitions(omnisense-dongle PRIVATE PICO_EMBED_XIP_SETUP=1)
+target_compile_definitions(omnisense-dongle PRIVATE
         CYW43_LWIP=0
         ENABLE_SERIAL=${ENABLE_SERIAL_VALUE}
         # 0 (not 1): flash_safe_execute() must really park core1 while flash is
@@ -294,26 +294,26 @@ target_compile_definitions(ds5-bridge PRIVATE
 # the wake/keyboard descriptors and TinyUSB capacity compile in; the interface and
 # behavior are only presented/run when enabled at runtime (see usb_descriptors.cpp,
 # wake.cpp).
-target_compile_definitions(ds5-bridge PRIVATE ENABLE_WAKE_HID)
-target_sources(ds5-bridge PRIVATE
+target_compile_definitions(omnisense-dongle PRIVATE ENABLE_WAKE_HID)
+target_sources(omnisense-dongle PRIVATE
         src/wake.cpp
 )
 
 option(WAKE_DEBUG "Print wake-FSM transitions to UART (developer use)" OFF)
 if(WAKE_DEBUG)
-    target_compile_definitions(ds5-bridge PRIVATE
+    target_compile_definitions(omnisense-dongle PRIVATE
             WAKE_DEBUG
     )
 endif()
 
 set(VERSION "dev" CACHE STRING "Program version string")
 
-pico_set_program_name(ds5-bridge "ds5-bridge")
-pico_set_program_version(ds5-bridge "${VERSION}")
+pico_set_program_name(omnisense-dongle "omnisense-dongle")
+pico_set_program_version(omnisense-dongle "${VERSION}")
 
 # Modify the below lines to enable/disable output over UART/USB
-pico_enable_stdio_uart(ds5-bridge 1)
-pico_enable_stdio_usb(ds5-bridge ${ENABLE_SERIAL_VALUE})
+pico_enable_stdio_uart(omnisense-dongle 1)
+pico_enable_stdio_usb(omnisense-dongle ${ENABLE_SERIAL_VALUE})
 
 # Add the standard include files to the build
 #target_include_directories(ds5-bridge PRIVATE
@@ -325,7 +325,7 @@ target_include_directories(${PROJECT_NAME} PUBLIC
 )
 
 # Add any user requested libraries
-target_link_libraries(ds5-bridge
+target_link_libraries(omnisense-dongle
         pico_stdlib
         pico_multicore
         hardware_watchdog
@@ -342,4 +342,4 @@ target_link_libraries(ds5-bridge
         opus
 )
 
-pico_add_extra_outputs(ds5-bridge)
+pico_add_extra_outputs(omnisense-dongle)

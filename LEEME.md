@@ -53,6 +53,13 @@ Los cambios se guardan en flash al salir del modo. Los atajos son bloqueados y n
 
 ---
 
+## Cambios del fork original
+
+- Se quitó atajo para desactivar el touchpad
+- Se cambiaron los valores por defecto a los que me parecían mejor
+
+---
+
 ## Créditos
 
 Este proyecto es un fork de **[DS5Dongle](https://github.com/loteran/DS5Dongle)**. Todo el mérito del desarrollo base y la arquitectura de memoria es de sus creadores originales.

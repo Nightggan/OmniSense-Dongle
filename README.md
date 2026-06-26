@@ -53,6 +53,13 @@ Changes are saved to flash upon exiting the mode. Inputs are blocked and do not 
 
 ---
 
+## Changes from the original fork
+
+- Deactivate touchpad shortcut removed
+- Default values changed to what worked best for me
+
+---
+
 ## Credits
 
 This project is a fork of **[DS5Dongle](https://github.com/loteran/DS5Dongle)**. All credit for the base development and memory architecture goes to the original creators.
