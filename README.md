@@ -1,3 +1,4 @@
+[Español](https://github.com/Nightggan/OmniSense-Dongle/blob/master/LEEME.md)
 # OmniSense Dongle — DS5Dongle Advanced Edition
 
 A fork of [DS5Dongle](https://github.com/loteran/DS5Dongle) for Raspberry Pi Pico 2W that takes the DualSense experience to the next level. It inherits all features from the original firmware and adds advanced functions to customize your controller without needing native game support.
