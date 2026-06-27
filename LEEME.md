@@ -42,6 +42,9 @@ Los cambios se guardan en flash al salir del modo. Los atajos son bloqueados y n
 | **R1** | Cambiar modo del Gatillo Derecho |
 | **Stick Izquierdo Arriba** | Aumentar volumen (Parlante/Auriculares) |
 | **Stick Izquierdo Abajo** | Disminuir volumen (Parlante/Auriculares) |
+| **Cuadrado** | Mute (Parlante/Auriculares) |
+
+Mute manual no se mantiene entre ciclos de encendido pero puedes bajar el volumen a 0 con el **Stick Izquierdo** el cual sí se mantiene entre encendidos.
 
 ---
 

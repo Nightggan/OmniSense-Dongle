@@ -63,7 +63,7 @@ bool left_analog_up_triggered = false;
 bool left_analog_down_triggered = false;
 bool request_temp_save = false;
 volatile float current_speaker_volume = -100.0f;
-
+volatile bool speaker_mute = false;
 //End Custom vars Omni
 
 uint8_t interrupt_in_data[63] = {
@@ -244,8 +244,22 @@ void __not_in_flash_func(on_bt_data)(CHANNEL_TYPE channel, uint8_t *data, uint16
             static bool left_trigger_mode_override_shortcut_lock = false;
             static bool speaker_volume_up_shortcut_lock = false;
             static bool speaker_volume_down_shortcut_lock = false;
+            static bool mute_speaker_shortcut_lock = false;
             
-            
+            // Mute Speaker: SQUARE
+            if (shortcut_btn_pressed(data, 0))
+            {    
+                if (!mute_speaker_shortcut_lock) {
+                    speaker_mute = !speaker_mute; //Cycle speaker mute
+                    //No need to save config cause it is not saved between cycles
+                    //set_config(new_config);
+                    //request_temp_save = true;
+                    mute_speaker_shortcut_lock = true;
+                }
+            } else {
+                mute_speaker_shortcut_lock = false;
+            }
+
             // Lightbar mode change: Create
             if (shortcut_btn_pressed(data, 6))
             {    
@@ -357,6 +371,7 @@ void __not_in_flash_func(on_bt_data)(CHANNEL_TYPE channel, uint8_t *data, uint16
                 left_analog_up_holding_time = 0;
                 left_analog_up_triggered = false;
                 speaker_volume_up_shortcut_lock = false;
+                speaker_mute = false; // Disable mute
             }
 
             //Speaker Volume Down Shortcut control: Left Analog Down
@@ -372,6 +387,7 @@ void __not_in_flash_func(on_bt_data)(CHANNEL_TYPE channel, uint8_t *data, uint16
                 left_analog_down_holding_time = 0;
                 left_analog_down_triggered = false;
                 speaker_volume_down_shortcut_lock = false;
+                speaker_mute = false; // Disable mute
             }
             
 

@@ -43,6 +43,9 @@ Changes are saved to flash upon exiting the mode. Inputs are blocked and do not 
 | **R1** | Cycle Right Trigger mode |
 | **Left Stick Up** | Increase Volume (Speaker/Headset) |
 | **Left Stick Down** | Decrease Volume (Speaker/Headset) |
+| **Square** | Mute (Speaker/Headset) |
+
+Manual Mute does not persists after a power off but you can low the volume manually with the **Left Stick** wich it is maintained between power cycles.
 
 ---
 

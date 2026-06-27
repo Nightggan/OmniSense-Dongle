@@ -43,6 +43,7 @@ critical_section_t opus_cs;
 
 //Custom vars Omni
 extern volatile float current_speaker_volume; //Live speaker volume prior to save to the flash
+extern volatile bool speaker_mute;
 //End Custom vars Omni
 struct audio_raw_element {
     float data[512 * 2];
@@ -89,6 +90,11 @@ void __not_in_flash_func(audio_loop)() {
     const uint8_t auto_mode  = get_config().auto_haptics_enable;
     const bool auto_mute     = ((auto_mode == 2 || actual_ch == 2) && get_config().auto_mute_mode) ||
                                (auto_mode == 1 && get_config().auto_mute_mode);
+    if(speaker_mute)//Check if mute shortcut
+        mute[0] = true;
+    else
+        mute[0] = false;
+    
     const float audio_gain   = (mute[0] || auto_mute) ? 0.0f : powf(10.0f, current_speaker_volume / 20.0f);
     const float haptics_gain = get_config().haptics_gain;
     // For 2ch mode (Windows/Stereo Mix), always enable auto-haptics DSP regardless of auto_mode setting
