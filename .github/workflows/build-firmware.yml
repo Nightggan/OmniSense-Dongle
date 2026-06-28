@@ -141,89 +141,11 @@ jobs:
           mkdir -p artifacts
           cp build/standard/omnisense-dongle.uf2 "artifacts/omnisense-dongle${{ inputs.asset_suffix }}.uf2"
 
-      - name: Build Debug firmware
-        run: |
-          VERSION_ARG=()
-          [ -n "${FW_VER:-}" ] && VERSION_ARG=(-DVERSION="$FW_VER")
-          cmake -S . -B build/debug -G Ninja \
-            -DCMAKE_BUILD_TYPE=Release \
-            -DPICO_SDK_PATH="$PICO_SDK_PATH" \
-            -DENABLE_SERIAL=ON \
-            -DENABLE_VERBOSE=ON \
-            "${VERSION_ARG[@]}"
-          cmake --build build/debug --target omnisense-dongle
-          cp build/debug/omnisense-dongle.uf2 "artifacts/omnisense-dongle-debug${{ inputs.asset_suffix }}.uf2"
-
-      - name: Build wake firmware
-        run: |
-          # Separate variant that advertises USB REMOTE_WAKEUP (bmAttributes
-          # 0xE0) so the dongle can wake a sleeping Windows host. Kept as its
-          # own UF2 because a wake-capable device is grabbed by Wine/Proton's
-          # libusb HID scanner, which starves other USB HID tools (e.g. an
-          # Arctis headset daemon) with EBUSY. The default/standard build keeps
-          # REMOTE_WAKEUP off; users who need host-wake flash this one instead.
-          VERSION_ARG=()
-          [ -n "${FW_VER:-}" ] && VERSION_ARG=(-DVERSION="$FW_VER")
-          cmake -S . -B build/wake -G Ninja \
-            -DCMAKE_BUILD_TYPE=Release \
-            -DPICO_SDK_PATH="$PICO_SDK_PATH" \
-            -DENABLE_WAKE_HID=ON \
-            "${VERSION_ARG[@]}"
-          cmake --build build/wake --target omnisense-dongle
-          cp build/wake/omnisense-dongle.uf2 "artifacts/omnisense-dongle-wake${{ inputs.asset_suffix }}.uf2"
-
-      - name: Build Pico W firmware
-        if: inputs.picow
-        run: |
-          VERSION_ARG=()
-          [ -n "${FW_VER:-}" ] && VERSION_ARG=(-DVERSION="$FW_VER")
-          cmake -S . -B build/picow -G Ninja \
-            -DCMAKE_BUILD_TYPE=Release \
-            -DPICO_SDK_PATH="$PICO_SDK_PATH" \
-            -DPICO_W_BUILD=ON \
-            "${VERSION_ARG[@]}"
-          cmake --build build/picow --target omnisense-dongle
-          cp build/picow/omnisense-dongle.uf2 "artifacts/omnisense-dongle-picow${{ inputs.asset_suffix }}.uf2"
-
-      - name: Build no-batt-led firmware (compile check only)
-        if: inputs.no_batt_led_check
-        run: |
-          VERSION_ARG=()
-          [ -n "${FW_VER:-}" ] && VERSION_ARG=(-DVERSION="$FW_VER")
-          cmake -S . -B build/no-batt-led -G Ninja \
-            -DCMAKE_BUILD_TYPE=Release \
-            -DPICO_SDK_PATH="$PICO_SDK_PATH" \
-            -DENABLE_BATT_LED=OFF \
-            "${VERSION_ARG[@]}"
-          cmake --build build/no-batt-led --target omnisense-dongle
-
       - name: Upload standard UF2 artifact
         uses: actions/upload-artifact@v4
         with:
           name: omnisense-dongle${{ inputs.asset_suffix }}
           path: artifacts/omnisense-dongle${{ inputs.asset_suffix }}.uf2
-          if-no-files-found: error
-
-      - name: Upload debug UF2 artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: omnisense-dongle-debug${{ inputs.asset_suffix }}
-          path: artifacts/omnisense-dongle-debug${{ inputs.asset_suffix }}.uf2
-          if-no-files-found: error
-
-      - name: Upload wake UF2 artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: omnisense-dongle-wake${{ inputs.asset_suffix }}
-          path: artifacts/omnisense-dongle-wake${{ inputs.asset_suffix }}.uf2
-          if-no-files-found: error
-
-      - name: Upload PicoW UF2 artifact
-        if: inputs.picow
-        uses: actions/upload-artifact@v4
-        with:
-          name: omnisense-dongle-picow${{ inputs.asset_suffix }}
-          path: artifacts/omnisense-dongle-picow${{ inputs.asset_suffix }}.uf2
           if-no-files-found: error
 
       - name: Attach UF2s to release
