@@ -33,16 +33,6 @@ on:
         required: false
         type: string
         default: ""
-      picow:
-        description: Also build the Pico W UF2 (-DPICO_W_BUILD=ON)
-        required: false
-        type: boolean
-        default: false
-      no_batt_led_check:
-        description: Also compile-check the no-batt-led config (-DENABLE_BATT_LED=OFF)
-        required: false
-        type: boolean
-        default: false
 
 env:
   PICO_SDK_REF: 2.2.0
