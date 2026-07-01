@@ -2,8 +2,7 @@ name: Auto Build Release firmware and attach to release
 
 on:
   release:
-    types:
-      - published
+    types: [created, published]
 
 permissions:
   contents: write
