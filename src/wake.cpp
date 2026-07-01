@@ -106,7 +106,7 @@ void wake_init(void) {
 }
 
 extern "C" void tud_suspend_cb(bool remote_wakeup_en) {
-    if (!get_config().wake_enable) return;
+    if (!get_global_config().wake_enable) return;
     WAKE_DBG("tud_suspend_cb remote_wakeup_en=%d prev_state=%s",
              (int)remote_wakeup_en, wake_state_name(state));
     bt_power_off_controller();
@@ -124,7 +124,7 @@ extern "C" void tud_suspend_cb(bool remote_wakeup_en) {
 }
 
 void wake_on_bt_connect(void) {
-    if (!get_config().wake_enable) return;
+    if (!get_global_config().wake_enable) return;
     critical_section_enter_blocking(&wake_cs);
     const bool should_wake = host_suspended &&
         (state == WAKE_IDLE || state == WAKE_DONE || state == WAKE_PENDING_PRESS);
@@ -148,7 +148,7 @@ extern "C" void tud_mount_cb(void) {
 }
 
 void wake_on_bt_input(const uint8_t *hid_input, uint16_t len) {
-    if (!get_config().wake_enable) return;
+    if (!get_global_config().wake_enable) return;
     if (len < 10) return;
     // DualSense BT 0x31 input report layout (after main.cpp's `data + 3` skip):
     //   byte 7 low nibble: D-pad direction (0x08 idle); high nibble: face buttons

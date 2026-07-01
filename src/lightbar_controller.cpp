@@ -23,6 +23,7 @@ extern uint8_t lb_controlled_red;
 extern uint8_t lb_controlled_green;
 extern uint8_t lb_controlled_blue;
 extern bool config_mode_enabled;
+extern uint8_t local_profile_selected;
 namespace{
     // Prototipo de la función (el compilador ahora sabrá que existe)
     
@@ -123,16 +124,33 @@ namespace{
         pkt[48] = g;   // lightbar_green
         pkt[49] = b;   // lightbar_blue
         
-        //If in config state mode 
+        //If in profile_config state mode 
         if(config_mode_enabled)
         {
-            pkt[11] = MuteLight::Breathing; //Mute Light Breathing on config mode 3+8
+            pkt[11] = MuteLight::Breathing; //Mute Light Breathing on profile_config mode 3+8
         }
         else
         {
-            pkt[11] = MuteLight::Off; //Mute Light Breathing on config mode 3+8
+            pkt[11] = MuteLight::Off; //Mute Light Breathing on profile_config mode 3+8
         }
         
+        //Profile to player lights
+        if(local_profile_selected == 0)
+        {
+            pkt[46] = 0x04;
+        }
+        else if(local_profile_selected == 1)
+        {
+            pkt[46] = 0x02;
+        }
+        else if(local_profile_selected == 2)
+        {
+            pkt[46] = 0x15;
+        }
+        else if(local_profile_selected == 3)
+        {
+            pkt[46] = 0x1B;
+        }
 
         bt_write(pkt, sizeof(pkt));
     }
@@ -256,7 +274,7 @@ namespace{
     }
     
     void lightbar_compute_mode(int mode, uint32_t now_ms) {
-        Config_body local_config = get_config();
+        Profile_Config_body local_profile_config = get_profile_config();
                 
         if(g_lightbar_override)
         {
@@ -270,14 +288,14 @@ namespace{
             } else if (mode <= 5) {
                 // FAV slot: fixed color
                 const int slot = mode - 2;
-                lb_r = local_config.lb_fav_r[slot];
-                lb_g = local_config.lb_fav_g[slot];
-                lb_b = local_config.lb_fav_b[slot];
+                lb_r = local_profile_config.lb_fav_r[slot];
+                lb_g = local_profile_config.lb_fav_g[slot];
+                lb_b = local_profile_config.lb_fav_b[slot];
                 lb_controlled_red = lb_r;
                 lb_controlled_green = lb_g;
                 lb_controlled_blue = lb_b;
             }else if (mode == 6) {
-                // BATTERY: reflect battery level in brightness, solid color from config
+                // BATTERY: reflect battery level in brightness, solid color from profile_config
 
                 const uint8_t b   = interrupt_in_data[52];
                 const uint8_t pct = b & 0x0F;
@@ -300,9 +318,9 @@ namespace{
                 const int slot = (int)(total / kSlotMs);
                 const int next = (slot + 1) & 3;
                 const uint16_t blend = (uint16_t)(((total - slot * kSlotMs) * 256u) / kSlotMs);
-                lb_r = (uint8_t)((local_config.lb_fav_r[slot] * (255 - blend) + local_config.lb_fav_r[next] * blend) / 255);
-                lb_g = (uint8_t)((local_config.lb_fav_g[slot] * (255 - blend) + local_config.lb_fav_g[next] * blend) / 255);
-                lb_b = (uint8_t)((local_config.lb_fav_b[slot] * (255 - blend) + local_config.lb_fav_b[next] * blend) / 255);
+                lb_r = (uint8_t)((local_profile_config.lb_fav_r[slot] * (255 - blend) + local_profile_config.lb_fav_r[next] * blend) / 255);
+                lb_g = (uint8_t)((local_profile_config.lb_fav_g[slot] * (255 - blend) + local_profile_config.lb_fav_g[next] * blend) / 255);
+                lb_b = (uint8_t)((local_profile_config.lb_fav_b[slot] * (255 - blend) + local_profile_config.lb_fav_b[next] * blend) / 255);
                 lb_controlled_red = lb_r;
                 lb_controlled_green = lb_g;
                 lb_controlled_blue = lb_b;
@@ -342,9 +360,9 @@ namespace{
                     // Mode selected to fav slots 2-5 to 0-3
                     const int slot = mode - 2;
                     
-                    base_r = local_config.lb_fav_r[slot];
-                    base_g = local_config.lb_fav_g[slot];
-                    base_b = local_config.lb_fav_b[slot];
+                    base_r = local_profile_config.lb_fav_r[slot];
+                    base_g = local_profile_config.lb_fav_g[slot];
+                    base_b = local_profile_config.lb_fav_b[slot];
 
                     const uint8_t phase = (uint8_t)(now_ms / 12);
                     const int s = sin_lut(phase); 
@@ -378,9 +396,9 @@ namespace{
     
     void lightbar_service() {
         if (!bt_is_connected()) { return; }// if we're not connected, we shouldn't be controlling the lightbar at all, so we just return here and do nothing, which means the lightbar will be off (or in its default state) when not connected, and we won't be trying to send any BT packets or update the LED color when there's no connection, which is what we want.
-        const auto &config = get_config();
-        lb_mode = config.lightbar_mode;
-        g_lightbar_override_breathing = config.lightbar_breathing;
+        
+        lb_mode = get_profile_config().lightbar_mode;
+        g_lightbar_override_breathing = get_profile_config().lightbar_breathing;
         const uint32_t now_ms = (uint32_t)time_us_32() / 1000;
         g_lightbar_override = true; // assume control until we check the mode; if the mode is HOST, we'll set this to false to hand control back to the host
         

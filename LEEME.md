@@ -8,11 +8,12 @@ Un fork de [DS5Dongle](https://github.com/loteran/DS5Dongle) para Raspberry Pi P
 
 Además de las funciones base del fork de loteran, como Auto Hápticas por audio, este firmware añade:
 
+- **Perfiles:** Selecciona entre 4 perfiles para configurar gatillos y luces al detalle.
 - **Modos de Barra de Luz:** Controla el color de la barra de luz con múltiples modos y 4 ranuras de colores favoritos personalizados.
 - **Modos de Gatillo:** Toma el control total de los gatillos adaptativos incluso en juegos sin soporte. Añade modos **Rígido**, **Disparo** y **Ametralladora**.
-- **Modo Configuración desde el mando:** Cambia los modos de la barra de luz, gatillos y volúmen del parlante directamente desde el DualSense.
+- **Atajos desde el mando:** Selecciona rápidamente entre los 4 perfiles. Cambia la configuración de gatillos y luces. Ajusta el volúmen del parlante/auriculares y ganancia háptica directamente desde el Control.
 - **Configuración Web:** Gestiona todas las funciones mediante una aplicación web personalizada.
-- **No se necesitan aplicaciones complementarias:** Todas las funciones se manejan desde el dongle, sin necesidad de nada corriendo en el host.
+- **No se necesitan aplicaciones complementarias:** Todas las funciones se manejan desde el dongle, sin necesidad de nada corriendo en el host con una excepción: se requiere redireccionar el audio del host al control si no usas auriculares (aplicación en desarrollo).
 
 ---
 
@@ -34,21 +35,58 @@ Los cambios se guardan en flash al salir del modo. Los atajos son bloqueados y n
 
 ### Controles en modo Configuración:
 
-| Botón | Función |
-| :--- | :--- |
-| **Create** | Cambiar modo de la Barra de Luz |
-| **Options** | Activar/Desactivar efecto de respiración |
-| **L1** | Cambiar modo del Gatillo Izquierdo |
-| **R1** | Cambiar modo del Gatillo Derecho |
-| **Stick Izquierdo Arriba** | Aumentar volumen (Parlante/Auriculares) |
-| **Stick Izquierdo Abajo** | Disminuir volumen (Parlante/Auriculares) |
-| **Cuadrado** | Mute (Parlante/Auriculares) |
+| Botón | Función | Nivel |
+| :--- | :--- | :--- |
+| **Create** | Cambiar modo de la Barra de Luz | Por perfil |
+| **Options** | Activar/Desactivar efecto de respiración | Por perfil |
+| **L1** | Cambiar modo del Gatillo Izquierdo | Por perfil |
+| **R1** | Cambiar modo del Gatillo Derecho | Por perfil |
+| **Stick Izquierdo Arriba** | Aumentar volumen (Parlante/Auriculares) | Global |
+| **Stick Izquierdo Abajo** | Disminuir volumen (Parlante/Auriculares) | Global |
+| **Stick Derecho Arriba** | Aumentar ganancia háptica | Global |
+| **Stick Izquierdo Abajo** | Disminuir ganancia háptica | Global |
+| **Cuadrado** | Mute (Parlante/Auriculares) | Global |
+| **DPAD** | Cambiar entre perfiles |   |
 
 Mute manual no se mantiene entre ciclos de encendido pero puedes bajar el volumen a 0 con el **Stick Izquierdo** el cual sí se mantiene entre encendidos.
 
 ---
 
-### Modos de la barra de luz:
+### Configuración global
+
+Se pueden cambiar de manera global las siguientes opciones independiente del perfil seleccionado.
+
+- Configuración de hápticas basadas en audio
+- Volumen de parlantes/auriculares
+- Perfil de emulación (DS - DSE - Auto)
+- Frecuencia de respuesta (Polling Rate)
+- Inactividad
+- Atajo de apagado
+- Despertar host
+- Led del Dongle
+
+### Perfiles
+
+Cada perfil tiene las siguientes opciones que son independientes y personalizables entre cada perfil.
+
+- Modo de funcionamiento de gatillos izquierdo y derecho
+- Configuración de cada modo del gatillo para afinar a gusto del usuario
+- Modo de funcionamiento de la barra de luz
+    - 4 Espacios de colores favoritos por perfil
+- Efecto respiración
+
+---
+
+### Modos de gatillo por perfil:
+
+| Modo | Función |
+| :--- | :--- |
+| 0 | Controlado por el host. Compatibilidad con juegos que envian datos para el gatillo |
+| 1 | Resistencia continua |
+| 2 | Gatillo simple |
+| 3 | Metralleta / Vibración continua
+
+### Modos de la barra de luz por perfil:
 
 | Modo | Función |
 | :--- | :--- |

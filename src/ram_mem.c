@@ -4,7 +4,7 @@
 // newlib resolves them to flash-resident libgcc code.  On a dual-core build
 // the XIP bus arbitration between core0 and core1 can cause audio glitches or
 // hangs when both cores fetch instructions from flash simultaneously (e.g.
-// during a config_save() flash erase).  These overrides ensure the three most
+// during a device_config_save() flash erase).  These overrides ensure the three most
 // frequently called memory primitives always execute from SRAM.
 
 #include <stddef.h>

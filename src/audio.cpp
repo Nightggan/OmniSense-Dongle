@@ -17,6 +17,7 @@
 #include "config.h"
 #include "state_mgr.h"
 #include "usb.h"
+#include "pico/flash.h"
 
 #define INPUT_CHANNELS    4
 #define OUTPUT_CHANNELS   2
@@ -44,6 +45,7 @@ critical_section_t opus_cs;
 //Custom vars Omni
 extern volatile float current_speaker_volume; //Live speaker volume prior to save to the flash
 extern volatile bool speaker_mute;
+extern volatile float current_auto_haptics_gain;
 //End Custom vars Omni
 struct audio_raw_element {
     float data[512 * 2];
@@ -87,20 +89,20 @@ void __not_in_flash_func(audio_loop)() {
     WDL_ResampleSample *in_buf;
     int nframes = resampler.ResamplePrepare(frames, OUTPUT_CHANNELS, &in_buf);
 
-    const uint8_t auto_mode  = get_config().auto_haptics_enable;
-    const bool auto_mute     = ((auto_mode == 2 || actual_ch == 2) && get_config().auto_mute_mode) ||
-                               (auto_mode == 1 && get_config().auto_mute_mode);
+    const uint8_t auto_mode  = get_global_config().auto_haptics_enable;
+    const bool auto_mute     = ((auto_mode == 2 || actual_ch == 2) && get_global_config().auto_mute_mode) ||
+                               (auto_mode == 1 && get_global_config().auto_mute_mode);
     if(speaker_mute)//Check if mute shortcut
         mute[0] = true;
     else
         mute[0] = false;
     
     const float audio_gain   = (mute[0] || auto_mute) ? 0.0f : powf(10.0f, current_speaker_volume / 20.0f);
-    const float haptics_gain = get_config().haptics_gain;
+    const float haptics_gain = get_global_config().haptics_gain;
     // For 2ch mode (Windows/Stereo Mix), always enable auto-haptics DSP regardless of auto_mode setting
-    const float auto_gain    = (auto_mode > 0 || actual_ch == 2) ? (get_config().auto_haptics_gain / 100.0f) * haptics_gain : 0.0f;
+    const float auto_gain    = (auto_mode > 0 || actual_ch == 2) ? (current_auto_haptics_gain / 100.0f) * haptics_gain : 0.0f;
 
-    const float lp_fc = (float)get_config().auto_haptics_lowpass_hz;
+    const float lp_fc = (float)get_global_config().auto_haptics_lowpass_hz;
     const float lp_a = 1.0f - expf(-2.0f * M_PI * lp_fc / 48000.0f);
 
     // Persistent DSP state across calls
@@ -139,7 +141,7 @@ void __not_in_flash_func(audio_loop)() {
             lp_l += lp_a * (spk_l - lp_l);
             lp_r += lp_a * (spk_r - lp_r);
 
-            // Envelope follower — fast attack captures gunshots/footsteps, slow release gives body
+            // Envelope follower — fast attack captures gunshots/footsteps, slow release gives global_body
             const float abs_l = lp_l < 0.0f ? -lp_l : lp_l;
             const float abs_r = lp_r < 0.0f ? -lp_r : lp_r;
             env_l = (abs_l > env_l) ? env_l + ENV_ATK * (abs_l - env_l)
@@ -199,7 +201,7 @@ void __not_in_flash_func(audio_loop)() {
         pkt[2] = 0x11 | 0 << 6 | 1 << 7;
         pkt[3] = 7;
         pkt[4] = 0b11111110;
-        const auto buf_len = get_config().audio_buffer_length;
+        const auto buf_len = get_global_config().audio_buffer_length;
         pkt[5] = buf_len;
         pkt[6] = buf_len;
         pkt[7] = buf_len;
@@ -237,7 +239,7 @@ void __not_in_flash_func(audio_loop)() {
 
         // Override of the trigger motors mode to push the machine gun integrated mode on the audio package (0x36)
 
-        const auto &cfg = get_config();
+        const auto &profilecfg = get_profile_config();
         uint32_t tiempo_ms = to_ms_since_boot(get_absolute_time());
         
         // Offset of 13 on the audio package
@@ -250,7 +252,7 @@ void __not_in_flash_func(audio_loop)() {
         extern uint8_t left_trigger_real_position;
 
         // --- Right Trigger ---
-        if (cfg.trigger_right_mode == 3) {
+        if (profilecfg.trigger_right_mode == 3) {
             
 
             if (right_trigger_real_position > 15) {
@@ -260,11 +262,10 @@ void __not_in_flash_func(audio_loop)() {
                 }
                 
                 pkt[r_off + 0] = 0x06; // Modo Machine Gun
-                pkt[r_off + 1] = 0x20; // Parámetro 1
-                pkt[r_off + 2] = 0xFF; // Parámetro 2
-                pkt[r_off + 3] = 0x0A; // Parámetro 3
-                pkt[r_off + 4] = 0x06; // Parámetro 4
-                memset(&pkt[r_off + 5], 0, 2);
+                pkt[r_off + 1] = get_profile_config().vibration_frequency; ; // Parameter 1: Frecuency
+                pkt[r_off + 2] = get_profile_config().vibration_force; // Parameter 2: Force
+                pkt[r_off + 3] = get_profile_config().vibration_start_point; // Parameter 3: Start Point
+                memset(&pkt[r_off + 4], 0, 3);
             } else {
                 pkt[r_off + 0] = 0x05; // Forzar suelto si no hay presión
                 memset(&pkt[r_off + 1], 0, 6);
@@ -272,7 +273,7 @@ void __not_in_flash_func(audio_loop)() {
         }
 
         // --- Left Trigger ---
-        if (cfg.trigger_left_mode == 3) {
+        if (profilecfg.trigger_left_mode == 3) {
             
 
             if (left_trigger_real_position > 15) {
@@ -281,11 +282,10 @@ void __not_in_flash_func(audio_loop)() {
                     pkt[audio_motor_flag_offset] |= 0x03; 
                 }
                 pkt[l_off + 0] = 0x06; 
-                pkt[l_off + 1] = 0x20; 
-                pkt[l_off + 2] = 0xFF; 
-                pkt[l_off + 3] = 0x0A; 
-                pkt[l_off + 4] = 0x06; 
-                memset(&pkt[l_off + 5], 0, 2);
+                pkt[l_off + 1] = get_profile_config().vibration_frequency; ; // Parameter 1: Frecuency
+                pkt[l_off + 2] = get_profile_config().vibration_force; // Parameter 2: Force
+                pkt[l_off + 3] = get_profile_config().vibration_start_point; // Parameter 3: Start Point
+                memset(&pkt[l_off + 4], 0, 3);
             } else {
                 pkt[l_off + 0] = 0x05; 
                 memset(&pkt[l_off + 1], 0, 6);
@@ -340,7 +340,7 @@ void __not_in_flash_func(core1_entry)() {
     resampler_audio.SetRates(51200, 48000);
     resampler_audio.SetFeedMode(true);
     resampler_audio.Prealloc(2, 512, 480);
-
+    flash_safe_execute_core_init(); 
     while (true) {
         static audio_raw_element audio_element{};
         queue_remove_blocking(&audio_fifo, &audio_element);

@@ -86,6 +86,6 @@ void battery_led_tick(void) {
         blinking = false;
         // Battery recovered or now charging — restore steady-state LED per the user
         // preference flag (LED off when disabled, otherwise the bt.cpp connected = on state).
-        cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, !get_config().disable_pico_led);
+        cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, !get_global_config().disable_pico_led);
     }
 }

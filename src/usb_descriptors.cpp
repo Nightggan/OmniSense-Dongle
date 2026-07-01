@@ -32,10 +32,10 @@
 #endif
 
 bool ds_mode() {
-    if (get_config().controller_mode == 2) {
+    if (get_global_config().controller_mode == 2) {
         return !is_dse;
     }
-    return get_config().controller_mode == 0;
+    return get_global_config().controller_mode == 0;
 }
 
 enum {
@@ -445,7 +445,7 @@ uint8_t descriptor_configuration[] = {
 uint8_t const *tud_descriptor_configuration_cb(uint8_t index) {
     (void) index; // for multiple configurations
     auto bInterval = 0x01;
-    switch (get_config().polling_rate_mode) {
+    switch (get_global_config().polling_rate_mode) {
         case 0:
             bInterval = 0x04;
             break;

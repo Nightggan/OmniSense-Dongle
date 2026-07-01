@@ -378,14 +378,14 @@ static void l2cap_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t 
             // printf_hexdump(packet, size);
             bt_data_callback(INTERRUPT, packet, size);
 
-            // Wake-on-button: pass the report body (skip the 3-byte L2CAP/HID
+            // Wake-on-button: pass the report global_body (skip the 3-byte L2CAP/HID
             // header) so the offsets match wake.cpp's expected layout.
             if (size >= 13) {
                 wake_on_bt_input(packet + 3, size - 3);
             }
 
             // 静默检测
-            if (get_config().disable_inactive_disconnect) {
+            if (get_global_config().disable_inactive_disconnect) {
                 return;
             }
             if (packet[3] < 120 || packet[3] > 140 ||
@@ -397,7 +397,7 @@ static void l2cap_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t 
                 packet[12] != 0x00) {
                 inactive_time = get_absolute_time();
             } else if (absolute_time_diff_us(inactive_time, get_absolute_time()) >
-                       static_cast<int64_t>(get_config().inactive_time) * 60 * 1000 * 1000) {
+                       static_cast<int64_t>(get_global_config().inactive_time) * 60 * 1000 * 1000) {
                 printf("disconnect when inactive\n");
                 inactive_time = get_absolute_time();
                 bt_disconnect();
@@ -456,7 +456,7 @@ static void l2cap_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t 
                     printf("[L2CAP] HID Interrupt opened cid=0x%04X\n", local_cid);
                     hid_interrupt_cid = local_cid;
 
-                    if (!get_config().disable_pico_led) {
+                    if (!get_global_config().disable_pico_led) {
                         cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, true);
                     }
                     inactive_time = get_absolute_time();

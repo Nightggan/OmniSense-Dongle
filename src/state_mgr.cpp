@@ -29,6 +29,7 @@ static uint32_t last_time_check_lb = 0;
 bool first_color_captured = false;
 extern bool config_mode_enabled;
 extern volatile float current_speaker_volume;
+extern uint8_t local_profile_selected;
 //End Custom vars Omni
 namespace {
     constexpr size_t kAudioControlOffset = offsetof(SetStateData, MuteLightMode) - sizeof(uint8_t);
@@ -300,9 +301,17 @@ void state_update(const uint8_t *data, const uint8_t size) {
         offsetof(SetStateData, LightBrightness),
         sizeof(update.LightBrightness)
     );
-    copy_if_allowed(
+
+    //Always allow player indicator control for profiles
+    /*copy_if_allowed(
         update.AllowPlayerIndicators,
         kPlayerIndicatorsOffset,
+        sizeof(uint8_t)
+    );*/
+
+    memcpy(
+        state + kPlayerIndicatorsOffset, 
+        data + kPlayerIndicatorsOffset,
         sizeof(uint8_t)
     );
     
@@ -321,9 +330,26 @@ void state_update(const uint8_t *data, const uint8_t size) {
         sizeof(update.LedRed) * 3
     );
 
+    //Profile to player lights
+    if(local_profile_selected == 0)
+    {
+        state[kPlayerIndicatorsOffset] = 0x04;
+    }
+    else if(local_profile_selected == 1)
+    {
+        state[kPlayerIndicatorsOffset] = 0x02;
+    }
+    else if(local_profile_selected == 2)
+    {
+        state[kPlayerIndicatorsOffset] = 0x15;
+    }
+    else if(local_profile_selected == 3)
+    {
+        state[kPlayerIndicatorsOffset] = 0x1B;
+    }
     
     // Enforce trigger modes at the end of state_update
-    const auto &current_config = get_config();
+    const auto &current_config = get_profile_config();
     size_t right_trigger_offset = offsetof(SetStateData, RightTriggerFFB);
     size_t left_trigger_offset = offsetof(SetStateData, LeftTriggerFFB);
 
@@ -355,15 +381,15 @@ void state_update(const uint8_t *data, const uint8_t size) {
 
         if (current_config.trigger_right_mode == 1) { // Resistance mode
             state[right_trigger_offset + 0] = 0x01; // Continous Resistance
-            state[right_trigger_offset + 1] = 0;    // Start of the effect
-            state[right_trigger_offset + 2] = 200;  // Hardeness
+            state[right_trigger_offset + 1] = current_config.feedback_start_point;    // Start of the effect
+            state[right_trigger_offset + 2] = current_config.feedback_force;  // Hardeness
             memset(state + right_trigger_offset + 3, 0, 4);
         }
         else if (current_config.trigger_right_mode == 2) { // Trigger mode
             state[right_trigger_offset + 0] = 0x02; // Trigger mode
-            state[right_trigger_offset + 1] = 20;   // Start of the trigger wall
-            state[right_trigger_offset + 2] = 45;   // End of the mechanical "clic"
-            state[right_trigger_offset + 3] = 255;  // Force to break the wall
+            state[right_trigger_offset + 1] = current_config.trigger_start_point;   // Start of the trigger wall
+            state[right_trigger_offset + 2] = current_config.trigger_wall_point;   // End of the mechanical "clic"
+            state[right_trigger_offset + 3] = current_config.trigger_break_force;  // Force to break the wall
             memset(state + right_trigger_offset + 4, 0, 3);
         }
         
@@ -393,15 +419,15 @@ void state_update(const uint8_t *data, const uint8_t size) {
 
         if (current_config.trigger_left_mode == 1) {
             state[left_trigger_offset + 0] = 0x01; 
-            state[left_trigger_offset + 1] = 0;    
-            state[left_trigger_offset + 2] = 200;  
+            state[left_trigger_offset + 1] = current_config.feedback_start_point;    
+            state[left_trigger_offset + 2] = current_config.feedback_force;  
             memset(state + left_trigger_offset + 3, 0, 4);
         }
         else if (current_config.trigger_left_mode == 2) {
             state[left_trigger_offset + 0] = 0x02; 
-            state[left_trigger_offset + 1] = 20;   
-            state[left_trigger_offset + 2] = 45;   
-            state[left_trigger_offset + 3] = 255;  
+            state[left_trigger_offset + 1] = current_config.trigger_start_point;   
+            state[left_trigger_offset + 2] = current_config.trigger_wall_point;   
+            state[left_trigger_offset + 3] = current_config.trigger_break_force;  
             memset(state + left_trigger_offset + 4, 0, 3);
         }
         

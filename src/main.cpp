@@ -61,9 +61,15 @@ uint32_t left_analog_up_holding_time = 0;
 uint32_t left_analog_down_holding_time = 0;
 bool left_analog_up_triggered = false;
 bool left_analog_down_triggered = false;
+uint32_t right_analog_up_holding_time = 0;
+uint32_t right_analog_down_holding_time = 0;
+bool right_analog_up_triggered = false;
+bool right_analog_down_triggered = false;
 bool request_temp_save = false;
 volatile float current_speaker_volume = -100.0f;
 volatile bool speaker_mute = false;
+volatile float current_auto_haptics_gain = 1.5f;
+uint8_t local_profile_selected;
 //End Custom vars Omni
 
 uint8_t interrupt_in_data[63] = {
@@ -84,7 +90,7 @@ void __not_in_flash_func(interrupt_loop)() {
     if (!tud_hid_ready()) return;
 
     // TODO: Refactor for better code reuse
-    if (get_config().polling_rate_mode != 2) {
+    if (get_global_config().polling_rate_mode != 2) {
         if (!tud_hid_report(0x01, interrupt_in_data, 63)) {
             printf("[USBHID] tud_hid_report error\n");
         }
@@ -144,14 +150,14 @@ static void shortcut_btn_suppress(uint8_t *data, uint8_t btn) {
     data[SHORTCUT_BTN_MAP[btn].off] &= ~SHORTCUT_BTN_MAP[btn].mask;
 }
 
-//Custom Safe Config Save. Made to not save if the flash is in use (web app or shortcut)
+//Custom Safe Device_Config Save. Made to not save if the flash is in use (web app or shortcut)
 void safe_config_save() {
     // If the flash is busu, we return to avoid locking the stack USB
     if (flash_busy) return; 
     flash_busy = true;
     
     //Vanilla save function
-    bool success = config_save();
+    bool success = device_config_save();
     
     if (success) {
         flash_busy = false;
@@ -214,9 +220,13 @@ void __not_in_flash_func(on_bt_data)(CHANNEL_TYPE channel, uint8_t *data, uint16
         uint8_t left_stick_x = data[3]; //0: Full Left - 128: Center - 255: Full Right (Not in use atm)
         uint8_t left_stick_y = data[4]; //0: Full Up - 128: Center - 255: Full Down
         
+        // Obtaining real Right Analog position
+        uint8_t right_stick_x = data[5]; //0: Full Left - 128: Center - 255: Full Right (Not in use atm)
+        uint8_t right_stick_y = data[6]; //0: Full Up - 128: Center - 255: Full Down
+
         static bool config_mode_switch_shortcut_lock = false;
 
-        // Config Shortcut: Mute press
+        // Device_Config Shortcut: Mute press
         if (shortcut_btn_pressed(data, 8)) {
             if(!config_mode_switch_shortcut_lock)
             {
@@ -245,14 +255,77 @@ void __not_in_flash_func(on_bt_data)(CHANNEL_TYPE channel, uint8_t *data, uint16
             static bool speaker_volume_up_shortcut_lock = false;
             static bool speaker_volume_down_shortcut_lock = false;
             static bool mute_speaker_shortcut_lock = false;
+            static bool profile_switch_shortcut_lock_up = false;
+            static bool profile_switch_shortcut_lock_down = false;
+            static bool profile_switch_shortcut_lock_left = false;
+            static bool profile_switch_shortcut_lock_right = false;
+            static bool haptic_gain_up_shortcut_lock = false;
+            static bool haptic_gain_down_shortcut_lock = false;
+            uint8_t dpad_value = data[10] & 0x0F;
+            // Profile switch: DPAD
+            if (dpad_value == 0)//Profile 0
+            {    
+                if (!profile_switch_shortcut_lock_up) {
+                    set_profile_index(0);
+                    local_profile_selected = 0;
+                    request_temp_save = true; //Temp save request to update the state
+                    
+                    profile_switch_shortcut_lock_up = true; // Locking the lock
+                }
+            } else {
+                // Unlocking the lock on button release
+                profile_switch_shortcut_lock_up = false;
+            }
             
+            if (dpad_value == 2)//Profile 1
+            {    
+                if (!profile_switch_shortcut_lock_right) {
+                    set_profile_index(1);
+                    local_profile_selected = 1;
+                    request_temp_save = true; //Temp save request to update the state
+                    
+                    profile_switch_shortcut_lock_right = true; // Locking the lock
+                }
+            } else {
+                // Unlocking the lock on button release
+                profile_switch_shortcut_lock_right = false;
+            }
+
+            if (dpad_value == 4)//Profile 2
+            {    
+                if (!profile_switch_shortcut_lock_down) {
+                    set_profile_index(2);
+                    local_profile_selected = 2;
+                    request_temp_save = true; //Temp save request to update the state
+                    
+                    profile_switch_shortcut_lock_down = true; // Locking the lock
+                }
+            } else {
+                // Unlocking the lock on button release
+                profile_switch_shortcut_lock_down = false;
+            }
+
+            if (dpad_value == 6)//Profile 3
+            {    
+                if (!profile_switch_shortcut_lock_left) {
+                    set_profile_index(3);
+                    local_profile_selected = 3;
+                    request_temp_save = true; //Temp save request to update the state
+                    
+                    profile_switch_shortcut_lock_left = true; // Locking the lock
+                }
+            } else {
+                // Unlocking the lock on button release
+                profile_switch_shortcut_lock_left = false;
+            }
+
             // Mute Speaker: SQUARE
             if (shortcut_btn_pressed(data, 0))
             {    
                 if (!mute_speaker_shortcut_lock) {
                     speaker_mute = !speaker_mute; //Cycle speaker mute
                     //No need to save config cause it is not saved between cycles
-                    //set_config(new_config);
+                    //set_global_config(new_config);
                     //request_temp_save = true;
                     mute_speaker_shortcut_lock = true;
                 }
@@ -264,10 +337,10 @@ void __not_in_flash_func(on_bt_data)(CHANNEL_TYPE channel, uint8_t *data, uint16
             if (shortcut_btn_pressed(data, 6))
             {    
                 if (!lightbar_mode_switch_shortcut_lock) {
-                    Config_body new_config = get_config();
+                    Profile_Config_body new_config = get_profile_config();
                     new_config.lightbar_mode = (new_config.lightbar_mode + 1) % 9; // Ciclar modos de luz
                     
-                    set_config(new_config);
+                    set_profile_config(new_config);
                     request_temp_save = true; //Temp save request to update the state
                     
                     lightbar_mode_switch_shortcut_lock = true; // Locking the lock
@@ -281,9 +354,9 @@ void __not_in_flash_func(on_bt_data)(CHANNEL_TYPE channel, uint8_t *data, uint16
             if (shortcut_btn_pressed(data, 7))
             {
                 if (!lightbar_breathing_shortcut_lock) {
-                    Config_body new_config = get_config();
+                    Profile_Config_body new_config = get_profile_config();
                     new_config.lightbar_breathing = !new_config.lightbar_breathing;
-                    set_config(new_config);
+                    set_profile_config(new_config);
                     request_temp_save = true;
                     lightbar_breathing_shortcut_lock = true;
                 }
@@ -294,9 +367,9 @@ void __not_in_flash_func(on_bt_data)(CHANNEL_TYPE channel, uint8_t *data, uint16
             // Right Trigger mode: R1
             if (shortcut_btn_pressed(data, 5) /* R1 */) {
                 if (!right_trigger_mode_override_shortcut_lock) {
-                    Config_body new_config = get_config();
+                    Profile_Config_body new_config = get_profile_config();
                     new_config.trigger_right_mode = (new_config.trigger_right_mode + 1) % 4; 
-                    set_config(new_config);
+                    set_profile_config(new_config);
                     request_temp_save = true;
                     right_trigger_mode_override_shortcut_lock = true; 
                 }
@@ -307,9 +380,9 @@ void __not_in_flash_func(on_bt_data)(CHANNEL_TYPE channel, uint8_t *data, uint16
             // Left Trigger mode: L1
             if (shortcut_btn_pressed(data, 4)) {
                 if (!left_trigger_mode_override_shortcut_lock) {
-                    Config_body new_config = get_config();
+                    Profile_Config_body new_config = get_profile_config();
                     new_config.trigger_left_mode = (new_config.trigger_left_mode + 1) % 4; 
-                    set_config(new_config);
+                    set_profile_config(new_config);
                     request_temp_save = true;
                     left_trigger_mode_override_shortcut_lock = true; 
                 }
@@ -317,7 +390,7 @@ void __not_in_flash_func(on_bt_data)(CHANNEL_TYPE channel, uint8_t *data, uint16
                 left_trigger_mode_override_shortcut_lock = false;
             }
 
-            //Volume Control - Left Analog Up/Down Holding Control. Only updates the volume every 100ms on full analog hold.
+            //Volume Control - Left Analog Up/Down Holding Control. Only updates the volume every 50ms on full analog hold.
             if(left_stick_y<10) // Full up
             {
                 if(!left_analog_up_triggered)
@@ -332,7 +405,7 @@ void __not_in_flash_func(on_bt_data)(CHANNEL_TYPE channel, uint8_t *data, uint16
                 left_analog_up_triggered = false;
                 speaker_volume_up_shortcut_lock = false;
             }
-            if(left_analog_up_holding_time != 0 && (to_ms_since_boot(get_absolute_time()) - left_analog_up_holding_time > 100))
+            if(left_analog_up_holding_time != 0 && (to_ms_since_boot(get_absolute_time()) - left_analog_up_holding_time > 50))
             {
                 speaker_volume_up_shortcut_lock = true;
             }
@@ -352,7 +425,7 @@ void __not_in_flash_func(on_bt_data)(CHANNEL_TYPE channel, uint8_t *data, uint16
                 left_analog_down_triggered = false;
                 speaker_volume_down_shortcut_lock = false;
             }
-            if(left_analog_down_holding_time != 0 && (to_ms_since_boot(get_absolute_time()) - left_analog_down_holding_time > 100))
+            if(left_analog_down_holding_time != 0 && (to_ms_since_boot(get_absolute_time()) - left_analog_down_holding_time > 50))
             {
                 speaker_volume_down_shortcut_lock = true;
             }
@@ -360,14 +433,17 @@ void __not_in_flash_func(on_bt_data)(CHANNEL_TYPE channel, uint8_t *data, uint16
             
             //Speaker Volume Up Shortcut control: Left Analog Up
             if (speaker_volume_up_shortcut_lock) {
-                Config_body new_config = get_config();
+                Global_Config_body new_config = get_global_config();
                 new_config.speaker_volume = new_config.speaker_volume + 2.0f;
                 if (new_config.speaker_volume > 0.0f) {
                     new_config.speaker_volume = 0.0f;
                 }
-                current_speaker_volume = new_config.speaker_volume;
-                set_config(new_config);
-                request_temp_save = true;
+                else
+                {
+                    current_speaker_volume = new_config.speaker_volume;
+                    set_global_config(new_config);
+                    request_temp_save = true;
+                }
                 left_analog_up_holding_time = 0;
                 left_analog_up_triggered = false;
                 speaker_volume_up_shortcut_lock = false;
@@ -376,27 +452,108 @@ void __not_in_flash_func(on_bt_data)(CHANNEL_TYPE channel, uint8_t *data, uint16
 
             //Speaker Volume Down Shortcut control: Left Analog Down
             if (speaker_volume_down_shortcut_lock) {
-                Config_body new_config = get_config();
+                Global_Config_body new_config = get_global_config();
                 new_config.speaker_volume = new_config.speaker_volume - 2.0f;
                 if (new_config.speaker_volume < -100.0f) {
                     new_config.speaker_volume = -100.0f;
                 }
-                current_speaker_volume = new_config.speaker_volume;
-                set_config(new_config);
-                request_temp_save = true;
+                else
+                {
+                    current_speaker_volume = new_config.speaker_volume;
+                    set_global_config(new_config);
+                    request_temp_save = true;
+                }
                 left_analog_down_holding_time = 0;
                 left_analog_down_triggered = false;
                 speaker_volume_down_shortcut_lock = false;
                 speaker_mute = false; // Disable mute
             }
             
+            //Haptic Gain Control - Right Analog Up/Down Holding Control. Only updates the haptic gain every 100ms on full analog hold.
+            if(right_stick_y<10) // Full up
+            {
+                if(!right_analog_up_triggered)
+                {
+                right_analog_up_holding_time = to_ms_since_boot(get_absolute_time());
+                    right_analog_up_triggered = true;
+                }
+            }
+            else
+            {
+                right_analog_up_holding_time = 0;
+                right_analog_up_triggered = false;
+                haptic_gain_up_shortcut_lock = false;
+            }
+            if(right_analog_up_holding_time != 0 && (to_ms_since_boot(get_absolute_time()) - right_analog_up_holding_time > 100))
+            {
+                haptic_gain_up_shortcut_lock = true;
+            }
+            
+            if(right_stick_y>245) // Full down
+            {
+                if(!right_analog_down_triggered)
+                {
+                    right_analog_down_holding_time = to_ms_since_boot(get_absolute_time());
+                    right_analog_down_triggered = true;
+                }
+                
+            }
+            else
+            {
+                right_analog_down_holding_time = 0;
+                right_analog_down_triggered = false;
+                haptic_gain_down_shortcut_lock = false;
+            }
+            if(right_analog_down_holding_time != 0 && (to_ms_since_boot(get_absolute_time()) - right_analog_down_holding_time > 100))
+            {
+                haptic_gain_down_shortcut_lock = true;
+            }
+            
+            
+            //Haptic Gain Up Shortcut control: Right Analog Up
+            if (haptic_gain_up_shortcut_lock) {
+                Global_Config_body new_config = get_global_config();
+                new_config.auto_haptics_gain = new_config.auto_haptics_gain + 4;
+                if (new_config.auto_haptics_gain > 200) {
+                    new_config.auto_haptics_gain = 200;
+                }
+                else
+                {
+                    current_auto_haptics_gain = new_config.auto_haptics_gain;
+                    set_global_config(new_config);
+                    request_temp_save = true;
+                }
+                right_analog_up_holding_time = 0;
+                right_analog_up_triggered = false;
+                haptic_gain_up_shortcut_lock = false;
+            }
+
+            //Haptic Gain Down Shortcut control: Right Analog Down
+            if (haptic_gain_down_shortcut_lock) {
+                Global_Config_body new_config = get_global_config();
+                new_config.auto_haptics_gain = new_config.auto_haptics_gain - 4;
+                if (new_config.auto_haptics_gain < 0) {
+                    new_config.auto_haptics_gain = 0;
+                }
+                else
+                {
+                    current_auto_haptics_gain = new_config.auto_haptics_gain;
+                    set_global_config(new_config);
+                    request_temp_save = true;
+                }
+                right_analog_down_holding_time = 0;
+                right_analog_down_triggered = false;
+                haptic_gain_down_shortcut_lock = false;
+            }
 
             if(request_temp_save && !left_trigger_mode_override_shortcut_lock
             && !right_trigger_mode_override_shortcut_lock && !lightbar_breathing_shortcut_lock
-            && !lightbar_mode_switch_shortcut_lock && !speaker_volume_down_shortcut_lock && !speaker_volume_up_shortcut_lock)
+            && !lightbar_mode_switch_shortcut_lock && !speaker_volume_down_shortcut_lock && !speaker_volume_up_shortcut_lock && !profile_switch_shortcut_lock_up
+            && !profile_switch_shortcut_lock_down && !profile_switch_shortcut_lock_left && !profile_switch_shortcut_lock_right
+            && !haptic_gain_up_shortcut_lock && !haptic_gain_down_shortcut_lock)
             {
-                current_speaker_volume = get_config().speaker_volume; //Updating the volatile var for audio loop to use without a full flash save 
-                printf("Speaker Volume Config: %d \n", (int)current_speaker_volume);
+                current_speaker_volume = get_global_config().speaker_volume; //Updating the volatile var for audio loop to use without a full flash save 
+                current_auto_haptics_gain = get_global_config().auto_haptics_gain;
                 request_temp_save = false;
                 // 2. Enforce the update of the internal state[] reading the new config modified by the shortcuts
                 uint8_t dummy_buffer[sizeof(SetStateData) + 1] = {0};
@@ -426,8 +583,8 @@ void __not_in_flash_func(on_bt_data)(CHANNEL_TYPE channel, uint8_t *data, uint16
                 
                 save_requested = true;//Telling main loop to call flash save after some ms.
                 request_flash_save = false;    
-                current_speaker_volume = get_config().speaker_volume; //Updating the volatile var for audio loop to use without a full flash save
-                
+                current_speaker_volume = get_global_config().speaker_volume; //Updating the volatile var for audio loop to use without a full flash save
+                current_auto_haptics_gain = get_global_config().auto_haptics_gain;
                 uint8_t dummy_buffer[sizeof(SetStateData) + 1] = {0};
                 state_update(dummy_buffer + 1, sizeof(SetStateData));
 
@@ -448,8 +605,8 @@ void __not_in_flash_func(on_bt_data)(CHANNEL_TYPE channel, uint8_t *data, uint16
 
             // PS + poweroff_button → power off controller
             static bool poweroff_held = false;
-            const uint8_t po_btn = get_config().poweroff_button;
-            if (get_config().enable_poweroff_shortcut && ps && shortcut_btn_pressed(data, po_btn)) {
+            const uint8_t po_btn = get_global_config().poweroff_button;
+            if (get_global_config().enable_poweroff_shortcut && ps && shortcut_btn_pressed(data, po_btn)) {
                 shortcut_btn_suppress(data, po_btn);
                 suppress_ps = true;
                 if (!poweroff_held) {
@@ -465,7 +622,7 @@ void __not_in_flash_func(on_bt_data)(CHANNEL_TYPE channel, uint8_t *data, uint16
             }
         }
 
-        if (get_config().polling_rate_mode != 2) {
+        if (get_global_config().polling_rate_mode != 2) {
         memcpy(interrupt_in_data, data + 3, 63);
         
         #if ENABLE_BATT_LED
@@ -595,7 +752,7 @@ static void state_keepalive() {
     
     state_set(pkt + 3, sizeof(SetStateData));
     // Read actual config
-    const auto &cfg = get_config();
+    const auto &cfg = get_profile_config();
 
     // Offset of Valid_Flag1 to push max amps to the trigger motors
     size_t out_motor_flag_offset = 3 + offsetof(SetStateData, HostTimestamp) + sizeof(uint32_t);
@@ -614,12 +771,10 @@ static void state_keepalive() {
 
             
             pkt[r_off + 0] = 0x06; // L2/R2 trigger effect mode (Machine Gun)
-            pkt[r_off + 1] = 0x20; // Parameter 1: Start of the effect (32)
-            pkt[r_off + 2] = 0xFF; // Parameter 2: End of the efect (255)
-            pkt[r_off + 3] = 0x06; // Parameter 3: Frecuency of the trigger
-            pkt[r_off + 4] = 0x06; // Parameter 4: Force / Hammering amplitude
-            pkt[r_off + 5] = 0x00; // Parameter 5
-            pkt[r_off + 6] = 0x00; // Parameter 6
+            pkt[r_off + 1] = get_profile_config().vibration_frequency; ; // Parameter 1: Frecuency
+            pkt[r_off + 2] = get_profile_config().vibration_force; // Parameter 2: Force
+            pkt[r_off + 3] = get_profile_config().vibration_start_point; // Parameter 3: Start Point
+            memset(&pkt[r_off + 4], 0, 3);
         } else {
             // Full relax state after releasing the finger
             pkt[r_off + 0] = 0x05; 
@@ -639,12 +794,10 @@ static void state_keepalive() {
             }
 
             pkt[l_off + 0] = 0x06; 
-            pkt[l_off + 1] = 0x20; 
-            pkt[l_off + 2] = 0xFF; 
-            pkt[l_off + 3] = 0x06; 
-            pkt[l_off + 4] = 0x06; 
-            pkt[l_off + 5] = 0x00; 
-            pkt[l_off + 6] = 0x00; 
+            pkt[l_off + 1] = get_profile_config().vibration_frequency; ; // Parameter 1: Frecuency
+            pkt[l_off + 2] = get_profile_config().vibration_force; // Parameter 2: Force
+            pkt[l_off + 3] = get_profile_config().vibration_start_point; // Parameter 3: Start Point
+            memset(&pkt[l_off + 4], 0, 3);
         } else {
             pkt[l_off + 0] = 0x05; 
             memset(&pkt[l_off + 1], 0, 6);
@@ -667,6 +820,23 @@ static void state_keepalive() {
     {
         size_t mute_light_mode_offset = 3 + offsetof(SetStateData, MuteLightMode);
         pkt[mute_light_mode_offset] = MuteLight::Off; //Mute Light Off on config mode 3+8
+    }
+    //Profile to player lights
+    if(local_profile_selected == 0)
+    {
+        pkt[46] = 0x04;
+    }
+    else if(local_profile_selected == 1)
+    {
+        pkt[46] = 0x02;
+    }
+    else if(local_profile_selected == 2)
+    {
+        pkt[46] = 0x15;
+    }
+    else if(local_profile_selected == 3)
+    {
+        pkt[46] = 0x1B;
     }
     
     bt_write(pkt, sizeof(pkt));
@@ -724,7 +894,7 @@ int main() {
     // Initialize the critical section for the report buffer
     critical_section_init(&report_cs);
 
-    config_load();
+    device_config_load();
     // Touchpad always starts active; enable_touchpad controls whether the PS+button
     // shortcut is available (1 = shortcut enabled, 0 = touchpad always on, no toggle).
     touchpad_runtime_enabled = true;
