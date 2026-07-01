@@ -161,10 +161,10 @@ void profile_config_valid()
             profile.lightbar_breathing = 1; //breathing enabled by default if invalid
         }
 
-        if (profile.trigger_left_mode > 3) {
+        if (profile.trigger_left_mode > 4) {
             profile.trigger_left_mode = 0; //Relaxed/Host controlled by default if invalid
         }
-        if (profile.trigger_right_mode > 3) {
+        if (profile.trigger_right_mode > 4) {
             profile.trigger_right_mode = 0; //Relaxed/Host controlled by default if invalid
         }
         if(config.initial_setup_completed!=7)

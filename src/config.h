@@ -33,8 +33,8 @@ struct __attribute__((packed)) Profile_Config_body {
     uint8_t lb_fav_b[4];
     uint8_t lightbar_breathing;        // 1 - Enabled, 0 - Disabled
     //Trigger modes
-    uint8_t trigger_left_mode;       // 0: Suelto, 1: Rígido, 2: Disparo, 3: Metralla
-    uint8_t trigger_right_mode;      // 0: Suelto, 1: Rígido, 2: Disparo, 3: Metralla
+    uint8_t trigger_left_mode;       // 0: Suelto, 1: Rígido, 2: Disparo, 3: Metralla, 4: Gatillo Rápido
+    uint8_t trigger_right_mode;      // 0: Suelto, 1: Rígido, 2: Disparo, 3: Metralla, 4: Gatillo Rápido
     uint8_t feedback_start_point; //0 - 255
     uint8_t feedback_force; //0 - 255
     uint8_t trigger_start_point; //0 - 255

@@ -392,6 +392,13 @@ void state_update(const uint8_t *data, const uint8_t size) {
             state[right_trigger_offset + 3] = current_config.trigger_break_force;  // Force to break the wall
             memset(state + right_trigger_offset + 4, 0, 3);
         }
+        else if (current_config.trigger_right_mode == 4) { // Hair Trigger mode
+            state[right_trigger_offset + 0] = 0x02; // Trigger mode
+            state[right_trigger_offset + 1] = 97;   // Start of the trigger wall
+            state[right_trigger_offset + 2] = 255;   // End of the mechanical "clic"
+            state[right_trigger_offset + 3] = 255;  // Force to break the wall
+            memset(state + right_trigger_offset + 4, 0, 3);
+        }
         
     }
 
@@ -430,7 +437,13 @@ void state_update(const uint8_t *data, const uint8_t size) {
             state[left_trigger_offset + 3] = current_config.trigger_break_force;  
             memset(state + left_trigger_offset + 4, 0, 3);
         }
-        
+        else if (current_config.trigger_right_mode == 4) { // Hair Trigger mode
+            state[left_trigger_offset + 0] = 0x02; // Trigger mode
+            state[left_trigger_offset + 1] = 97;   // Start of the trigger wall
+            state[left_trigger_offset + 2] = 255;   // End of the mechanical "clic"
+            state[left_trigger_offset + 3] = 255;  // Force to break the wall
+            memset(state + left_trigger_offset + 4, 0, 3);
+        }
     }
 
     state[04] = 0x04;

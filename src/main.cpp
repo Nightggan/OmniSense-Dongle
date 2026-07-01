@@ -368,7 +368,7 @@ void __not_in_flash_func(on_bt_data)(CHANNEL_TYPE channel, uint8_t *data, uint16
             if (shortcut_btn_pressed(data, 5) /* R1 */) {
                 if (!right_trigger_mode_override_shortcut_lock) {
                     Profile_Config_body new_config = get_profile_config();
-                    new_config.trigger_right_mode = (new_config.trigger_right_mode + 1) % 4; 
+                    new_config.trigger_right_mode = (new_config.trigger_right_mode + 1) % 5; 
                     set_profile_config(new_config);
                     request_temp_save = true;
                     right_trigger_mode_override_shortcut_lock = true; 
@@ -381,7 +381,7 @@ void __not_in_flash_func(on_bt_data)(CHANNEL_TYPE channel, uint8_t *data, uint16
             if (shortcut_btn_pressed(data, 4)) {
                 if (!left_trigger_mode_override_shortcut_lock) {
                     Profile_Config_body new_config = get_profile_config();
-                    new_config.trigger_left_mode = (new_config.trigger_left_mode + 1) % 4; 
+                    new_config.trigger_left_mode = (new_config.trigger_left_mode + 1) % 5; 
                     set_profile_config(new_config);
                     request_temp_save = true;
                     left_trigger_mode_override_shortcut_lock = true; 
@@ -597,6 +597,25 @@ void __not_in_flash_func(on_bt_data)(CHANNEL_TYPE channel, uint8_t *data, uint16
                 state_set(forced_pkt + 3, sizeof(SetStateData));
                 bt_write(forced_pkt, sizeof(forced_pkt));
 
+            }
+            Global_Config_body local_global_config = get_global_config();
+            //Hair trigger values override
+            if(left_trigger_real_position>0)
+            {
+                Profile_Config_body local_profile_config = get_profile_config_index(local_profile_selected);
+                if(local_profile_config.trigger_left_mode == 4)
+                {
+                    data[7] = 255;
+                }
+            }
+            if(right_trigger_real_position>0)
+            {
+                Profile_Config_body local_profile_config = get_profile_config_index(local_profile_selected);
+                //Hair trigger values override
+                if(local_profile_config.trigger_right_mode == 4)
+                {
+                    data[8] = 255;
+                }
             }
             // Vanilla power off combo
             // data[3+7] = byte 7 of USBGetStateData, data[3+9] = byte 9: bit0=PS(Home)
