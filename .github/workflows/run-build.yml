@@ -1,0 +1,17 @@
+name: Run Build firmware
+
+on:
+  push:
+    branches:
+      - "**"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build UF2 artifacts
+    uses: ./.github/workflows/build-firmware.yml
+    with:
+      version: ${{ github.sha }}   # reusable build shortens a full SHA to 7
