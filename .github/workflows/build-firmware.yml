@@ -129,7 +129,7 @@ jobs:
             "${VERSION_ARG[@]}"
           cmake --build build/standard --target omnisense-dongle 
           mkdir -p artifacts
-          cp build/standard/omnisense-dongle .uf2 "artifacts/omnisense-dongle ${{ inputs.asset_suffix }}.uf2"
+          cp build/standard/omnisense-dongle.uf2 "artifacts/omnisense-dongle${{ inputs.asset_suffix }}.uf2"
 
       - name: Upload standard UF2 artifact
         uses: actions/upload-artifact@v4
