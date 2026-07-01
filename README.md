@@ -11,7 +11,7 @@ In addition to the base features of the loteran fork, such as Audio Auto-Haptics
 
 - **Profiles:** Choose between 4 profiles to configure triggers and lighting in detail.
 - **Lightbar Modes:** Control the lightbar color with multiple modes and 4 custom favorite color slots.
-- **Trigger Modes:** Take full control of the adaptive triggers even in games without support. Add **Resistance**, **Weapon Click**, and **Machine Gun** modes.
+- **Trigger Modes:** Take full control of the adaptive triggers even in games without support. Add **Resistance**, **Weapon Click**, **Machine Gun** and **Hair Trigger** modes.
 - **Controller Shortcuts:** Quickly switch between the 4 profiles. Change trigger and lighting settings. Adjust speaker/headphone volume and haptic gain directly from the controller.
 - **Web Configuration:** Manage all features through a custom web application.
 - **No companion apps needed:** All features are handled by the dongle, with no need for background software on the host, with one exception: audio must be redirected from the host to the controller if you are not using headphones (application in development).
@@ -86,6 +86,9 @@ Each profile has the following options that are independent and customizable per
 | 1 | Resistance mode |
 | 2 | Weapon click mode |
 | 3 | Machine Gun / Continuous vibration |
+| 4 | Hair Trigger |
+
+On mode 4, the trigger becomes hard near the middle of the travel and sends a full pressure signal even if it is pressed lightly.
 
 ### Lightbar modes per profile:
 

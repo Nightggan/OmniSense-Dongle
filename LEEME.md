@@ -10,7 +10,7 @@ Además de las funciones base del fork de loteran, como Auto Hápticas por audio
 
 - **Perfiles:** Selecciona entre 4 perfiles para configurar gatillos y luces al detalle.
 - **Modos de Barra de Luz:** Controla el color de la barra de luz con múltiples modos y 4 ranuras de colores favoritos personalizados.
-- **Modos de Gatillo:** Toma el control total de los gatillos adaptativos incluso en juegos sin soporte. Añade modos **Rígido**, **Disparo** y **Ametralladora**.
+- **Modos de Gatillo:** Toma el control total de los gatillos adaptativos incluso en juegos sin soporte. Añade modos **Rígido**, **Disparo**, **Ametralladora** y **Gatillo Rápido**.
 - **Atajos desde el mando:** Selecciona rápidamente entre los 4 perfiles. Cambia la configuración de gatillos y luces. Ajusta el volúmen del parlante/auriculares y ganancia háptica directamente desde el Control.
 - **Configuración Web:** Gestiona todas las funciones mediante una aplicación web personalizada.
 - **No se necesitan aplicaciones complementarias:** Todas las funciones se manejan desde el dongle, sin necesidad de nada corriendo en el host con una excepción: se requiere redireccionar el audio del host al control si no usas auriculares (aplicación en desarrollo).
@@ -85,6 +85,9 @@ Cada perfil tiene las siguientes opciones que son independientes y personalizabl
 | 1 | Resistencia continua |
 | 2 | Gatillo simple |
 | 3 | Metralleta / Vibración continua
+| 4 | Disparo Rápido |
+
+En modo 4, el gatillo se endurece cerca de la mitad del recorrido y envia una señal de presión completa aunque se presione suavemente.
 
 ### Modos de la barra de luz por perfil:
 
