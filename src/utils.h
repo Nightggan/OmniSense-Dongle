@@ -177,7 +177,7 @@ struct __attribute__((packed)) TouchData { // 9
     /*0#1# TouchFingerData Finger[2];
     /*8#1# uint8_t Timestamp;
 };
-
+//https://gist.github.com/selimrecep/21be9aec0751219ebe4c12d8d81c9ed3
 struct __attribute__((packed)) USBGetStateData { // 63
 /* 0  #1# uint8_t LeftStickX;
 /* 1  #1# uint8_t LeftStickY;

@@ -1,152 +1,135 @@
 [Español](https://github.com/Nightggan/OmniSense-Dongle/blob/master/LEEME.md)
 # OmniSense Dongle — DS5Dongle Advanced Edition
 
-A fork of [DS5Dongle](https://github.com/loteran/DS5Dongle) for Raspberry Pi Pico 2W that takes the DualSense experience to the next level. It inherits all the features of the original firmware and adds advanced functions to customize your controller without needing native game support.
+A fork of [DS5Dongle](https://github.com/loteran/DS5Dongle) for the Raspberry Pi Pico 2W that unlocks the full potential of your DualSense controller on any system. 
+
+This Advanced Edition inherits all the great features of the original firmware—like Audio Auto-Haptics—and adds powerful new ways to customize your triggers, lighting, and performance at the hardware level, **no native game support required**.
 
 ---
 
-## Key Features
+## 🌟 Key Features
 
-In addition to the base features of the loteran fork, such as Audio Auto-Haptics, this firmware adds:
-
-- **Profiles:** Choose between 4 profiles to configure triggers and lighting in detail.
-- **Lightbar Modes:** Control the lightbar color with multiple modes and 4 custom favorite color slots.
-- **Trigger Modes:** Take full control of the adaptive triggers even in games without support. Add **Resistance**, **Weapon Click**, **Machine Gun** and **Hair Trigger** modes.
-- **Controller Shortcuts:** Quickly switch between the 4 profiles. Change trigger and lighting settings. Adjust speaker/headphone volume and haptic gain directly from the controller.
-- **Web Configuration:** Manage all features through a custom web application.
-- **No companion apps needed:** All features are handled by the dongle, with no need for background software on the host, with one exception: audio must be redirected from the host to the controller if you are not using headphones (application in development).
+- **Hardware-Level Adaptive Triggers:** Take full control of your triggers in *any* game. Choose from modes like Resistance, Weapon Click, Machine Gun, and the new Hair Trigger.
+- **Custom Profiles:** Save up to 4 different profiles to easily swap between trigger and lighting setups for different games.
+- **On-the-Fly Configuration:** Use controller button shortcuts to switch profiles, adjust trigger/lightbar modes, tweak volume, and change haptic gain without touching your PC.
+- **Advanced Lightbar Control:** Customize your controller's glow with multiple dynamic modes and 4 custom favorite color slots.
+- **Web-Based UI:** Easily manage all your deep settings visually through a custom WebHID application.
+- **Zero Background Apps:** Everything runs directly on the dongle itself. You don't need any software running in the background on your PC. *(Note: A lightweight app is currently in development specifically for routing PC audio to the controller if you aren't using headphones, but it is entirely optional).*
 
 ---
 
-## Configuration and Web-App
+## 🚀 Getting Started
 
-1. Access the web application [here](https://nightggan.github.io/OmniSense-Config-Web/)
-2. Connect your dongle via USB and pair the DualSense controller.
-3. Click **"Connect"** and adjust your preferences.
+Configuring your dongle is simple and happens right in your browser:
+
+1. Go to the [OmniSense Web Configurator](https://nightggan.github.io/OmniSense-Config-Web/).
+2. Connect your Raspberry Pi Pico 2W dongle via USB and pair your DualSense controller.
+3. Click **"Connect"** in the web app and start customizing!
 
 ---
 
-## Configuration Mode
+## 🎮 Configuration Mode (On-the-Fly Shortcuts)
 
-To enter configuration mode from your controller, press the **Mute** button.
-- **Configuration Mode:** The Mute button will have a **breathing** effect.
-- **Normal Mode:** The Mute button will be turned off.
+You don't always need the web app to make changes. You can enter **Configuration Mode** directly from your controller by pressing the **Mute** button.
 
-Changes are saved to flash upon exiting the mode. Shortcuts are blocked and are not passed to the host.
+- **Config Mode ON:** The Mute button will slowly pulse (breathing effect). Shortcuts are active and will not be sent to your PC/game.
+- **Config Mode OFF:** The Mute button is unlit. The controller behaves normally.
 
-### Controls in Configuration Mode:
+*Any changes made here are instantly saved to the dongle's flash memory when you exit Config Mode.*
 
-| Button | Function | Level |
+### Controller Shortcuts
+
+| Button | Action | Scope |
 | :--- | :--- | :--- |
-| **Create** | Switch Lightbar mode | Per profile |
-| **Options** | Toggle breathing effect | Per profile |
-| **L1** | Switch Left Trigger mode | Per profile |
-| **R1** | Switch Right Trigger mode | Per profile |
-| **Left Stick Up** | Increase volume (Speaker/Headphones) | Global |
-| **Left Stick Down** | Decrease volume (Speaker/Headphones) | Global |
-| **Right Stick Up** | Increase haptic gain | Global |
-| **Right Stick Down** | Decrease haptic gain | Global |
-| **Square** | Mute (Speaker/Headphones) | Global |
-| **DPAD** | Switch between profiles | |
+| **Create (Share)** | Cycle Lightbar Mode | Saved to Profile |
+| **Options** | Toggle Lightbar Breathing Effect | Saved to Profile |
+| **L1** | Cycle Left Trigger Mode | Saved to Profile |
+| **R1** | Cycle Right Trigger Mode | Saved to Profile |
+| **Left Stick Up/Down** | Increase/Decrease Volume (Speaker & Headphones) | Global |
+| **Right Stick Up/Down** | Increase/Decrease Haptic Gain | Global |
+| **Square** | Mute Audio (Speaker & Headphones) | Global |
+| **D-PAD (Any dir.)** | Cycle through Profiles 0 to 3 | Global |
 
-Manual mute is not maintained across power cycles, but you can lower the volume to 0 with the **Left Stick**, which is maintained between power cycles.
+> **Pro-Tip:** The quick Mute state (Square) resets when you turn off the controller. If you want to permanently mute the audio, use the Left Stick Down to lower the volume to 0%, as volume levels are saved permanently.
 
 ---
 
-### Global Configuration
+## ⚙️ Settings Overview
 
-The following options can be changed globally, regardless of the selected profile:
+### Global Settings
+These settings apply to the dongle universally, regardless of which profile is active:
+- Audio-based Haptic Configuration & Gain
+- Speaker/Headphone Master Volume
+- USB Emulation Profile (DualSense, DualSense Edge, or Auto)
+- USB Polling Rate
+- Idle Disconnect Timeout & Host Wake-up
+- Power-off Button Shortcut & Dongle LED toggle
 
-- Audio-based haptic configuration
-- Speaker/Headphone volume
-- Emulation profile (DS - DSE - Auto)
-- Polling Rate
-- Idle timeout
-- Power-off shortcut
-- Host wake-up
-- Dongle LED
-
-### Profiles
-
-Each profile has the following options that are independent and customizable per profile:
-
-- Left and Right trigger operating modes
-- Configuration of each trigger mode to fine-tune to user preference
+### Profile Settings
+You have **4 distinct profiles**, each storing its own unique setup for:
+- Left & Right Trigger operating modes
+- Fine-tuned parameters for each trigger mode
 - Lightbar operating mode
-    - 4 Favorite color slots per profile
-- Breathing effect
+- 4 Custom Favorite Color slots
+- Breathing animation toggle
 
 ---
 
-### Trigger modes per profile:
+## 🔫 Adaptive Trigger Modes
 
-| Mode | Function |
+| Mode | Name | Description |
+| :--- | :--- | :--- |
+| **0** | **Host-Controlled** | Native passthrough. Best for games that officially support the DualSense. |
+| **1** | **Resistance** | Applies constant stiffness throughout the trigger pull. |
+| **2** | **Weapon Click** | Simulates the tactile "snap" or click of firing a gun. |
+| **3** | **Machine Gun** | Provides continuous recoil and vibration when pulled. |
+| **4** | **Hair Trigger** | The trigger hits a hard wall halfway down, immediately sending a 100% full-press signal with minimal effort. Great for shooters. |
+
+---
+
+## 💡 Lightbar Modes
+
+| Mode | Name | Description |
+| :--- | :--- | :--- |
+| **0** | **Host-Controlled** | Native game lighting. *(If multiple sources send color data, the dongle locks onto the first valid signal).* |
+| **1** | **Off** | Disables the lightbar completely. |
+| **2-5**| **Favorites (0-3)** | Displays one of your 4 custom colors defined in the web app. |
+| **6** | **Battery Level** | Visual battery indicator (See table below). |
+| **7** | **Rainbow** | Cycles through all colors. |
+| **8** | **Fade** | Smoothly transitions between your 4 favorite colors. |
+
+### Battery Level Indicator (Mode 6)
+
+| Charge Level | Color & Behavior |
 | :--- | :--- |
-| 0 | Host-controlled. Compatible with games that send trigger data |
-| 1 | Resistance mode |
-| 2 | Weapon click mode |
-| 3 | Machine Gun / Continuous vibration |
-| 4 | Hair Trigger |
-
-On mode 4, the trigger becomes hard near the middle of the travel and sends a full pressure signal even if it is pressed lightly.
-
-### Lightbar modes per profile:
-
-| Mode | Function |
-| :--- | :--- |
-| 0 | Host-controlled |
-| 1 | Off |
-| 2 | Favorite 0 |
-| 3 | Favorite 1 |
-| 4 | Favorite 2 |
-| 5 | Favorite 3 |
-| 6 | Battery level indicator |
-| 7 | Rainbow |
-| 8 | Fade between favorites |
-
-### Mode 0 (Host):
-
-If 2 hosts send different data (e.g., Steam and GamePass), the dongle prioritizes the first valid color received unless the first host stops sending data.
-
-### Battery Indicator:
-
-| Percentage | Color |
-| :--- | :--- |
-| > 40% | Green |
-| 10% - 39% | Yellow |
-| < 10% | Fast red fade |
-
-- If the battery is critical (<10%), the selected mode is overridden to provide a continuous alert.
-- If the controller is charging, it is indicated by a green fade, overriding any other mode even if the battery is at critical levels.
+| **Charging** | Smooth Green fade (Overrides all other modes) |
+| **> 40%** | Solid Green |
+| **10% - 39%** | Solid Yellow |
+| **< 10%** | Fast Red flashing (Overrides all other modes to warn you) |
 
 ---
 
-## Work in Progress (Upcoming features)
+## 🚧 Work in Progress
 
-- Full support for the built-in microphone with a dedicated controller shortcut.
-- Controller shortcut to change auto-haptic modes.
-
----
-
-## Changes from the original fork
-
-- Removed shortcut to disable the touchpad.
-- Changed default values to those I found most optimal.
+- Full support for the built-in microphone, including a dedicated controller shortcut to toggle it.
+- A new controller shortcut to quickly cycle between Auto-Haptic operating modes.
 
 ---
 
-## Credits
+## 📝 Changes from the Original Fork
 
-This project is a fork of **[DS5Dongle](https://github.com/loteran/DS5Dongle)**. All credit for the base development and memory architecture goes to its original creators.
+- Removed the shortcut to disable the touchpad.
+- Overhauled default parameter values out-of-the-box to provide a better initial experience.
 
 ---
 
-## Credited Projects
+## 🙌 Credits & Acknowledgments
 
-Thanks to the following projects; without them, this would not be possible.
+This project is a fork of **[DS5Dongle](https://github.com/loteran/DS5Dongle)**. Massive thanks to the original creators for the foundation and memory architecture that made this possible. 
 
-- Original project by awalol **[DS5Dongle](https://github.com/awalol/DS5Dongle)**
-- Audio Auto-Haptics by loteran **[DS5Dongle - Auto Haptics Edition](https://github.com/loteran/DS5Dongle)**
-- OLED Edition by MarcelineVPQ **[DS5Dongle-OLED-Edition](https://github.com/MarcelineVPQ/DS5Dongle-OLED-Edition)**
+Please check out their amazing work:
+- The original architecture by awalol: **[DS5Dongle](https://github.com/awalol/DS5Dongle)**
+- The Audio Auto-Haptics implementation by loteran: **[DS5Dongle - Auto Haptics Edition](https://github.com/loteran/DS5Dongle)**
+- The OLED integration by MarcelineVPQ: **[DS5Dongle-OLED-Edition](https://github.com/MarcelineVPQ/DS5Dongle-OLED-Edition)**
 
 *Licensed under the **MIT License**.*

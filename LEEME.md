@@ -1,153 +1,135 @@
+[English](https://github.com/Nightggan/OmniSense-Dongle/blob/master/README.md)
 # OmniSense Dongle — DS5Dongle Advanced Edition
 
-Un fork de [DS5Dongle](https://github.com/loteran/DS5Dongle) para Raspberry Pi Pico 2W que lleva la experiencia del DualSense a otro nivel. Hereda todas las características del firmware original y añade funciones avanzadas para personalizar tu mando sin necesidad de soporte nativo en los juegos.
+Un fork de [DS5Dongle](https://github.com/loteran/DS5Dongle) para la Raspberry Pi Pico 2W que desbloquea todo el potencial de tu mando DualSense en cualquier sistema. 
+
+Esta edición avanzada hereda todas las geniales características del firmware original —como las Auto Hápticas por audio— y añade nuevas y potentes formas de personalizar los gatillos, la iluminación y el rendimiento a nivel de hardware, **sin necesidad de soporte nativo en los juegos**.
 
 ---
 
-## Características principales
+## 🌟 Características Principales
 
-Además de las funciones base del fork de loteran, como Auto Hápticas por audio, este firmware añade:
-
-- **Perfiles:** Selecciona entre 4 perfiles para configurar gatillos y luces al detalle.
-- **Modos de Barra de Luz:** Controla el color de la barra de luz con múltiples modos y 4 ranuras de colores favoritos personalizados.
-- **Modos de Gatillo:** Toma el control total de los gatillos adaptativos incluso en juegos sin soporte. Añade modos **Rígido**, **Disparo**, **Ametralladora** y **Gatillo Rápido**.
-- **Atajos desde el mando:** Selecciona rápidamente entre los 4 perfiles. Cambia la configuración de gatillos y luces. Ajusta el volúmen del parlante/auriculares y ganancia háptica directamente desde el Control.
-- **Configuración Web:** Gestiona todas las funciones mediante una aplicación web personalizada.
-- **No se necesitan aplicaciones complementarias:** Todas las funciones se manejan desde el dongle, sin necesidad de nada corriendo en el host con una excepción: se requiere redireccionar el audio del host al control si no usas auriculares (aplicación en desarrollo).
+- **Gatillos Adaptativos a Nivel de Hardware:** Toma el control total de tus gatillos en *cualquier* juego. Elige entre modos como Resistencia, Disparo, Metralleta y el nuevo Gatillo Sensible (Hair Trigger).
+- **Perfiles Personalizados:** Guarda hasta 4 perfiles diferentes para cambiar fácilmente entre configuraciones de gatillos e iluminación según el juego.
+- **Configuración al Vuelo (On-the-Fly):** Usa atajos con los botones del mando para cambiar perfiles, ajustar modos de gatillo/barra de luz, modificar el volumen y cambiar la ganancia háptica sin tocar tu PC.
+- **Control Avanzado de la Barra de Luz:** Personaliza el brillo de tu mando con múltiples modos dinámicos y 4 ranuras para tus colores favoritos.
+- **Interfaz Web (Web UI):** Gestiona fácilmente todas tus configuraciones avanzadas de forma visual a través de una aplicación WebHID personalizada.
+- **Cero Aplicaciones en Segundo Plano:** Todo se ejecuta directamente en el propio dongle. No necesitas ningún software corriendo en segundo plano en tu PC. *(Nota: Actualmente hay una aplicación ligera en desarrollo específicamente para redirigir el audio del PC al mando si no usas auriculares, pero es completamente opcional).*
 
 ---
 
-## Configuración y Web-App
+## 🚀 Primeros Pasos
 
-1. Accede a la aplicación web [aquí](https://nightggan.github.io/OmniSense-Config-Web/)
-2. Conecta tu dongle vía USB y enlaza el control DualSense.
-3. Haz clic en **"Conectar"** y ajusta tus preferencias.
+Configurar tu dongle es muy sencillo y se hace directamente desde el navegador:
+
+1. Ve al [Configurador Web de OmniSense](https://nightggan.github.io/OmniSense-Config-Web/).
+2. Conecta tu dongle Raspberry Pi Pico 2W por USB y empareja tu mando DualSense.
+3. Haz clic en **"Conectar"** en la aplicación web ¡y empieza a personalizar!
 
 ---
 
-## Modo Configuración
+## 🎮 Modo Configuración (Atajos al Vuelo)
 
-Para entrar en modo configuración desde tu mando, presiona el botón **Mute** (Silencio).
-- **Modo Configuración:** El botón Mute tendrá un efecto de **respiración**.
-- **Modo Normal:** El botón Mute estará apagado.
+No siempre necesitas la aplicación web para hacer cambios. Puedes entrar al **Modo Configuración** directamente desde tu mando presionando el botón **Mute** (Silencio).
 
-Los cambios se guardan en flash al salir del modo. Los atajos son bloqueados y no llegan al host.
+- **Modo Configuración ON:** El botón Mute parpadeará lentamente (efecto respiración). Los atajos están activos y no se enviarán a tu PC o juego.
+- **Modo Configuración OFF:** El botón Mute estará apagado. El mando se comporta con normalidad.
 
-### Controles en modo Configuración:
+*Cualquier cambio realizado aquí se guarda instantáneamente en la memoria flash del dongle al salir del Modo Configuración.*
 
-| Botón | Función | Nivel |
+### Atajos del Mando
+
+| Botón | Acción | Alcance |
 | :--- | :--- | :--- |
-| **Create** | Cambiar modo de la Barra de Luz | Por perfil |
-| **Options** | Activar/Desactivar efecto de respiración | Por perfil |
-| **L1** | Cambiar modo del Gatillo Izquierdo | Por perfil |
-| **R1** | Cambiar modo del Gatillo Derecho | Por perfil |
-| **Stick Izquierdo Arriba** | Aumentar volumen (Parlante/Auriculares) | Global |
-| **Stick Izquierdo Abajo** | Disminuir volumen (Parlante/Auriculares) | Global |
-| **Stick Derecho Arriba** | Aumentar ganancia háptica | Global |
-| **Stick Izquierdo Abajo** | Disminuir ganancia háptica | Global |
-| **Cuadrado** | Mute (Parlante/Auriculares) | Global |
-| **DPAD** | Cambiar entre perfiles |   |
+| **Create (Share)** | Cambiar Modo de la Barra de Luz | Guardado en Perfil |
+| **Options** | Activar/Desactivar Efecto Respiración | Guardado en Perfil |
+| **L1** | Cambiar Modo del Gatillo Izquierdo | Guardado en Perfil |
+| **R1** | Cambiar Modo del Gatillo Derecho | Guardado en Perfil |
+| **Stick Izq. Arriba/Abajo** | Subir/Bajar Volumen (Altavoz y Auriculares) | Global |
+| **Stick Der. Arriba/Abajo** | Subir/Bajar Ganancia Háptica | Global |
+| **Cuadrado** | Silenciar Audio / Mute (Altavoz y Auriculares) | Global |
+| **D-PAD (Cualquier dir.)** | Alternar entre Perfiles 0 al 3 | Global |
 
-Mute manual no se mantiene entre ciclos de encendido pero puedes bajar el volumen a 0 con el **Stick Izquierdo** el cual sí se mantiene entre encendidos.
+> **Pro-Tip:** El silenciado rápido (Cuadrado) se reinicia al apagar el mando. Si quieres silenciar el audio de forma permanente, usa el Stick Izquierdo hacia Abajo para bajar el volumen al 0%, ya que los niveles de volumen sí se guardan en la memoria.
 
 ---
 
-### Configuración global
+## ⚙️ Resumen de Configuraciones
 
-Se pueden cambiar de manera global las siguientes opciones independiente del perfil seleccionado.
+### Configuraciones Globales
+Estas opciones se aplican al dongle universalmente, independientemente del perfil que esté activo:
+- Configuración y Ganancia de Hápticas por Audio
+- Volumen Maestro del Altavoz/Auriculares
+- Perfil de Emulación USB (DualSense, DualSense Edge o Auto)
+- Tasa de Sondeo (Polling Rate) USB
+- Tiempo de Apagado por Inactividad y Despertar Host
+- Atajo de Botón de Apagado y encendido del LED del Dongle
 
-- Configuración de hápticas basadas en audio
-- Volumen de parlantes/auriculares
-- Perfil de emulación (DS - DSE - Auto)
-- Frecuencia de respuesta (Polling Rate)
-- Inactividad
-- Atajo de apagado
-- Despertar host
-- Led del Dongle
-
-### Perfiles
-
-Cada perfil tiene las siguientes opciones que son independientes y personalizables entre cada perfil.
-
-- Modo de funcionamiento de gatillos izquierdo y derecho
-- Configuración de cada modo del gatillo para afinar a gusto del usuario
-- Modo de funcionamiento de la barra de luz
-    - 4 Espacios de colores favoritos por perfil
-- Efecto respiración
+### Configuraciones de Perfil
+Tienes **4 perfiles distintos**, y cada uno guarda su propia configuración para:
+- Modos de funcionamiento del Gatillo Izquierdo y Derecho
+- Parámetros ajustados al detalle para cada modo de gatillo
+- Modo de funcionamiento de la Barra de Luz
+- 4 Espacios para Colores Favoritos personalizados
+- Interruptor de animación de Respiración
 
 ---
 
-### Modos de gatillo por perfil:
+## 🔫 Modos de Gatillos Adaptativos
 
-| Modo | Función |
+| Modo | Nombre | Descripción |
+| :--- | :--- | :--- |
+| **0** | **Controlado por el Host** | Paso directo nativo. Ideal para juegos que soportan oficialmente el DualSense. |
+| **1** | **Resistencia** | Aplica una rigidez constante durante todo el recorrido del gatillo. |
+| **2** | **Disparo (Weapon Click)** | Simula el "clic" táctil al disparar un arma. |
+| **3** | **Metralla (Machine Gun)** | Proporciona un retroceso y vibración continua al presionarlo. |
+| **4** | **Gatillo Sensible (Hair Trigger)** | El gatillo choca con un muro rígido a mitad de recorrido, enviando inmediatamente una señal de presión del 100% con el mínimo esfuerzo. Excelente para shooters. |
+
+---
+
+## 💡 Modos de la Barra de Luz
+
+| Modo | Nombre | Descripción |
+| :--- | :--- | :--- |
+| **0** | **Controlado por el Host** | Iluminación nativa del juego. *(Si hay varias fuentes enviando datos de color, el dongle se bloquea en la primera señal válida).* |
+| **1** | **Apagado** | Desactiva la barra de luz por completo. |
+| **2-5**| **Favoritos (0-3)** | Muestra uno de tus 4 colores personalizados definidos en la web app. |
+| **6** | **Nivel de Batería** | Indicador visual de batería (Ver tabla abajo). |
+| **7** | **Arcoíris** | Pasa cíclicamente por todos los colores. |
+| **8** | **Desvanecimiento** | Transición suave entre tus 4 colores favoritos. |
+
+### Indicador de Nivel de Batería (Modo 6)
+
+| Nivel de Carga | Color y Comportamiento |
 | :--- | :--- |
-| 0 | Controlado por el host. Compatibilidad con juegos que envian datos para el gatillo |
-| 1 | Resistencia continua |
-| 2 | Gatillo simple |
-| 3 | Metralleta / Vibración continua
-| 4 | Disparo Rápido |
-
-En modo 4, el gatillo se endurece cerca de la mitad del recorrido y envia una señal de presión completa aunque se presione suavemente.
-
-### Modos de la barra de luz por perfil:
-
-| Modo | Función |
-| :--- | :--- |
-| 0 | Controlado por el Host |
-| 1 | Apagada |
-| 2 | Favorito 0 |
-| 3 | Favorito 1 |
-| 4 | Favorito 2 |
-| 5 | Favorito 3 |
-| 6 | Indicador de batería |
-| 7 | Arcoíris |
-| 8 | Desvanecimiento entre favoritos |
-
-### Modo 0 Host:
-
-Si 2 host envian datos diferentes (ej: Steam y GamePass) el dongle prioriza el primer color válido recibido a menos que el primer host deje de enviar datos.
-
-### Indicador de Batería:
-
-| Porcentaje | Color |
-| :--- | :--- |
-| > 40% | Verde |
-| 10% - 39% | Amarillo |
-| < 10% | Desvanecimiento rápido en rojo |
-
-- Si la batería está crítica (<10%) se reemplaza cualquier modo seleccionado para alertar continuamente.
-- Si el control está cargando se indica con un desvanecimiento en verde reemplazando cualquier otro modo aunque la batería esté en niveles críticos.
+| **Cargando** | Desvanecimiento suave en Verde (Sobrescribe los demás modos) |
+| **> 40%** | Verde Sólido |
+| **10% - 39%** | Amarillo Sólido |
+| **< 10%** | Parpadeo rápido en Rojo (Sobrescribe los demás modos para avisarte) |
 
 ---
 
-## Work in Progress (Próximas funciones)
+## 🚧 Trabajo en Progreso
 
-- Compatibilidad total con el micrófono integrado con su atajo dedicado desde el mando.
-- Atajo desde el mano para cambiar los modos de auto hápticas
-
----
-
-## Cambios del fork original
-
-- Se quitó atajo para desactivar el touchpad
-- Se cambiaron los valores por defecto a los que me parecían mejor
+- Soporte total para el micrófono integrado, incluyendo un atajo dedicado en el mando para alternarlo.
+- Un nuevo atajo en el mando para cambiar rápidamente entre los modos de funcionamiento Auto-Hápticos.
 
 ---
 
-## Créditos
+## 📝 Cambios respecto al Fork Original
 
-Este proyecto es un fork de **[DS5Dongle](https://github.com/loteran/DS5Dongle)**. Todo el mérito del desarrollo base y la arquitectura de memoria es de sus creadores originales.
+- Se eliminó el atajo para desactivar el panel táctil (touchpad).
+- Se reformularon los valores de los parámetros por defecto para ofrecer una mejor experiencia inicial al instalarlo.
 
 ---
 
-## Proyectos acreditados
+## 🙌 Créditos y Agradecimientos
 
-Gracias a los siguientes proyectos, sin ellos esto no sería posible.
+Este proyecto es un fork de **[DS5Dongle](https://github.com/loteran/DS5Dongle)**. Todo el mérito por el desarrollo base y la arquitectura de memoria es de sus creadores originales.
 
-- Proyecto original por awalol **[DS5Dongle](https://github.com/awalol/DS5Dongle)**
-- Audio Auto-Haptics por loteran **[DS5Dongle - Auto Haptics Edition](https://github.com/loteran/DS5Dongle)**
-- OLED Edition por MarcelineVPQ **[DS5Dongle-OLED-Edition](https://github.com/MarcelineVPQ/DS5Dongle-OLED-Edition)**
+Agradecimientos especiales a los siguientes proyectos:
+- La arquitectura original por awalol: **[DS5Dongle](https://github.com/awalol/DS5Dongle)**
+- La implementación de Auto Hápticas por loteran: **[DS5Dongle - Auto Haptics Edition](https://github.com/loteran/DS5Dongle)**
+- La integración OLED por MarcelineVPQ: **[DS5Dongle-OLED-Edition](https://github.com/MarcelineVPQ/DS5Dongle-OLED-Edition)**
 
-
-
-*Licensed under the **MIT License**.*
+*Licenciado bajo la **Licencia MIT**.*
