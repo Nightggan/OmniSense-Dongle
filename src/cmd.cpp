@@ -18,13 +18,15 @@
 extern volatile bool usb_reconnect_requested;
 extern bool save_requested;
 extern bool save_config_now;
+volatile uint8_t profile_index_request;
 //End Custom vars Omni
 bool is_pico_cmd(uint8_t report_id) {
     if (report_id == 0xf6 ||
         report_id == 0xf7 ||
         report_id == 0xf8 ||
         report_id == 0xf9 ||
-        report_id == 0xf5
+        report_id == 0xf5 ||
+        report_id == 0xf4
     ) {
         return true;
     }
@@ -66,28 +68,26 @@ uint16_t pico_cmd_get(uint8_t report_id, uint8_t *buffer, uint16_t reqlen) {
         return 1;
     }
     if(report_id == 0xf5){//profile data get
-        uint8_t profile_index_request = buffer[0];
-        if(profile_index_request<4)//valid profile index
-        {
-            const Profile_Config_body& profile_body = get_profile_config_index(profile_index_request);
-            constexpr size_t body_len = sizeof(Profile_Config_body);
-            if (body_len > reqlen) {
-                printf("[Device_Config] Warning: Profile_body overflow\n");
-            }
-            const auto len = std::min(body_len, static_cast<size_t>(reqlen));
-            memcpy(buffer, reinterpret_cast<const uint8_t*>(&profile_body), len);
-            return static_cast<uint16_t>(len);
+        printf("Step 2: Profile Data Requested with Index: %d \n", (int)profile_index_request);
+        const Profile_Config_body& profile_body = get_profile_config_index(profile_index_request);
+        constexpr size_t body_len = sizeof(Profile_Config_body);
+        if (body_len > reqlen) {
+            printf("[Device_Config] Warning: Profile_body overflow\n");
         }
+        const auto len = std::min(body_len, static_cast<size_t>(reqlen));
+        memcpy(buffer, reinterpret_cast<const uint8_t*>(&profile_body), len);
+        return static_cast<uint16_t>(len);
+        
     }
     return 0;
 }
 
 void pico_cmd_set(uint8_t report_id, uint8_t const *buffer, uint16_t bufsize) {
-    (void) report_id;
+    printf("[CMD] Buffer command: 0x%02X\n",buffer[0] );
+    (void)report_id;
     if (bufsize == 0) {
         return;
     }
-
     // 0x01 update config in variable
     // 0x02 write config to flash
     // 0x03 reconnect tinyusb device;
@@ -104,8 +104,16 @@ void pico_cmd_set(uint8_t report_id, uint8_t const *buffer, uint16_t bufsize) {
         usb_reconnect_requested = true;
     }
     if (buffer[0] == 0x05) {//profile data set
-        printf("[CMD] Enter Profile Data Set\n");
+        printf("[CMD] Enter Profile Data Set Index: %d\n", buffer[1]);
         set_profile_config(buffer + 2, bufsize - 1, buffer[1]);
+    }
+    
+    if (buffer[0] == 0x07) {//profile data set
+        printf("Step 1: Enter Profile Index Request: Profile ");
+        profile_index_request = buffer[1];
+        
+        printf("%d\n", (int)profile_index_request);
+        printf("Buffer[1]: %d\n", (int)buffer[1]);
     }
 
 }

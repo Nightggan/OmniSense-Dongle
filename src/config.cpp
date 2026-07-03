@@ -43,15 +43,15 @@ void global_config_valid() {
     // valid config and set default value
     if (config.magic != CONFIG_MAGIC) {
         config.magic = CONFIG_MAGIC;
-        //printf("[Config] Config Magic Header is invalid\n");
+        printf("[Config] Config Magic Header is invalid\n");
     }
     if (config.version != CONFIG_VERSION) {
         config.version = CONFIG_VERSION;
-        //printf("[Config] Config Version is invalid\n");
+        printf("[Config] Config Version is invalid\n");
     }
     if (config.global_config_size != sizeof(Device_Config)) {
         config.global_config_size = sizeof(Device_Config);
-        //printf("[Config] Config Body size is invalid\n");
+        printf("[Config] Config Body size is invalid\n");
     }
     //Profile index validation
     if (config.profile_selected > 3) {//0 - 3 profile index
@@ -60,47 +60,47 @@ void global_config_valid() {
     auto global_body = &config.global_body;
     if (std::isnan(global_body->haptics_gain) || global_body->haptics_gain < 1.0f || global_body->haptics_gain > 2.0f) {
         global_body->haptics_gain = 1.5f;
-        //printf("[Config] Haptics Gain value is invalid\n");
+        printf("[Config] Haptics Gain value is invalid\n");
     }
     if (global_body->inactive_time < 5 || global_body->inactive_time > 60) {
         global_body->inactive_time = 30;
-        //printf("[Config] Inactive time is invalid\n");
+        printf("[Config] Inactive time is invalid\n");
     }
     if (global_body->disable_inactive_disconnect > 1) {
         global_body->disable_inactive_disconnect = 0;
-        //printf("[Config] disable_auto_disconnect is invalid\n");
+        printf("[Config] disable_auto_disconnect is invalid\n");
     }
     if (global_body->disable_pico_led > 1) {
         global_body->disable_pico_led = 0;
-        //printf("[Config] disable_pico_led is invalid\n");
+        printf("[Config] disable_pico_led is invalid\n");
     }
     if (global_body->polling_rate_mode > 2) {
         global_body->polling_rate_mode = 0;
-        //printf("[Config] polling_rate_mode is invalid\n");
+        printf("[Config] polling_rate_mode is invalid\n");
     }
     if (global_body->audio_buffer_length < 16 || global_body->audio_buffer_length > 128) {
         global_body->audio_buffer_length = 64;
-        //printf("[Config] haptics_buffer_length is invalid\n");
+        printf("[Config] haptics_buffer_length is invalid\n");
     }
     if (global_body->controller_mode > 2) {
         global_body->controller_mode = 2;
-        //printf("[Config] controller_mode is invalid\n");
+        printf("[Config] controller_mode is invalid\n");
     }
     if (global_body->config_version != CONFIG_VERSION) {
         global_body->config_version = CONFIG_VERSION;
-        //printf("[Config] Warning: Config may breaking change\n");
+        printf("[Config] Warning: Config may breaking change\n");
     }
     if (global_body->auto_haptics_enable > 2) {
         global_body->auto_haptics_enable = 1;
-        //printf("[Config] auto_haptics_enable is invalid, defaulting to 2\n");
+        printf("[Config] auto_haptics_enable is invalid, defaulting to 2\n");
     }
     if (global_body->auto_haptics_gain > 200) {
         global_body->auto_haptics_gain = 100;
-        //printf("[Config] auto_haptics_gain is invalid, defaulting to 100\n");
+        printf("[Config] auto_haptics_gain is invalid, defaulting to 100\n");
     }
     if (global_body->auto_haptics_lowpass_hz < 20 || global_body->auto_haptics_lowpass_hz > 400) {
         global_body->auto_haptics_lowpass_hz = 80;
-        //printf("[Config] auto_haptics_lowpass_hz is invalid, defaulting to 80 Hz\n");
+        printf("[Config] auto_haptics_lowpass_hz is invalid, defaulting to 80 Hz\n");
     }
     if (global_body->enable_poweroff_shortcut > 1) {
         global_body->enable_poweroff_shortcut = 1;
@@ -121,10 +121,14 @@ void global_config_valid() {
     }
     
     //Default to 0 to allow sound pass to speaker/headphones even on haptics modes
-    if (global_body->auto_mute_mode > 1) global_body->auto_mute_mode = 0;
+    if (global_body->auto_mute_mode > 1){
+        printf("[Config] Global Mute is invalid\n");
+        global_body->auto_mute_mode = 0;
+    } 
 
     if(global_body->time_config_mode < 0  || global_body->time_config_mode > 3000){
         global_body->time_config_mode = 0;//Default instant press for config mode
+        printf("[Config] Global Time Config is invalid\n");
     }
 
 }
@@ -137,6 +141,7 @@ void profile_config_valid()
 
         if (profile.lightbar_mode > 8) {
             profile.lightbar_mode = 0; // default to "HOST" mode if invalid
+            printf("[Profile] Lightbar Mode is invalid\n");
         }
         if (profile.lb_fav_r[0] == 0xFF && profile.lb_fav_g[0] == 0xFF && profile.lb_fav_b[0] == 0xFF) {
             // Default FAV0 to bright cyan to make it obvious if the config isn't loaded
@@ -164,13 +169,16 @@ void profile_config_valid()
         }
         if (profile.lightbar_breathing > 1) {
             profile.lightbar_breathing = 1; //breathing enabled by default if invalid
+            printf("[Profile] Lightbar Breathing Mode is invalid\n");
         }
 
         if (profile.trigger_left_mode > 4) {
             profile.trigger_left_mode = 0; //Relaxed/Host controlled by default if invalid
+            printf("[Profile] Left Trigger Mode is invalid\n");
         }
         if (profile.trigger_right_mode > 4) {
             profile.trigger_right_mode = 0; //Relaxed/Host controlled by default if invalid
+            printf("[Profile] Right Trigger Mode is invalid\n");
         }
         if(config.initial_setup_completed!=7)
         {
@@ -183,6 +191,7 @@ void profile_config_valid()
             profile.vibration_frequency = 36;
             profile.vibration_force = 255;
             profile.hair_wall_start_point = 97;
+            printf("[Profile] Initial Trigger Values Set\n");
         }    
     }
     config.initial_setup_completed = 7;
@@ -295,7 +304,6 @@ void set_global_config(const Global_Config_body &new_global_config) {
 //Profile saves
 
 void set_profile_config(const uint8_t *new_profile_config, const uint16_t len, uint8_t profile_index_set) {
-    
     const size_t body_len = sizeof(Profile_Config_body);
     const auto copy_len = len < body_len ? len : body_len;
     memcpy(reinterpret_cast<uint8_t*>(&config.profile_body[profile_index_set]), new_profile_config, copy_len);

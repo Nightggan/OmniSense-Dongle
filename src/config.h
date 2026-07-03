@@ -44,7 +44,7 @@ struct __attribute__((packed)) Profile_Config_body {
     uint8_t vibration_start_point; //32 - 255
     uint8_t vibration_frequency; //0 - 255
     uint8_t vibration_force; //0 - 255
-    uint8_t hair_wall_start_point;
+    uint8_t hair_wall_start_point; //60 - 100
 };
 
 
