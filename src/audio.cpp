@@ -265,10 +265,10 @@ void __not_in_flash_func(audio_loop)() {
                 pkt[r_off + 1] = get_profile_config().vibration_frequency; ; // Parameter 1: Frecuency
                 pkt[r_off + 2] = get_profile_config().vibration_force; // Parameter 2: Force
                 pkt[r_off + 3] = get_profile_config().vibration_start_point; // Parameter 3: Start Point
-                memset(&pkt[r_off + 4], 0, 3);
+                memset(&pkt[r_off + 4], 0, 7);
             } else {
                 pkt[r_off + 0] = 0x05; // Forzar suelto si no hay presión
-                memset(&pkt[r_off + 1], 0, 6);
+                memset(&pkt[r_off + 1], 0, 10);
             }
         }
 
@@ -285,10 +285,10 @@ void __not_in_flash_func(audio_loop)() {
                 pkt[l_off + 1] = get_profile_config().vibration_frequency; ; // Parameter 1: Frecuency
                 pkt[l_off + 2] = get_profile_config().vibration_force; // Parameter 2: Force
                 pkt[l_off + 3] = get_profile_config().vibration_start_point; // Parameter 3: Start Point
-                memset(&pkt[l_off + 4], 0, 3);
+                memset(&pkt[l_off + 4], 0, 7);
             } else {
                 pkt[l_off + 0] = 0x05; 
-                memset(&pkt[l_off + 1], 0, 6);
+                memset(&pkt[l_off + 1], 0, 10);
             }
         }
         // ========================================================================

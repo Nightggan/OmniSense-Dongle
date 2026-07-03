@@ -30,6 +30,8 @@ bool first_color_captured = false;
 extern bool config_mode_enabled;
 extern volatile float current_speaker_volume;
 extern uint8_t local_profile_selected;
+extern uint8_t right_trigger_real_position;
+extern uint8_t left_trigger_real_position;
 //End Custom vars Omni
 namespace {
     constexpr size_t kAudioControlOffset = offsetof(SetStateData, MuteLightMode) - sizeof(uint8_t);
@@ -355,12 +357,7 @@ void state_update(const uint8_t *data, const uint8_t size) {
 
     
     // Right Trigger
-    if (current_config.trigger_right_mode == 0) {
-        // If the game sent real data, we use it
-        set_bit(state[0], 2, true);
-        memcpy(state + right_trigger_offset, data + right_trigger_offset, 11);
-    }
-    else {
+    if (current_config.trigger_right_mode != 0) {
         // Other modes: Forcing validity bits on state[0] and Valid_Flag1
         set_bit(state[0], 2, true); 
         if (motor_flag_offset < 63) {
@@ -380,6 +377,18 @@ void state_update(const uint8_t *data, const uint8_t size) {
             state[right_trigger_offset + 3] = current_config.trigger_break_force;  // Force to break the wall
             memset(state + right_trigger_offset + 4, 0, 7);
         }
+        else if (current_config.trigger_right_mode == 3) { // Machine Gun mode
+            if (right_trigger_real_position > 15) {
+                state[right_trigger_offset + 0] = 0x06; 
+                state[right_trigger_offset + 1] = get_profile_config().vibration_frequency; ; // Parameter 1: Frecuency
+                state[right_trigger_offset + 2] = get_profile_config().vibration_force; // Parameter 2: Force
+                state[right_trigger_offset + 3] = get_profile_config().vibration_start_point; // Parameter 3: Start Point
+                memset(state + right_trigger_offset + 4, 0, 7);
+            } else {
+                state[right_trigger_offset + 0] = 0x05;  
+                memset(state + right_trigger_offset + 4, 0, 7);
+            }
+        }
         else if (current_config.trigger_right_mode == 4) { // Hair Trigger mode
             state[right_trigger_offset + 0] = 0x02; // Trigger mode
             state[right_trigger_offset + 1] = current_config.hair_wall_start_point;   // Start of the trigger wall
@@ -391,11 +400,10 @@ void state_update(const uint8_t *data, const uint8_t size) {
     }
 
     // Left Trigger
-    if (current_config.trigger_left_mode == 0) {
-        set_bit(state[0], 3, true);
-        memcpy(state + left_trigger_offset, data + left_trigger_offset, 7);
-    }
-    else {
+    //set_bit(state[0], 3, true);
+        //memcpy(state + left_trigger_offset, data + left_trigger_offset, 11);
+    if (current_config.trigger_left_mode != 0) {
+    
         set_bit(state[0], 3, true); 
         if (motor_flag_offset < 63) {
             state[motor_flag_offset] |= 0x03; 
@@ -414,7 +422,19 @@ void state_update(const uint8_t *data, const uint8_t size) {
             state[left_trigger_offset + 3] = current_config.trigger_break_force;  
             memset(state + left_trigger_offset + 4, 0, 7);
         }
-        else if (current_config.trigger_right_mode == 4) { // Hair Trigger mode
+        else if (current_config.trigger_left_mode == 3) { // Machine Gun mode
+            if (left_trigger_real_position > 15) {
+                state[left_trigger_offset + 0] = 0x06; 
+                state[left_trigger_offset + 1] = get_profile_config().vibration_frequency; ; // Parameter 1: Frecuency
+                state[left_trigger_offset + 2] = get_profile_config().vibration_force; // Parameter 2: Force
+                state[left_trigger_offset + 3] = get_profile_config().vibration_start_point; // Parameter 3: Start Point
+                memset(state + left_trigger_offset + 4, 0, 7);
+            } else {
+                state[left_trigger_offset + 0] = 0x05;  
+                memset(state + left_trigger_offset + 4, 0, 7);
+            }
+        }
+        else if (current_config.trigger_left_mode == 4) { // Hair Trigger mode
             state[left_trigger_offset + 0] = 0x02; // Trigger mode
             state[left_trigger_offset + 1] = current_config.hair_wall_start_point; // Start of the wall
             state[left_trigger_offset + 2] = 255;   // End of the mechanical "clic"

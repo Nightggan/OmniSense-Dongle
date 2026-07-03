@@ -735,6 +735,10 @@ bool tud_audio_set_itf_cb(uint8_t rhport, tusb_control_request_t const *p_reques
     return true;
 }
 
+auto set_bit = [](uint8_t &byte, const int bit, const bool value) {
+        byte = (byte & ~(1 << bit)) | (value << bit);
+    };
+
 // Invoked when received SET_REPORT control request or
 // received data on OUT endpoint ( Report ID = 0, Type = 0 )
 void tud_hid_set_report_cb(uint8_t itf, uint8_t report_id, hid_report_type_t report_type, uint8_t const *buffer,
@@ -811,7 +815,8 @@ static void state_keepalive() {
 
         // Only applies if the user is actually pushing the trigger beyond a threshold of 15 (0 to 255)
         if (right_trigger_real_position > 15) {
-            pkt[3 + 0] |= 0x04; // Valid_Flag0: Telling that the R2 is being updated
+            set_bit(pkt[3], 2, true);
+            //pkt[3 + 0] |= 0x04; // Valid_Flag0: Telling that the R2 is being updated
             if (out_motor_flag_offset < 78) {
                 pkt[out_motor_flag_offset] |= 0x03; // Enforcing power stage
             }
@@ -821,11 +826,12 @@ static void state_keepalive() {
             pkt[r_off + 1] = get_profile_config().vibration_frequency; ; // Parameter 1: Frecuency
             pkt[r_off + 2] = get_profile_config().vibration_force; // Parameter 2: Force
             pkt[r_off + 3] = get_profile_config().vibration_start_point; // Parameter 3: Start Point
-            memset(&pkt[r_off + 4], 0, 3);
+            memset(&pkt[r_off + 4], 0, 7);
+            
         } else {
             // Full relax state after releasing the finger
             pkt[r_off + 0] = 0x05; 
-            memset(&pkt[r_off + 1], 0, 6);
+            memset(&pkt[r_off + 1], 0, 10);
         }
     }
 
@@ -834,8 +840,8 @@ static void state_keepalive() {
         
         size_t l_off = 3 + offsetof(SetStateData, LeftTriggerFFB);
         if (left_trigger_real_position > 15) {
-            
-            pkt[3 + 0] |= 0x08; // Valid_Flag0: Telling that the L2 is being updated
+            set_bit(pkt[3], 3, true);
+            //pkt[3 + 0] |= 0x08; // Valid_Flag0: Telling that the L2 is being updated
             if (out_motor_flag_offset < 78) {
                 pkt[out_motor_flag_offset] |= 0x03; 
             }
@@ -844,10 +850,10 @@ static void state_keepalive() {
             pkt[l_off + 1] = get_profile_config().vibration_frequency; ; // Parameter 1: Frecuency
             pkt[l_off + 2] = get_profile_config().vibration_force; // Parameter 2: Force
             pkt[l_off + 3] = get_profile_config().vibration_start_point; // Parameter 3: Start Point
-            memset(&pkt[l_off + 4], 0, 3);
+            memset(&pkt[l_off + 4], 0, 7);
         } else {
             pkt[l_off + 0] = 0x05; 
-            memset(&pkt[l_off + 1], 0, 6);
+            memset(&pkt[l_off + 1], 0, 10);
         }
     }
 

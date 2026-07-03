@@ -618,3 +618,5 @@ void init_feature() {
     check_dse = true;
     get_feature_data(0x70, 64);
 }
+
+void bt_get_addr(uint8_t out[6]) { memcpy(out, current_device_addr, 6); }
