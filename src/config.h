@@ -24,6 +24,7 @@ struct __attribute__((packed)) Global_Config_body {
     uint8_t wake_enable;              // 1: power off controller on host sleep + wake host on reconnect, 0: disabled
     float speaker_volume;     //Master Speaker volume [Min -100 to Max 0]
     uint8_t auto_mute_mode; //Disable Speaker on Auto Haptics mode 1 and 2
+    uint16_t time_config_mode; //Millisecs to hold mute to enter config mode
     
 };
 struct __attribute__((packed)) Profile_Config_body {
@@ -43,6 +44,7 @@ struct __attribute__((packed)) Profile_Config_body {
     uint8_t vibration_start_point; //32 - 255
     uint8_t vibration_frequency; //0 - 255
     uint8_t vibration_force; //0 - 255
+    uint8_t hair_wall_start_point;
 };
 
 

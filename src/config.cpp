@@ -122,6 +122,11 @@ void global_config_valid() {
     
     //Default to 0 to allow sound pass to speaker/headphones even on haptics modes
     if (global_body->auto_mute_mode > 1) global_body->auto_mute_mode = 0;
+
+    if(global_body->time_config_mode < 0  || global_body->time_config_mode > 3000){
+        global_body->time_config_mode = 0;//Default instant press for config mode
+    }
+
 }
 
 void profile_config_valid()
@@ -177,6 +182,7 @@ void profile_config_valid()
             profile.vibration_start_point = 32;
             profile.vibration_frequency = 36;
             profile.vibration_force = 255;
+            profile.hair_wall_start_point = 97;
         }    
     }
     config.initial_setup_completed = 7;

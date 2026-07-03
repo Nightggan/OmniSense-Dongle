@@ -357,20 +357,8 @@ void state_update(const uint8_t *data, const uint8_t size) {
     // Right Trigger
     if (current_config.trigger_right_mode == 0) {
         // If the game sent real data, we use it
-        if (data[right_trigger_offset + 0] != 0) {
-            set_bit(state[0], 2, true);
-            memcpy(state + right_trigger_offset, data + right_trigger_offset, 7);
-        } else {
-            // Mode 0 (Relaxed): Enforcing command 0x05 from Sony to deactivate the trigger motor
-            set_bit(state[0], 2, true); // Force validity so that the control processes the shutdown
-            state[right_trigger_offset + 0] = 0x05;
-            state[right_trigger_offset + 1] = 0;
-            state[right_trigger_offset + 2] = 0;
-            state[right_trigger_offset + 3] = 0;
-            state[right_trigger_offset + 4] = 0;
-            state[right_trigger_offset + 5] = 0;
-            state[right_trigger_offset + 6] = 0;
-        }
+        set_bit(state[0], 2, true);
+        memcpy(state + right_trigger_offset, data + right_trigger_offset, 11);
     }
     else {
         // Other modes: Forcing validity bits on state[0] and Valid_Flag1
@@ -383,40 +371,29 @@ void state_update(const uint8_t *data, const uint8_t size) {
             state[right_trigger_offset + 0] = 0x01; // Continous Resistance
             state[right_trigger_offset + 1] = current_config.feedback_start_point;    // Start of the effect
             state[right_trigger_offset + 2] = current_config.feedback_force;  // Hardeness
-            memset(state + right_trigger_offset + 3, 0, 4);
+            memset(state + right_trigger_offset + 3, 0, 8);
         }
         else if (current_config.trigger_right_mode == 2) { // Trigger mode
             state[right_trigger_offset + 0] = 0x02; // Trigger mode
             state[right_trigger_offset + 1] = current_config.trigger_start_point;   // Start of the trigger wall
             state[right_trigger_offset + 2] = current_config.trigger_wall_point;   // End of the mechanical "clic"
             state[right_trigger_offset + 3] = current_config.trigger_break_force;  // Force to break the wall
-            memset(state + right_trigger_offset + 4, 0, 3);
+            memset(state + right_trigger_offset + 4, 0, 7);
         }
         else if (current_config.trigger_right_mode == 4) { // Hair Trigger mode
             state[right_trigger_offset + 0] = 0x02; // Trigger mode
-            state[right_trigger_offset + 1] = 97;   // Start of the trigger wall
+            state[right_trigger_offset + 1] = current_config.hair_wall_start_point;   // Start of the trigger wall
             state[right_trigger_offset + 2] = 255;   // End of the mechanical "clic"
             state[right_trigger_offset + 3] = 255;  // Force to break the wall
-            memset(state + right_trigger_offset + 4, 0, 3);
+            memset(state + right_trigger_offset + 4, 0, 7);
         }
         
     }
 
     // Left Trigger
     if (current_config.trigger_left_mode == 0) {
-        if (data[left_trigger_offset + 0] != 0) {
-            set_bit(state[0], 3, true);
-            memcpy(state + left_trigger_offset, data + left_trigger_offset, 7);
-        } else {
-            set_bit(state[0], 3, true);
-            state[left_trigger_offset + 0] = 0x05;
-            state[left_trigger_offset + 1] = 0;
-            state[left_trigger_offset + 2] = 0;
-            state[left_trigger_offset + 3] = 0;
-            state[left_trigger_offset + 4] = 0;
-            state[left_trigger_offset + 5] = 0;
-            state[left_trigger_offset + 6] = 0;
-        }
+        set_bit(state[0], 3, true);
+        memcpy(state + left_trigger_offset, data + left_trigger_offset, 7);
     }
     else {
         set_bit(state[0], 3, true); 
@@ -428,21 +405,21 @@ void state_update(const uint8_t *data, const uint8_t size) {
             state[left_trigger_offset + 0] = 0x01; 
             state[left_trigger_offset + 1] = current_config.feedback_start_point;    
             state[left_trigger_offset + 2] = current_config.feedback_force;  
-            memset(state + left_trigger_offset + 3, 0, 4);
+            memset(state + left_trigger_offset + 3, 0, 8);
         }
         else if (current_config.trigger_left_mode == 2) {
             state[left_trigger_offset + 0] = 0x02; 
             state[left_trigger_offset + 1] = current_config.trigger_start_point;   
             state[left_trigger_offset + 2] = current_config.trigger_wall_point;   
             state[left_trigger_offset + 3] = current_config.trigger_break_force;  
-            memset(state + left_trigger_offset + 4, 0, 3);
+            memset(state + left_trigger_offset + 4, 0, 7);
         }
         else if (current_config.trigger_right_mode == 4) { // Hair Trigger mode
             state[left_trigger_offset + 0] = 0x02; // Trigger mode
-            state[left_trigger_offset + 1] = 97;   // Start of the trigger wall
+            state[left_trigger_offset + 1] = current_config.hair_wall_start_point; // Start of the wall
             state[left_trigger_offset + 2] = 255;   // End of the mechanical "clic"
             state[left_trigger_offset + 3] = 255;  // Force to break the wall
-            memset(state + left_trigger_offset + 4, 0, 3);
+            memset(state + left_trigger_offset + 4, 0, 7);
         }
     }
 

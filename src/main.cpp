@@ -56,6 +56,7 @@ static bool usb_is_enabled = false;
 volatile bool save_requested = false;
 uint32_t pending_save_time = 0;
 bool config_mode_enabled = false;
+bool config_button_pressed = false;
 bool save_config_now = false;
 uint32_t left_analog_up_holding_time = 0;
 uint32_t left_analog_down_holding_time = 0;
@@ -70,6 +71,7 @@ volatile float current_speaker_volume = -100.0f;
 volatile bool speaker_mute = false;
 volatile float current_auto_haptics_gain = 1.5f;
 uint8_t local_profile_selected;
+uint32_t time_config_pending_time;
 //End Custom vars Omni
 
 uint8_t interrupt_in_data[63] = {
@@ -224,24 +226,52 @@ void __not_in_flash_func(on_bt_data)(CHANNEL_TYPE channel, uint8_t *data, uint16
         uint8_t right_stick_x = data[5]; //0: Full Left - 128: Center - 255: Full Right (Not in use atm)
         uint8_t right_stick_y = data[6]; //0: Full Up - 128: Center - 255: Full Down
 
-        static bool config_mode_switch_shortcut_lock = false;
+        
 
         // Device_Config Shortcut: Mute press
         if (shortcut_btn_pressed(data, 8)) {
-            if(!config_mode_switch_shortcut_lock)
+            if(!config_mode_enabled)
             {
-                
-                config_mode_enabled = !config_mode_enabled;
-                config_mode_switch_shortcut_lock = true;
-                if(config_mode_enabled)
+                if(get_global_config().time_config_mode>0)
                 {
+                    if(!config_button_pressed)
+                    {
+                        config_button_pressed = true;
+                        time_config_pending_time = to_ms_since_boot(get_absolute_time());
+                    }
+                    
+                    // Only safe save after a 150ms cooldown to avoid TinyUSB to not being able to answer to the host
+                    if (time_config_pending_time != 0 && (to_ms_since_boot(get_absolute_time()) - time_config_pending_time >= get_global_config().time_config_mode)) {
+                        time_config_pending_time = 0;
+                                            
+                        config_mode_enabled = true;
+                        request_temp_save = true; //To apply breathing effect on mute led            
+                    }
+                }
+                else
+                {
+                    if(!config_button_pressed)
+                    {
+                        config_button_pressed = true;
+                        config_mode_enabled = true;
+                        request_temp_save = true;
+                    }
+                }
+            }
+            else
+            {
+                if(!config_button_pressed)
+                {
+                    config_button_pressed = true;
+                    config_mode_enabled = false;
                     request_temp_save = true; //To apply breathing effect on mute led
                 }
             }
         }
         else {
             // Freeing the lock after button release
-            config_mode_switch_shortcut_lock = false;
+            config_button_pressed = false;
+            time_config_pending_time = 0;
         }
 
         if(config_mode_enabled)
@@ -598,11 +628,10 @@ void __not_in_flash_func(on_bt_data)(CHANNEL_TYPE channel, uint8_t *data, uint16
                 bt_write(forced_pkt, sizeof(forced_pkt));
 
             }
-            Global_Config_body local_global_config = get_global_config();
+            Profile_Config_body local_profile_config = get_profile_config_index(local_profile_selected);
             //Hair trigger values override
             if(left_trigger_real_position>0)
             {
-                Profile_Config_body local_profile_config = get_profile_config_index(local_profile_selected);
                 if(local_profile_config.trigger_left_mode == 4)
                 {
                     data[7] = 255;
@@ -610,7 +639,6 @@ void __not_in_flash_func(on_bt_data)(CHANNEL_TYPE channel, uint8_t *data, uint16
             }
             if(right_trigger_real_position>0)
             {
-                Profile_Config_body local_profile_config = get_profile_config_index(local_profile_selected);
                 //Hair trigger values override
                 if(local_profile_config.trigger_right_mode == 4)
                 {
