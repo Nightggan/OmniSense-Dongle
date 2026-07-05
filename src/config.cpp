@@ -19,6 +19,7 @@ constexpr uint32_t CONFIG_FLASH_OFFSET = PICO_FLASH_SIZE_BYTES - FLASH_SECTOR_SI
 static Device_Config config{};
 extern volatile float current_speaker_volume;
 extern volatile float current_auto_haptics_gain;
+extern uint8_t local_profile_selected;
 bool is_dse = false;
 
 // 编译期保护
@@ -240,6 +241,7 @@ void device_config_load() {
     
     current_speaker_volume = get_global_config().speaker_volume;
     current_auto_haptics_gain = get_global_config().auto_haptics_gain;
+    local_profile_selected = config.profile_selected;
 }
 
 void set_profile_index(uint8_t new_profile)

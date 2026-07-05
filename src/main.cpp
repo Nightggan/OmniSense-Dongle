@@ -734,7 +734,7 @@ void __not_in_flash_func(on_bt_data)(CHANNEL_TYPE channel, uint8_t *data, uint16
             if(get_profile_config_index(local_profile_selected).gyro_button_activator > 0)
             {
                 //Check if user is pressing the gyro button activator
-                if(gyro_shortcut_btn_pressed(data, get_profile_config_index(local_profile_selected).gyro_button_activator-2))
+                if((gyro_shortcut_btn_pressed(data, get_profile_config_index(local_profile_selected).gyro_button_activator-2))||(get_profile_config_index(local_profile_selected).gyro_button_activator==1))//If the user is pressing the gyro button activator or if it is set to always on, we calculate the gyro to analog values
                 {
                     float local_analog_gyro_deadzone = get_profile_config_index(local_profile_selected).analog_gyro_deadzone;
                     
