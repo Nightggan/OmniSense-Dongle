@@ -10,6 +10,7 @@ This Advanced Edition inherits all the great features of the original firmwareâ€
 ## ðŸŒŸ Key Features
 
 - **Hardware-Level Adaptive Triggers:** Take full control of your triggers in *any* game. Choose from modes like Resistance, Weapon Click, Machine Gun, and the new Hair Trigger.
+- **Hardware-Level Universal Gyro Aiming:** Take control of the right joystick using gyro movement, activated by the button of your choice. Works seamlessly in any game regardless of native support featuring fully tunable variables to customize the sensitivity and response to your exact playstyle.
 - **Custom Profiles:** Save up to 4 different profiles to easily swap between trigger and lighting setups for different games.
 - **On-the-Fly Configuration:** Use controller button shortcuts to switch profiles, adjust trigger/lightbar modes, tweak volume, and change haptic gain without touching your PC.
 - **Advanced Lightbar Control:** Customize your controller's glow with multiple dynamic modes and 4 custom favorite color slots.
@@ -69,6 +70,8 @@ These settings apply to the dongle universally, regardless of which profile is a
 You have **4 distinct profiles**, each storing its own unique setup for:
 - Left & Right Trigger operating modes
 - Fine-tuned parameters for each trigger mode
+- Activation mode for mapping controller gyro to right analog stick
+- Default parameters tuned for fine aiming movements
 - Lightbar operating mode
 - 4 Custom Favorite Color slots
 - Breathing animation toggle

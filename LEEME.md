@@ -10,6 +10,7 @@ Esta edición avanzada hereda todas las geniales características del firmware o
 ## 🌟 Características Principales
 
 - **Gatillos Adaptativos a Nivel de Hardware:** Toma el control total de tus gatillos en *cualquier* juego. Elige entre modos como Resistencia, Disparo, Metralleta y el nuevo Gatillo Sensible (Hair Trigger).
+- **Puntería por Giroscopio Universal a Nivel de Hardware:** Toma el control del joystick derecho usando el movimiento de tu mando (giroscopio), activado con cualquier botón. Funciona en cualquier juego (incluso sin soporte nativo) y cuenta con variables totalmente ajustables para adaptar la sensibilidad y respuesta a tu estilo exacto.
 - **Perfiles Personalizados:** Guarda hasta 4 perfiles diferentes para cambiar fácilmente entre configuraciones de gatillos e iluminación según el juego.
 - **Configuración al Vuelo (On-the-Fly):** Usa atajos con los botones del mando para cambiar perfiles, ajustar modos de gatillo/barra de luz, modificar el volumen y cambiar la ganancia háptica sin tocar tu PC.
 - **Control Avanzado de la Barra de Luz:** Personaliza el brillo de tu mando con múltiples modos dinámicos y 4 ranuras para tus colores favoritos.
@@ -69,6 +70,8 @@ Estas opciones se aplican al dongle universalmente, independientemente del perfi
 Tienes **4 perfiles distintos**, y cada uno guarda su propia configuración para:
 - Modos de funcionamiento del Gatillo Izquierdo y Derecho
 - Parámetros ajustados al detalle para cada modo de gatillo
+- Modo de activación para mapeo de giroscopio a joystick derecho
+- Parámetros por defecto para movimientos finos de puntería
 - Modo de funcionamiento de la Barra de Luz
 - 4 Espacios para Colores Favoritos personalizados
 - Interruptor de animación de Respiración
