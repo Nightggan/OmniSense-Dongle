@@ -775,20 +775,28 @@ void __not_in_flash_func(on_bt_data)(CHANNEL_TYPE channel, uint8_t *data, uint16
 
                     //Assigning the new values to the data[] to be sent to the host only if gyro to analog values are higher than the current user input ones.
 
-                    if((output_x>128+local_analog_gyro_deadzone)&&(output_x>data[5]))//If the output_x is positive and higher than the current user input (higher input), we assign it to the data[] to be sent to the host
+                    if((output_x>128+local_analog_gyro_deadzone)&&(data[5]>128+local_analog_gyro_deadzone)&&(output_x>data[5]))//If the output_x is positive and higher than the current user input (higher input), we assign it to the data[] to be sent to the host
                     {
                         data[5] = output_x; // 0: Full Left - 128: Center - 255: Full Right
                     }
-                    if((output_x<128-local_analog_gyro_deadzone)&&(output_x<data[5]))//If the output_x is negative and lower than the current user input (higher input), we assign it to the data[] to be sent to the host
+                    if((output_x<128-local_analog_gyro_deadzone)&&(data[5]<128-local_analog_gyro_deadzone)&&(output_x<data[5]))//If the output_x is negative and lower than the current user input (higher input), we assign it to the data[] to be sent to the host
                     {
                         data[5] = output_x; // 0: Full Left - 128: Center - 255: Full Right
                     }
 
-                    if((output_y>128+local_analog_gyro_deadzone)&&(output_y>data[6]))//If the output_y is positive and higher than the current user input (higher input), we assign it to the data[] to be sent to the host
+                    if((output_y>128+local_analog_gyro_deadzone)&&(data[6]>128+local_analog_gyro_deadzone)&&(output_y>data[6]))//If the output_y is positive and higher than the current user input (higher input), we assign it to the data[] to be sent to the host
                     {
                         data[6] = output_y; // 0: Full Up   - 128: Center - 255: Full Down
                     }
-                    if((output_y<128-local_analog_gyro_deadzone)&&(output_y<data[6]))//If the output_y is negative and lower than the current user input (higher input), we assign it to the data[] to be sent to the host
+                    if((output_y<128-local_analog_gyro_deadzone)&&(data[6]<128-local_analog_gyro_deadzone)&&(output_y<data[6]))//If the output_y is negative and lower than the current user input (higher input), we assign it to the data[] to be sent to the host
+                    {
+                        data[6] = output_y; // 0: Full Up   - 128: Center - 255: Full Down
+                    }
+                    if(data[5]<128+local_analog_gyro_deadzone && data[5]>128-local_analog_gyro_deadzone)//If the user input is inside the deadzone, we assign the gyro to analog value to the data[] to be sent to the host
+                    {
+                        data[5] = output_x; // 0: Full Left - 128: Center - 255: Full Right
+                    }
+                    if(data[6]<128+local_analog_gyro_deadzone && data[6]>128-local_analog_gyro_deadzone)//If the user input is inside the deadzone, we assign the gyro to analog value to the data[] to be sent to the host
                     {
                         data[6] = output_y; // 0: Full Up   - 128: Center - 255: Full Down
                     }
