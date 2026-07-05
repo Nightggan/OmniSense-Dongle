@@ -24,6 +24,8 @@
 #include "battery_led.h"
 #endif
 #include "lightbar_controller.h"
+#include <algorithm> // Para std::clamp
+#include <cmath>     // Para std::round
 
 // Pico SDK speciifically for waiting on conditions
 #include "pico/critical_section.h"
@@ -72,6 +74,12 @@ volatile bool speaker_mute = false;
 volatile float current_auto_haptics_gain = 1.5f;
 uint8_t local_profile_selected;
 uint32_t time_config_pending_time;
+
+//Gyro vars
+int16_t raw_ang_vel_x = 0;
+int16_t raw_ang_vel_z = 0;
+float final_pct_x = 0;
+float final_pct_z = 0;
 //End Custom vars Omni
 
 uint8_t interrupt_in_data[63] = {
@@ -140,10 +148,32 @@ static constexpr BtnEntry SHORTCUT_BTN_MAP[] = {
     {11, 0x20}, // 7: Options
     {12, 0x04}, // 8: Mute
 };
+//0: Disabled, 1: Always On, 
+//2: L2, 3: R2, 4: L1, 5: R1, 
+//6: L3, 7: R3, 8: Square, 9: Cross, 
+//10: Circle, 11: Triangle
+static constexpr BtnEntry GYRO_SHORTCUT_BTN_MAP[] = {
+    //Offset of 3
+    {11, 0x04}, //0:L2
+    {11, 0x08}, //1:R2
+    {11, 0x01}, //2:L1
+    {11, 0x02}, //3:R1
+    {11, 0x40}, //4:L3
+    {11, 0x80}, //5:R3
+    {10, 0x10}, //6: Square
+    {10, 0x20}, //7: Cross
+    {10, 0x40}, //8: Circle
+    {10, 0x80}, //9: Triangle
+};
 
 static bool shortcut_btn_pressed(const uint8_t *data, uint8_t btn) {
     if (btn > BTN_SHORTCUT_MAX) return false;
     return (data[SHORTCUT_BTN_MAP[btn].off] & SHORTCUT_BTN_MAP[btn].mask) != 0;
+}
+
+static bool gyro_shortcut_btn_pressed(const uint8_t *data, uint8_t btn) {
+    if (btn > BTN_SHORTCUT_MAX) return false;
+    return (data[GYRO_SHORTCUT_BTN_MAP[btn].off] & GYRO_SHORTCUT_BTN_MAP[btn].mask) != 0;
 }
 
 //Not in active use on this fork, except for the power off button coded by loteran.
@@ -226,8 +256,37 @@ void __not_in_flash_func(on_bt_data)(CHANNEL_TYPE channel, uint8_t *data, uint16
         uint8_t right_stick_x = data[5]; //0: Full Left - 128: Center - 255: Full Right (Not in use atm)
         uint8_t right_stick_y = data[6]; //0: Full Up - 128: Center - 255: Full Down
 
-        
+        //Only process gyro to analog if the gyro_button_activator is set to a value > 0 (Not Disabled)
+        if(get_profile_config_index(local_profile_selected).gyro_button_activator>0)
+        {
+            raw_ang_vel_x = (int16_t)((data[19] << 8) | data[18]);
+            raw_ang_vel_z = (int16_t)((data[21] << 8) | data[20]);
 
+            float speed_ang_vel_x = raw_ang_vel_x / 16.384f;
+            float speed_ang_vel_z = raw_ang_vel_z / 16.384f;
+            
+            if((speed_ang_vel_x < 2.0f)&&(speed_ang_vel_x > -2.0f))
+            {
+                speed_ang_vel_x = 0.0f;
+            }
+            if((speed_ang_vel_z < 2.0f)&&(speed_ang_vel_z > -2.0f))
+            {
+                speed_ang_vel_z = 0.0f;
+            }
+
+            // Normalize the angular velocity values
+            uint16_t local_max_stick_dps = get_profile_config_index(local_profile_selected).max_stick_dps;
+            float local_gyro_multiplier = get_profile_config_index(local_profile_selected).gyro_multiplier;
+            speed_ang_vel_x = (speed_ang_vel_x / local_max_stick_dps) * 100.0f;
+            speed_ang_vel_z = (speed_ang_vel_z / local_max_stick_dps) * 100.0f;
+
+            speed_ang_vel_x *= local_gyro_multiplier;
+            speed_ang_vel_z *= local_gyro_multiplier;
+
+            final_pct_x = std::clamp(speed_ang_vel_x, -100.0f, 100.0f);
+            final_pct_z = std::clamp(speed_ang_vel_z, -100.0f, 100.0f);
+        }
+        
         // Device_Config Shortcut: Mute press
         if (shortcut_btn_pressed(data, 8)) {
             if(!config_mode_enabled)
@@ -291,7 +350,10 @@ void __not_in_flash_func(on_bt_data)(CHANNEL_TYPE channel, uint8_t *data, uint16
             static bool profile_switch_shortcut_lock_right = false;
             static bool haptic_gain_up_shortcut_lock = false;
             static bool haptic_gain_down_shortcut_lock = false;
+            
+            // Obtaining D-Pad value
             uint8_t dpad_value = data[10] & 0x0F;
+            
             // Profile switch: DPAD
             if (dpad_value == 0)//Profile 0
             {    
@@ -667,7 +729,76 @@ void __not_in_flash_func(on_bt_data)(CHANNEL_TYPE channel, uint8_t *data, uint16
             if (suppress_ps) {
                 data[12] &= ~0x01; // suppress PS
             }
+            
+            //Only calculate gyro to analog values if the user has set a gyro button activator on the profile
+            if(get_profile_config_index(local_profile_selected).gyro_button_activator > 0)
+            {
+                //Check if user is pressing the gyro button activator
+                if(gyro_shortcut_btn_pressed(data, get_profile_config_index(local_profile_selected).gyro_button_activator-2))
+                {
+                    float local_analog_gyro_deadzone = get_profile_config_index(local_profile_selected).analog_gyro_deadzone;
+                    
+                    float final_right_stick_y = 0;
+                    if((final_pct_x * ((127 - local_analog_gyro_deadzone) / 100.0f)) < 0.0f)//To 255
+                    {
+                        final_right_stick_y = (128 + local_analog_gyro_deadzone) - (final_pct_x * ((127 - local_analog_gyro_deadzone) / 100.0f));
+                    }
+                    else if((final_pct_x * ((127 - local_analog_gyro_deadzone) / 100.0f)) > 0.0f)
+                    {
+                        final_right_stick_y = (128 - local_analog_gyro_deadzone) - (final_pct_x * ((127 - local_analog_gyro_deadzone) / 100.0f));
+                    }
+                    else
+                    {
+                        final_right_stick_y = 128.0f;
+                    }
+
+                    float final_right_stick_x = 0;
+                    if((final_pct_z * ((127 - local_analog_gyro_deadzone) / 100.0f)) < 0.0f)//To 255
+                    {
+                        final_right_stick_x = (128 + local_analog_gyro_deadzone) - (final_pct_z * ((127 - local_analog_gyro_deadzone) / 100.0f));
+                    }
+                    else if((final_pct_z * ((127 - local_analog_gyro_deadzone) / 100.0f)) > 0.0f)
+                    {
+                        final_right_stick_x = (128 - local_analog_gyro_deadzone) - (final_pct_z * ((127 - local_analog_gyro_deadzone) / 100.0f));
+                    }
+                    else
+                    {
+                        final_right_stick_x = 128.0f;
+                    }
+
+                    
+                    
+
+                    uint8_t output_x = (uint8_t)std::clamp(std::round(final_right_stick_x), 0.0f, 255.0f);
+                    uint8_t output_y = (uint8_t)std::clamp(std::round(final_right_stick_y), 0.0f, 255.0f);
+                    
+
+                    //Assigning the new values to the data[] to be sent to the host only if gyro to analog values are higher than the current user input ones.
+
+                    if((output_x>128+local_analog_gyro_deadzone)&&(output_x>data[5]))//If the output_x is positive and higher than the current user input (higher input), we assign it to the data[] to be sent to the host
+                    {
+                        data[5] = output_x; // 0: Full Left - 128: Center - 255: Full Right
+                    }
+                    if((output_x<128-local_analog_gyro_deadzone)&&(output_x<data[5]))//If the output_x is negative and lower than the current user input (higher input), we assign it to the data[] to be sent to the host
+                    {
+                        data[5] = output_x; // 0: Full Left - 128: Center - 255: Full Right
+                    }
+
+                    if((output_y>128+local_analog_gyro_deadzone)&&(output_y>data[6]))//If the output_y is positive and higher than the current user input (higher input), we assign it to the data[] to be sent to the host
+                    {
+                        data[6] = output_y; // 0: Full Up   - 128: Center - 255: Full Down
+                    }
+                    if((output_y<128-local_analog_gyro_deadzone)&&(output_y<data[6]))//If the output_y is negative and lower than the current user input (higher input), we assign it to the data[] to be sent to the host
+                    {
+                        data[6] = output_y; // 0: Full Up   - 128: Center - 255: Full Down
+                    }
+
+                    
+                }
+            }
         }
+
+
 
         if (get_global_config().polling_rate_mode != 2) {
         memcpy(interrupt_in_data, data + 3, 63);

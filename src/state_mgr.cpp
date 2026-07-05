@@ -27,11 +27,14 @@ bool different_color = false;
 bool real_color_captured = false;
 static uint32_t last_time_check_lb = 0;
 bool first_color_captured = false;
+bool trigger_left_mode_0_engaged = false;
+bool trigger_right_mode_0_engaged = false;
 extern bool config_mode_enabled;
 extern volatile float current_speaker_volume;
 extern uint8_t local_profile_selected;
 extern uint8_t right_trigger_real_position;
 extern uint8_t left_trigger_real_position;
+
 //End Custom vars Omni
 namespace {
     constexpr size_t kAudioControlOffset = offsetof(SetStateData, MuteLightMode) - sizeof(uint8_t);
@@ -354,10 +357,20 @@ void state_update(const uint8_t *data, const uint8_t size) {
     const auto &current_config = get_profile_config();
     size_t right_trigger_offset = offsetof(SetStateData, RightTriggerFFB);
     size_t left_trigger_offset = offsetof(SetStateData, LeftTriggerFFB);
+    
+    if(current_config.trigger_left_mode == 0 && trigger_left_mode_0_engaged == false) {
+        trigger_left_mode_0_engaged = true;
+        memset(state + left_trigger_offset, 0, 11);// Reset left trigger state
+    }
 
+    if(current_config.trigger_right_mode == 0 && trigger_right_mode_0_engaged == false) {
+        trigger_right_mode_0_engaged = true;
+        memset(state + right_trigger_offset, 0, 11);// Reset right trigger state
+    }
     
     // Right Trigger
     if (current_config.trigger_right_mode != 0) {
+        trigger_right_mode_0_engaged = false;
         // Other modes: Forcing validity bits on state[0] and Valid_Flag1
         set_bit(state[0], 2, true); 
         if (motor_flag_offset < 63) {
@@ -403,7 +416,7 @@ void state_update(const uint8_t *data, const uint8_t size) {
     //set_bit(state[0], 3, true);
         //memcpy(state + left_trigger_offset, data + left_trigger_offset, 11);
     if (current_config.trigger_left_mode != 0) {
-    
+        trigger_left_mode_0_engaged = false;
         set_bit(state[0], 3, true); 
         if (motor_flag_offset < 63) {
             state[motor_flag_offset] |= 0x03; 

@@ -192,7 +192,43 @@ void profile_config_valid()
             profile.vibration_force = 255;
             profile.hair_wall_start_point = 97;
             printf("[Profile] Initial Trigger Values Set\n");
-        }    
+            profile.gyro_button_activator = 0; //Disabled by default
+            profile.analog_gyro_deadzone = 42.5f; //Default deadzone based on Steam Input 1/3 of the max value of 127.0f (10000 deadzone of 32767.0f)
+            profile.max_stick_dps = 100; //Default max stick dps to 100 deg per second. Works best for small aiming movements. Higher values will make the gyro more sensitive to small movements but can be harder to control.
+            profile.gyro_multiplier = 1.0f; //Default gyro multiplier to 1x
+            printf("[Profile] Initial Gyro to Analog Values Set\n");
+        }
+        if(profile.analog_gyro_deadzone < 0.0f || profile.analog_gyro_deadzone > 100.0f)
+        {
+            profile.analog_gyro_deadzone = 42.5f; //Default deadzone based on Steam Input 1/3 of the max value of 127.0f (10000 deadzone of 32767.0f)
+            printf("[Profile] Gyro to Analog Deadzone is invalid\n");
+        }
+        if(profile.max_stick_dps < 50 || profile.max_stick_dps > 500)
+        {
+            profile.max_stick_dps = 100; //Default max stick dps to 100 deg per second. Works best for small aiming movements. Higher values will make the gyro more sensitive to small movements but can be harder to control.
+            printf("[Profile] Gyro to Analog Max Stick DPS is invalid\n");
+        }
+        if(profile.gyro_multiplier < 0.5f || profile.gyro_multiplier > 10.0f)
+        {
+            profile.gyro_multiplier = 1.0f; //Default gyro multiplier to 1x
+            printf("[Profile] Gyro to Analog Multiplier is invalid\n");
+        }
+        if(profile.gyro_button_activator > 11)
+        {
+            profile.gyro_button_activator = 0; //Disabled by default
+            printf("[Profile] Gyro to Analog Button Activator is invalid\n");
+        }
+        if(profile.hair_wall_start_point < 60 || profile.hair_wall_start_point > 100)
+        {
+            profile.hair_wall_start_point = 97; //Default hair wall start point to 97
+            printf("[Profile] Hair Wall Start Point is invalid\n");
+        }
+        if(profile.vibration_start_point < 32 || profile.vibration_start_point > 255)
+        {
+            profile.vibration_start_point = 32; //Default vibration start point to 32
+            printf("[Profile] Vibration Start Point is invalid\n");
+        }
+        
     }
     config.initial_setup_completed = 7;
 }

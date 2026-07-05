@@ -45,6 +45,12 @@ struct __attribute__((packed)) Profile_Config_body {
     uint8_t vibration_frequency; //0 - 255
     uint8_t vibration_force; //0 - 255
     uint8_t hair_wall_start_point; //60 - 100
+
+    //Gyro to Analog values
+    uint8_t gyro_button_activator; //0: Disabled, 1: Always On, 2: L2, 3: R2, 4: L1, 5: R1, 6: L3, 7: R3, 8: Square, 9: Cross, 10: Circle, 11: Triangle
+    float analog_gyro_deadzone; //0.0f - 100.0f Default: 42.5f
+    uint16_t max_stick_dps; //50 - 500 Default: 100
+    float gyro_multiplier; //0.1f - 10.0f Default: 1.0f
 };
 
 
