@@ -42,10 +42,6 @@ const Device_Config *flash_config() {
 
 void global_config_valid() {
     // valid config and set default value
-    if (config.magic != CONFIG_MAGIC) {
-        config.magic = CONFIG_MAGIC;
-        printf("[Config] Config Magic Header is invalid\n");
-    }
     if (config.version != CONFIG_VERSION) {
         config.version = CONFIG_VERSION;
         printf("[Config] Config Version is invalid\n");
@@ -121,15 +117,21 @@ void global_config_valid() {
         printf("[Config] Speaker Volume is invalid\n");
     }
     
-    //Default to 0 to allow sound pass to speaker/headphones even on haptics modes
+    //Default to 1 to mute sound pass to speaker/headphones, does not affect haptics
     if (global_body->auto_mute_mode > 1){
         printf("[Config] Global Mute is invalid\n");
-        global_body->auto_mute_mode = 0;
+        global_body->auto_mute_mode = 1;
     } 
 
     if(global_body->time_config_mode < 0  || global_body->time_config_mode > 3000){
         global_body->time_config_mode = 0;//Default instant press for config mode
         printf("[Config] Global Time Config is invalid\n");
+    }
+    if(config.magic != CONFIG_MAGIC)//First run after flash erase, set magic to valid value to avoid infinite loop of config validation
+    {
+        config.magic = CONFIG_MAGIC;
+        global_body->control_host_volume = 1; //Default to allow host volume control via HID Consumer Control
+        printf("[Config] Config Magic Header is invalid\n");
     }
 
 }

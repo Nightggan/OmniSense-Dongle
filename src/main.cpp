@@ -237,6 +237,44 @@ void suppress_all_inputs(uint8_t *data) {
     data[12] = 0; // Cleans PS, Pad Click, Mute, DSE Paddles
 }
 
+// Volume Async system
+static uint16_t current_media_key = 0;
+static bool media_key_needs_release = false;
+static uint32_t media_key_timer = 0;
+
+void process_media_keys() {
+    if (!tud_hid_n_ready(1)) return; 
+
+    if (media_key_needs_release) {
+        // Han pasado 20 milisegundos? Soltamos la tecla.
+        if (to_ms_since_boot(get_absolute_time()) - media_key_timer > 20) {
+            uint16_t empty = 0;
+            tud_hid_n_report(1, 3, &empty, sizeof(empty));
+            media_key_needs_release = false;
+        }
+    } 
+    else if (current_media_key != 0) {
+        // Enviar la nueva tecla
+        tud_hid_n_report(1, 3, &current_media_key, sizeof(current_media_key));
+        media_key_needs_release = true;
+        media_key_timer = to_ms_since_boot(get_absolute_time());
+        current_media_key = 0; // Limpiamos la solicitud
+    }
+}
+
+void send_volume_up_command() {
+    if (!media_key_needs_release) current_media_key = HID_USAGE_CONSUMER_VOLUME_INCREMENT;  
+    
+}
+
+void send_volume_down_command() {  
+    if (!media_key_needs_release) current_media_key = HID_USAGE_CONSUMER_VOLUME_DECREMENT;
+}
+
+void send_mute_command() {
+    if (!media_key_needs_release) current_media_key = HID_USAGE_CONSUMER_MUTE;
+}
+
 //Custon on_bt_data adding trigger/lightbar modes and shortcuts
 void __not_in_flash_func(on_bt_data)(CHANNEL_TYPE channel, uint8_t *data, uint16_t len) {
     static bool request_flash_save = false;
@@ -334,8 +372,9 @@ void __not_in_flash_func(on_bt_data)(CHANNEL_TYPE channel, uint8_t *data, uint16
         }
 
         if(config_mode_enabled)
-        {
-            
+        {   
+            //send_release_command();
+            //command_release_once = true;
             // Locks for shortcuts to run only one time per button press
             static bool lightbar_mode_switch_shortcut_lock = false;
             static bool lightbar_breathing_shortcut_lock = false;
@@ -353,7 +392,7 @@ void __not_in_flash_func(on_bt_data)(CHANNEL_TYPE channel, uint8_t *data, uint16
             
             // Obtaining D-Pad value
             uint8_t dpad_value = data[10] & 0x0F;
-            
+            Global_Config_body new_config = get_global_config();
             // Profile switch: DPAD
             if (dpad_value == 0)//Profile 0
             {    
@@ -414,12 +453,21 @@ void __not_in_flash_func(on_bt_data)(CHANNEL_TYPE channel, uint8_t *data, uint16
             // Mute Speaker: SQUARE
             if (shortcut_btn_pressed(data, 0))
             {    
-                if (!mute_speaker_shortcut_lock) {
-                    speaker_mute = !speaker_mute; //Cycle speaker mute
-                    //No need to save config cause it is not saved between cycles
-                    //set_global_config(new_config);
-                    //request_temp_save = true;
+                if(get_global_config().control_host_volume==1)
+                {
+                    //Send a volume up command to the host
+                    send_mute_command();
                     mute_speaker_shortcut_lock = true;
+                }
+                else
+                {
+                    if (!mute_speaker_shortcut_lock) {
+                        speaker_mute = !speaker_mute; //Cycle speaker mute
+                        //No need to save config cause it is not saved between cycles
+                        //set_global_config(new_config);
+                        //request_temp_save = true;
+                        mute_speaker_shortcut_lock = true;
+                    }
                 }
             } else {
                 mute_speaker_shortcut_lock = false;
@@ -496,11 +544,13 @@ void __not_in_flash_func(on_bt_data)(CHANNEL_TYPE channel, uint8_t *data, uint16
                 left_analog_up_holding_time = 0;
                 left_analog_up_triggered = false;
                 speaker_volume_up_shortcut_lock = false;
+                
             }
             if(left_analog_up_holding_time != 0 && (to_ms_since_boot(get_absolute_time()) - left_analog_up_holding_time > 50))
             {
                 speaker_volume_up_shortcut_lock = true;
             }
+            
             
             if(left_stick_y>245) // Full down
             {
@@ -523,42 +573,59 @@ void __not_in_flash_func(on_bt_data)(CHANNEL_TYPE channel, uint8_t *data, uint16
             }
             
             
+            
             //Speaker Volume Up Shortcut control: Left Analog Up
             if (speaker_volume_up_shortcut_lock) {
-                Global_Config_body new_config = get_global_config();
-                new_config.speaker_volume = new_config.speaker_volume + 2.0f;
-                if (new_config.speaker_volume > 0.0f) {
-                    new_config.speaker_volume = 0.0f;
+                
+                if(get_global_config().control_host_volume==1)
+                {
+                    //Send a volume up command to the host
+                    send_volume_up_command();
                 }
                 else
                 {
-                    current_speaker_volume = new_config.speaker_volume;
-                    set_global_config(new_config);
-                    request_temp_save = true;
+                    new_config.speaker_volume = new_config.speaker_volume + 2.0f;
+                    if (new_config.speaker_volume > 0.0f) {
+                        new_config.speaker_volume = 0.0f;
+                    }
+                    else
+                    {
+                        current_speaker_volume = new_config.speaker_volume;
+                        set_global_config(new_config);
+                        request_temp_save = true;
+                    }
+                    speaker_mute = false; // Disable mute
                 }
                 left_analog_up_holding_time = 0;
                 left_analog_up_triggered = false;
                 speaker_volume_up_shortcut_lock = false;
-                speaker_mute = false; // Disable mute
             }
 
             //Speaker Volume Down Shortcut control: Left Analog Down
             if (speaker_volume_down_shortcut_lock) {
-                Global_Config_body new_config = get_global_config();
-                new_config.speaker_volume = new_config.speaker_volume - 2.0f;
-                if (new_config.speaker_volume < -100.0f) {
-                    new_config.speaker_volume = -100.0f;
+                
+                if(get_global_config().control_host_volume==1)
+                {
+                    //Send a volume down command to the host
+                    send_volume_down_command();
                 }
                 else
                 {
-                    current_speaker_volume = new_config.speaker_volume;
-                    set_global_config(new_config);
-                    request_temp_save = true;
+                    new_config.speaker_volume = new_config.speaker_volume - 2.0f;
+                    if (new_config.speaker_volume < -100.0f) {
+                        new_config.speaker_volume = -100.0f;
+                    }
+                    else
+                    {
+                        current_speaker_volume = new_config.speaker_volume;
+                        set_global_config(new_config);
+                        request_temp_save = true;
+                    }
+                    speaker_mute = false; // Disable mute
                 }
-                left_analog_down_holding_time = 0;
                 left_analog_down_triggered = false;
+                left_analog_down_holding_time = 0;
                 speaker_volume_down_shortcut_lock = false;
-                speaker_mute = false; // Disable mute
             }
             
             //Haptic Gain Control - Right Analog Up/Down Holding Control. Only updates the haptic gain every 100ms on full analog hold.
@@ -604,7 +671,7 @@ void __not_in_flash_func(on_bt_data)(CHANNEL_TYPE channel, uint8_t *data, uint16
             
             //Haptic Gain Up Shortcut control: Right Analog Up
             if (haptic_gain_up_shortcut_lock) {
-                Global_Config_body new_config = get_global_config();
+                
                 new_config.auto_haptics_gain = new_config.auto_haptics_gain + 4;
                 if (new_config.auto_haptics_gain > 200) {
                     new_config.auto_haptics_gain = 200;
@@ -622,7 +689,7 @@ void __not_in_flash_func(on_bt_data)(CHANNEL_TYPE channel, uint8_t *data, uint16
 
             //Haptic Gain Down Shortcut control: Right Analog Down
             if (haptic_gain_down_shortcut_lock) {
-                Global_Config_body new_config = get_global_config();
+                
                 new_config.auto_haptics_gain = new_config.auto_haptics_gain - 4;
                 if (new_config.auto_haptics_gain < 0) {
                     new_config.auto_haptics_gain = 0;
@@ -670,6 +737,18 @@ void __not_in_flash_func(on_bt_data)(CHANNEL_TYPE channel, uint8_t *data, uint16
         }
         else//Exiting config state mode
         {
+
+            /*if(command_release_once)
+            {
+                if(get_global_config().control_host_volume == 1)
+                {
+                    uint16_t empty = 0;
+                    tud_hid_n_report(1, 3, &empty, sizeof(empty));
+                    command_release_once = false;
+                }
+                
+            }*/
+
             //Only safe save to flash when out of config mode after request_flash_save is true
             if (request_flash_save) {
                 
@@ -836,20 +915,31 @@ void __not_in_flash_func(on_bt_data)(CHANNEL_TYPE channel, uint8_t *data, uint16
 // Return zero will cause the stack to STALL request
 uint16_t tud_hid_get_report_cb(uint8_t itf, uint8_t report_id, hid_report_type_t report_type, uint8_t *buffer,
                                uint16_t reqlen) {
-    (void) itf;
     (void) report_type;
-
-    if (is_pico_cmd(report_id)) {
+       
+    if (is_pico_cmd(report_id) && itf!=1) {
         return pico_cmd_get(report_id, buffer, reqlen);
     }
-
-    std::vector<uint8_t> feature_data = get_feature_data(report_id, reqlen);
-    if (!feature_data.empty()) {
-        uint16_t len = (uint16_t)std::min((size_t)reqlen, feature_data.size() - 1);
-        memcpy(buffer, feature_data.data() + 1, len);
-        return len;
+    
+    if(itf!=1)//DualSense full reports
+    {
+        std::vector<uint8_t> feature_data = get_feature_data(report_id, reqlen);
+        if (!feature_data.empty()) {
+            uint16_t len = (uint16_t)std::min((size_t)reqlen, feature_data.size() - 1);
+            memcpy(buffer, feature_data.data() + 1, len);
+            return len;
+        }
     }
 
+    if(report_id!=0x09 && itf==1)//DualSense full reports except 0x09 to avoid duplicate mac address for HID-Consumer
+    {
+        std::vector<uint8_t> feature_data = get_feature_data(report_id, reqlen);
+        if (!feature_data.empty()) {
+            uint16_t len = (uint16_t)std::min((size_t)reqlen, feature_data.size() - 1);
+            memcpy(buffer, feature_data.data() + 1, len);
+            return len;
+        }
+    }
     // BT feature data not yet cached — return zeros instead of STALLing.
     // hid_playstation calls GET_FEATURE(0x20) during probe; a STALL causes
     // it to fail and leaves the device without a driver.
@@ -887,7 +977,8 @@ void tud_hid_set_report_cb(uint8_t itf, uint8_t report_id, hid_report_type_t rep
     (void) report_type;
     (void) buffer;
     (void) bufsize;
-
+    if (itf == 1) itf=0; //Ignores Control requests on Consumer interface (itf=1) to avoid STALLs on the host side
+    
     if (is_pico_cmd(report_id)) {
         printf("[HID] Receive 0xf6 setting config, funcid:0x%02X\n", buffer[0]);
         pico_cmd_set(report_id, buffer, bufsize);
@@ -1111,6 +1202,7 @@ int main() {
 #endif
         cyw43_arch_poll();
         tud_task();
+        process_media_keys();
         //original audio loop location
         interrupt_loop();
         // Run keepalive when audio haptics are active OR when game motors are on.

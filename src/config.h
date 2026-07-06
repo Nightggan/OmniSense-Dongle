@@ -4,7 +4,6 @@
 
 #ifndef DS5_BRIDGE_CONFIG_H
 #define DS5_BRIDGE_CONFIG_H
-
 #include <cstdint>
 struct __attribute__((packed)) Global_Config_body {
     uint8_t config_version; // Device_Config Version
@@ -25,6 +24,7 @@ struct __attribute__((packed)) Global_Config_body {
     float speaker_volume;     //Master Speaker volume [Min -100 to Max 0]
     uint8_t auto_mute_mode; //Disable Speaker on Auto Haptics mode 1 and 2
     uint16_t time_config_mode; //Millisecs to hold mute to enter config mode
+    uint8_t control_host_volume; // 1: allow host volume control via HID Consumer Control, 0: control internal ds speaker volume only
     
 };
 struct __attribute__((packed)) Profile_Config_body {

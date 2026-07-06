@@ -82,6 +82,8 @@ bool bt_disconnect() {
 
 bool bt_is_connected() { return hid_interrupt_cid != 0; }
 
+void bt_get_addr(uint8_t out[6]) { memcpy(out, current_device_addr, 6); }
+
 void bt_get_signal_strength(int8_t *rssi) {
     // gap_read_rssi() completes asynchronously, so this function can only
     // return the last cached RSSI value. Trigger a refresh afterwards so a
@@ -618,5 +620,3 @@ void init_feature() {
     check_dse = true;
     get_feature_data(0x70, 64);
 }
-
-void bt_get_addr(uint8_t out[6]) { memcpy(out, current_device_addr, 6); }
