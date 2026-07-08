@@ -74,7 +74,10 @@ volatile bool speaker_mute = false;
 volatile float current_auto_haptics_gain = 1.5f;
 uint8_t local_profile_selected;
 uint32_t time_config_pending_time;
-
+uint32_t mute_button_press_time;
+bool exiting_config = false;
+bool ghost_press_mute = false;
+bool mute_button_soft_pressed = false;
 //Gyro vars
 int16_t raw_ang_vel_x = 0;
 int16_t raw_ang_vel_z = 0;
@@ -237,6 +240,10 @@ void suppress_all_inputs(uint8_t *data) {
     data[12] = 0; // Cleans PS, Pad Click, Mute, DSE Paddles
 }
 
+auto set_bit = [](uint8_t &byte, const int bit, const bool value) {
+        byte = (byte & ~(1 << bit)) | (value << bit);
+    };
+
 // Volume Async system
 static uint16_t current_media_key = 0;
 static bool media_key_needs_release = false;
@@ -331,17 +338,22 @@ void __not_in_flash_func(on_bt_data)(CHANNEL_TYPE channel, uint8_t *data, uint16
             {
                 if(get_global_config().time_config_mode>0)
                 {
+                    data[12] &= ~0x04;//Supress mute until release if realeased prior to get_global_config().time_config_mode
+                    mute_button_press_time = 0;
+                    
                     if(!config_button_pressed)
                     {
+                        mute_button_soft_pressed = true;    
                         config_button_pressed = true;
                         time_config_pending_time = to_ms_since_boot(get_absolute_time());
+                        
                     }
                     
-                    // Only safe save after a 150ms cooldown to avoid TinyUSB to not being able to answer to the host
+                    
                     if (time_config_pending_time != 0 && (to_ms_since_boot(get_absolute_time()) - time_config_pending_time >= get_global_config().time_config_mode)) {
-                        time_config_pending_time = 0;
-                                            
+                        time_config_pending_time = 0;          
                         config_mode_enabled = true;
+                        mute_button_soft_pressed = false;
                         request_temp_save = true; //To apply breathing effect on mute led            
                     }
                 }
@@ -352,6 +364,7 @@ void __not_in_flash_func(on_bt_data)(CHANNEL_TYPE channel, uint8_t *data, uint16
                         config_button_pressed = true;
                         config_mode_enabled = true;
                         request_temp_save = true;
+                        mute_button_soft_pressed = false;
                     }
                 }
             }
@@ -362,15 +375,28 @@ void __not_in_flash_func(on_bt_data)(CHANNEL_TYPE channel, uint8_t *data, uint16
                     config_button_pressed = true;
                     config_mode_enabled = false;
                     request_temp_save = true; //To apply breathing effect on mute led
+                    exiting_config = true;
                 }
+            }
+            if(exiting_config)
+            {
+                suppress_all_inputs(data);
             }
         }
         else {
+                        
             // Freeing the lock after button release
             config_button_pressed = false;
             time_config_pending_time = 0;
+            exiting_config = false;
+            if(mute_button_soft_pressed)
+            {
+                ghost_press_mute = true;
+                mute_button_soft_pressed = false;
+            }
+                
         }
-
+        
         if(config_mode_enabled)
         {   
             //send_release_command();
@@ -389,7 +415,7 @@ void __not_in_flash_func(on_bt_data)(CHANNEL_TYPE channel, uint8_t *data, uint16
             static bool profile_switch_shortcut_lock_right = false;
             static bool haptic_gain_up_shortcut_lock = false;
             static bool haptic_gain_down_shortcut_lock = false;
-            
+
             // Obtaining D-Pad value
             uint8_t dpad_value = data[10] & 0x0F;
             Global_Config_body new_config = get_global_config();
@@ -450,6 +476,16 @@ void __not_in_flash_func(on_bt_data)(CHANNEL_TYPE channel, uint8_t *data, uint16
                 profile_switch_shortcut_lock_left = false;
             }
 
+            // Power Off: TRIANGLE
+            if (get_global_config().enable_poweroff_shortcut)
+            {
+                if (shortcut_btn_pressed(data, 3))
+                {
+                    config_button_pressed = false;
+                    config_mode_enabled = false;
+                    bt_disconnect();
+                }
+            }
             // Mute Speaker: SQUARE
             if (shortcut_btn_pressed(data, 0))
             {    
@@ -734,21 +770,10 @@ void __not_in_flash_func(on_bt_data)(CHANNEL_TYPE channel, uint8_t *data, uint16
                 
             }
             suppress_all_inputs(data);
+            
         }
         else//Exiting config state mode
         {
-
-            /*if(command_release_once)
-            {
-                if(get_global_config().control_host_volume == 1)
-                {
-                    uint16_t empty = 0;
-                    tud_hid_n_report(1, 3, &empty, sizeof(empty));
-                    command_release_once = false;
-                }
-                
-            }*/
-
             //Only safe save to flash when out of config mode after request_flash_save is true
             if (request_flash_save) {
                 
@@ -786,28 +811,7 @@ void __not_in_flash_func(on_bt_data)(CHANNEL_TYPE channel, uint8_t *data, uint16
                     data[8] = 255;
                 }
             }
-            // Vanilla power off combo
-            // data[3+7] = byte 7 of USBGetStateData, data[3+9] = byte 9: bit0=PS(Home)
-            const bool ps    = (data[12] & 0x01) != 0;
-            bool suppress_ps = false;
-
-            // PS + poweroff_button → power off controller
-            static bool poweroff_held = false;
-            const uint8_t po_btn = get_global_config().poweroff_button;
-            if (get_global_config().enable_poweroff_shortcut && ps && shortcut_btn_pressed(data, po_btn)) {
-                shortcut_btn_suppress(data, po_btn);
-                suppress_ps = true;
-                if (!poweroff_held) {
-                    poweroff_held = true;
-                    bt_disconnect();
-                    return;
-                }
-            } else {
-                poweroff_held = false;
-            }
-            if (suppress_ps) {
-                data[12] &= ~0x01; // suppress PS
-            }
+            
             
             //Only calculate gyro to analog values if the user has set a gyro button activator on the profile
             if(get_profile_config_index(local_profile_selected).gyro_button_activator > 0)
@@ -883,8 +887,36 @@ void __not_in_flash_func(on_bt_data)(CHANNEL_TYPE channel, uint8_t *data, uint16
                     
                 }
             }
+            if((ghost_press_mute)&&(!exiting_config))
+            {
+                if(mute_button_press_time == 0)
+                {
+                    mute_button_press_time = to_ms_since_boot(get_absolute_time());
+                }
+                
+                if (mute_button_press_time != 0)
+                {
+                    if(to_ms_since_boot(get_absolute_time()) - mute_button_press_time <= 250)
+                    {
+                        data[12] |= 0x04;//Press Mute for 100ms if released prior to enter config mode if get_global_config().time_config_mode > 0
+                    }
+                    else
+                    {
+                        mute_button_press_time = 0;
+                        ghost_press_mute = false;
+                    }
+                }
+            }
+            if(exiting_config)
+            {
+                suppress_all_inputs(data);
+            }
         }
 
+        
+        
+
+        
 
 
         if (get_global_config().polling_rate_mode != 2) {
@@ -964,10 +996,6 @@ bool tud_audio_set_itf_cb(uint8_t rhport, tusb_control_request_t const *p_reques
     return true;
 }
 
-auto set_bit = [](uint8_t &byte, const int bit, const bool value) {
-        byte = (byte & ~(1 << bit)) | (value << bit);
-    };
-
 // Invoked when received SET_REPORT control request or
 // received data on OUT endpoint ( Report ID = 0, Type = 0 )
 void tud_hid_set_report_cb(uint8_t itf, uint8_t report_id, hid_report_type_t report_type, uint8_t const *buffer,
@@ -977,7 +1005,7 @@ void tud_hid_set_report_cb(uint8_t itf, uint8_t report_id, hid_report_type_t rep
     (void) report_type;
     (void) buffer;
     (void) bufsize;
-    if (itf == 1) itf=0; //Ignores Control requests on Consumer interface (itf=1) to avoid STALLs on the host side
+    if (itf == 1) itf=0; //Ignores Control requests on Consumer interface (itf=1) to avoid STALLs on the host side and reroutes them to DS itf
     
     if (is_pico_cmd(report_id)) {
         printf("[HID] Receive 0xf6 setting config, funcid:0x%02X\n", buffer[0]);

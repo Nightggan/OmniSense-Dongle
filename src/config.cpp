@@ -102,9 +102,7 @@ void global_config_valid() {
     if (global_body->enable_poweroff_shortcut > 1) {
         global_body->enable_poweroff_shortcut = 1;
     }
-    if (global_body->poweroff_button > BTN_SHORTCUT_MAX) {
-        global_body->poweroff_button = BTN_TRIANGLE;
-    }
+    
     // Defaults to 0 (off) for configs saved before this field existed: the
     // erased flash tail reads 0xFF, which the >1 clamp turns into 0.
     if (global_body->wake_enable > 1) {

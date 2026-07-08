@@ -19,7 +19,6 @@ struct __attribute__((packed)) Global_Config_body {
     uint8_t auto_haptics_gain;        // [0,200] percent applied to derived signal, default 100
     uint16_t auto_haptics_lowpass_hz; // LP cutoff in Hz [20-400], default 80
     uint8_t enable_poweroff_shortcut; // 1: PS+<button> powers off controller, 0: disabled
-    uint8_t poweroff_button;          // ShortcutButton: which button + PS triggers power off (default 3=Triangle)
     uint8_t wake_enable;              // 1: power off controller on host sleep + wake host on reconnect, 0: disabled
     float speaker_volume;     //Master Speaker volume [Min -100 to Max 0]
     uint8_t auto_mute_mode; //Disable Speaker on Auto Haptics mode 1 and 2
