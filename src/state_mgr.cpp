@@ -205,11 +205,12 @@ void state_update(const uint8_t *data, const uint8_t size) {
     set_bit(state[0], 0, true);
     set_bit(state[0], 1, motors_on);
     set_bit(state[38], 2, true);
+
     copy_if_allowed(
         true,
         offsetof(SetStateData, RumbleEmulationRight),
         2
-    );
+    );//Right and Left
 
     size_t motor_flag_offset = offsetof(SetStateData, HostTimestamp) + sizeof(uint32_t); 
     if (motor_flag_offset < 63) {
@@ -413,31 +414,47 @@ void state_update(const uint8_t *data, const uint8_t size) {
             state[right_trigger_offset + 3] = 255;  // Force to break the wall
             memset(state + right_trigger_offset + 4, 0, 7);
         }
-        else if (current_config.trigger_right_mode == 5) {
+        else if (current_config.trigger_right_mode == 5) {// Rumble to Trigger
             
-            uint16_t amp = (uint16_t)update.RumbleEmulationRight * (uint16_t)current_config.rumple_trigger_strength / 100u;
+            uint16_t amp = (uint16_t)update.RumbleEmulationRight * (uint16_t)current_config.rumble_trigger_strength / 100u;
             if (amp > 255) amp = 255;
-            for (int i = 0; i < 11; ++i) state[right_trigger_offset + i] = 0;
+            for (int i = 0; i < 11; ++i) 
+                state[right_trigger_offset + i] = 0;//Cleans trigger parameters
             // On-press gate: below ~25% pull, emit Off so the trigger stays quiet
             // until the user actually presses it.
-            if (current_config.rumble_trigger_on_press && right_trigger_real_position < 64) { state[right_trigger_offset + 0] = 0x05; return; }
-            if (amp == 0) { state[right_trigger_offset + 0] = 0x05; return; }
-            state[right_trigger_offset + 0] = 0x26; // Vibration
-            // Full-travel zones now (position gating handles "on press"); this keeps
-            // the buzz feeling consistent once engaged rather than only in a sub-band.
-            const uint16_t zones = 0x03FF;
-            state[right_trigger_offset + 1] = (uint8_t)(zones & 0xFF);
-            state[right_trigger_offset + 2] = (uint8_t)((zones >> 8) & 0x03);
+            if (current_config.rumble_trigger_on_press && right_trigger_real_position < 64) 
+            { 
+                state[right_trigger_offset + 0] = 0x05; 
+            }
+            else
+            {
+                if (amp == 0) 
+                { 
+                    state[right_trigger_offset + 0] = 0x05; 
+                    
+                }
+                else
+                {
+                    state[right_trigger_offset + 0] = 0x26; // Vibration
+                    // Full-travel zones now (position gating handles "on press"); this keeps
+                    // the buzz feeling consistent once engaged rather than only in a sub-band.
+                    const uint16_t zones = 0x03FF;
+                    state[right_trigger_offset + 1] = (uint8_t)(zones & 0xFF);
+                    state[right_trigger_offset + 2] = (uint8_t)((zones >> 8) & 0x03);
+                    
+                    uint8_t val3 = (uint8_t)(amp * 7u / 255u);
+                    uint32_t bits = 0;
+                    for (int z = 0; z <= 9; ++z)
+                        if (zones & (1u << z)) bits |= (uint32_t)(val3 & 0x7u) << (3 * z);
+                    state[right_trigger_offset + 3] = (uint8_t)(bits & 0xFF);
+                    state[right_trigger_offset + 4] = (uint8_t)((bits >> 8) & 0xFF);
+                    state[right_trigger_offset + 5] = (uint8_t)((bits >> 16) & 0xFF);
+                    state[right_trigger_offset + 6] = (uint8_t)((bits >> 24) & 0xFF);
+                    state[right_trigger_offset + 9] = current_config.rumble_trigger_frequency;
+                }
+            }
             
-            uint8_t val3 = (uint8_t)(amp * 7u / 255u);
-            uint32_t bits = 0;
-            for (int z = 0; z <= 9; ++z)
-                if (zones & (1u << z)) bits |= (uint32_t)(val3 & 0x7u) << (3 * z);
-            state[right_trigger_offset + 3] = (uint8_t)(bits & 0xFF);
-            state[right_trigger_offset + 4] = (uint8_t)((bits >> 8) & 0xFF);
-            state[right_trigger_offset + 5] = (uint8_t)((bits >> 16) & 0xFF);
-            state[right_trigger_offset + 6] = (uint8_t)((bits >> 24) & 0xFF);
-            state[right_trigger_offset + 9] = current_config.rumble_trigger_frequency;
+            
         }
     }
 
@@ -484,28 +501,44 @@ void state_update(const uint8_t *data, const uint8_t size) {
             memset(state + left_trigger_offset + 4, 0, 7);
         }
         else if (current_config.trigger_left_mode == 5) {
-            uint16_t amp = (uint16_t)update.RumbleEmulationLeft * (uint16_t)current_config.rumple_trigger_strength / 100u;
+            uint16_t amp = (uint16_t)update.RumbleEmulationLeft * (uint16_t)current_config.rumble_trigger_strength / 100u;
             if (amp > 255) amp = 255;
-            for (int i = 0; i < 11; ++i) state[left_trigger_offset + i] = 0;
+            for (int i = 0; i < 11; ++i) 
+                state[left_trigger_offset + i] = 0;
             // On-press gate: below ~25% pull, emit Off so the trigger stays quiet
             // until the user actually presses it.
-            if (current_config.rumble_trigger_on_press && left_trigger_real_position < 64) { state[left_trigger_offset + 0] = 0x05; return; }
-            if (amp == 0) { state[left_trigger_offset + 0] = 0x05; return; }
-            state[left_trigger_offset + 0] = 0x26; // Vibration
-            // Full-travel zones now (position gating handles "on press"); this keeps
-            // the buzz feeling consistent once engaged rather than only in a sub-band.
-            const uint16_t zones = 0x03FF;
-            state[left_trigger_offset + 1] = (uint8_t)(zones & 0xFF);
-            state[left_trigger_offset + 2] = (uint8_t)((zones >> 8) & 0x03);
-            uint8_t val3 = (uint8_t)(amp * 7u / 255u);
-            uint32_t bits = 0;
-            for (int z = 0; z <= 9; ++z)
-                if (zones & (1u << z)) bits |= (uint32_t)(val3 & 0x7u) << (3 * z);
-            state[left_trigger_offset + 3] = (uint8_t)(bits & 0xFF);
-            state[left_trigger_offset + 4] = (uint8_t)((bits >> 8) & 0xFF);
-            state[left_trigger_offset + 5] = (uint8_t)((bits >> 16) & 0xFF);
-            state[left_trigger_offset + 6] = (uint8_t)((bits >> 24) & 0xFF);
-            state[left_trigger_offset + 9] = current_config.rumble_trigger_frequency;
+            if (current_config.rumble_trigger_on_press && left_trigger_real_position < 64) 
+            { 
+                state[left_trigger_offset + 0] = 0x05;
+                
+            }
+            else
+            {
+                if (amp == 0) 
+                { 
+                    state[left_trigger_offset + 0] = 0x05; 
+                }
+                else
+                {
+                    state[left_trigger_offset + 0] = 0x26; // Vibration
+                    // Full-travel zones now (position gating handles "on press"); this keeps
+                    // the buzz feeling consistent once engaged rather than only in a sub-band.
+                    const uint16_t zones = 0x03FF;
+                    state[left_trigger_offset + 1] = (uint8_t)(zones & 0xFF);
+                    state[left_trigger_offset + 2] = (uint8_t)((zones >> 8) & 0x03);
+                    uint8_t val3 = (uint8_t)(amp * 7u / 255u);
+                    uint32_t bits = 0;
+                    for (int z = 0; z <= 9; ++z)
+                        if (zones & (1u << z)) bits |= (uint32_t)(val3 & 0x7u) << (3 * z);
+                    state[left_trigger_offset + 3] = (uint8_t)(bits & 0xFF);
+                    state[left_trigger_offset + 4] = (uint8_t)((bits >> 8) & 0xFF);
+                    state[left_trigger_offset + 5] = (uint8_t)((bits >> 16) & 0xFF);
+                    state[left_trigger_offset + 6] = (uint8_t)((bits >> 24) & 0xFF);
+                    state[left_trigger_offset + 9] = current_config.rumble_trigger_frequency;
+                }
+                
+            }
+            
             
         }
     }

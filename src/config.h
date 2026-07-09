@@ -56,7 +56,7 @@ struct __attribute__((packed)) Profile_Config_body {
 
     //Trigger 5
     bool rumble_trigger_on_press;   // bool: 0=vibrate regardless of trigger position, 1=only when trigger pressed
-    uint8_t rumple_trigger_strength;   // [0-100] amplitude multiplier applied to the rumble value
+    uint8_t rumble_trigger_strength;   // [0-100] amplitude multiplier applied to the rumble value
     uint8_t rumble_trigger_frequency;  // vibration frequency parameter for the 0x26 effect [1-255], ~tactile buzz
     uint8_t rumble_trigger_mode;  // 0: Left, 1: Right, 2: Both
     char profile_name[12];
