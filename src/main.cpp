@@ -69,8 +69,9 @@ uint32_t right_analog_down_holding_time = 0;
 bool right_analog_up_triggered = false;
 bool right_analog_down_triggered = false;
 bool request_temp_save = false;
-volatile float current_speaker_volume = -100.0f;
-volatile bool speaker_mute = false;
+volatile float local_current_volume = -100.0f;
+volatile bool headset_plugged = false;
+volatile bool audio_mute = false;
 volatile float current_auto_haptics_gain = 1.5f;
 uint8_t local_profile_selected;
 uint32_t time_config_pending_time;
@@ -288,6 +289,35 @@ void __not_in_flash_func(on_bt_data)(CHANNEL_TYPE channel, uint8_t *data, uint16
     if (channel == INTERRUPT && data[1] == 0x31) {
         if ((data[56] & 1) != (interrupt_in_data[53] & 1)) {
             set_headset(data[56] & 1);
+            
+            config_button_pressed = true;
+            config_mode_enabled = false; //Exit config mode when plug/unplug to avoid mismatch in volume setting
+            
+            headset_plugged = data[56] & 1; 
+            if(headset_plugged)//Updating the volatile to update the volume live on headset plug/unplugg
+            {
+                local_current_volume = get_global_config().headset_volume - 100.0f;
+            }
+            else
+            {
+                local_current_volume = get_global_config().speaker_volume - 100.0f;
+            }
+
+            uint8_t dummy_buffer[sizeof(SetStateData) + 1] = {0};
+            state_update(dummy_buffer + 1, sizeof(SetStateData));
+            
+            // Sending the new package with the new state[] to the controller
+            uint8_t forced_pkt[78] = {0};
+            forced_pkt[0] = 0x31;
+            forced_pkt[1] = (uint8_t)(reportSeqCounter << 4);
+            if (++reportSeqCounter == 256) reportSeqCounter = 0;
+            forced_pkt[2] = 0x10;
+            
+            // Filling the forced package with the actual new state[]
+            state_set(forced_pkt + 3, sizeof(SetStateData));
+            
+            // Sending by BT the forced package to update the controller
+            bt_write(forced_pkt, sizeof(forced_pkt));
         }
         // Obtaining real triggers position
         left_trigger_real_position = data[7];  // Byte 7: L2 (0-255)
@@ -359,7 +389,7 @@ void __not_in_flash_func(on_bt_data)(CHANNEL_TYPE channel, uint8_t *data, uint16
                 }
                 else
                 {
-                    if(!config_button_pressed)
+                    if(!config_button_pressed) 
                     {
                         config_button_pressed = true;
                         config_mode_enabled = true;
@@ -498,10 +528,8 @@ void __not_in_flash_func(on_bt_data)(CHANNEL_TYPE channel, uint8_t *data, uint16
                 else
                 {
                     if (!mute_speaker_shortcut_lock) {
-                        speaker_mute = !speaker_mute; //Cycle speaker mute
+                        audio_mute = !audio_mute; //Cycle speaker mute
                         //No need to save config cause it is not saved between cycles
-                        //set_global_config(new_config);
-                        //request_temp_save = true;
                         mute_speaker_shortcut_lock = true;
                     }
                 }
@@ -544,7 +572,7 @@ void __not_in_flash_func(on_bt_data)(CHANNEL_TYPE channel, uint8_t *data, uint16
             if (shortcut_btn_pressed(data, 5) /* R1 */) {
                 if (!right_trigger_mode_override_shortcut_lock) {
                     Profile_Config_body new_config = get_profile_config();
-                    new_config.trigger_right_mode = (new_config.trigger_right_mode + 1) % 5; 
+                    new_config.trigger_right_mode = (new_config.trigger_right_mode + 1) % 6; 
                     set_profile_config(new_config);
                     request_temp_save = true;
                     right_trigger_mode_override_shortcut_lock = true; 
@@ -557,7 +585,7 @@ void __not_in_flash_func(on_bt_data)(CHANNEL_TYPE channel, uint8_t *data, uint16
             if (shortcut_btn_pressed(data, 4)) {
                 if (!left_trigger_mode_override_shortcut_lock) {
                     Profile_Config_body new_config = get_profile_config();
-                    new_config.trigger_left_mode = (new_config.trigger_left_mode + 1) % 5; 
+                    new_config.trigger_left_mode = (new_config.trigger_left_mode + 1) % 6; 
                     set_profile_config(new_config);
                     request_temp_save = true;
                     left_trigger_mode_override_shortcut_lock = true; 
@@ -619,18 +647,30 @@ void __not_in_flash_func(on_bt_data)(CHANNEL_TYPE channel, uint8_t *data, uint16
                     send_volume_up_command();
                 }
                 else
-                {
-                    new_config.speaker_volume = new_config.speaker_volume + 2.0f;
-                    if (new_config.speaker_volume > 0.0f) {
-                        new_config.speaker_volume = 0.0f;
+                {   
+                    if(headset_plugged)
+                    {
+                        new_config.headset_volume = new_config.headset_volume + 2.0f;
+                        if (new_config.headset_volume > 100.0f) {
+                            new_config.headset_volume = 100.0f;
+                        }
+                        
+                        local_current_volume = new_config.headset_volume - 100.0f;
+                        set_global_config(new_config);
+                        request_temp_save = true;    
                     }
                     else
                     {
-                        current_speaker_volume = new_config.speaker_volume;
+                        new_config.speaker_volume = new_config.speaker_volume + 2.0f;
+                        if (new_config.speaker_volume > 100.0f) {
+                            new_config.speaker_volume = 100.0f;
+                        }
+                        
+                        local_current_volume = new_config.speaker_volume - 100.0f;
                         set_global_config(new_config);
-                        request_temp_save = true;
+                        request_temp_save = true;    
                     }
-                    speaker_mute = false; // Disable mute
+                    audio_mute = false; // Disable mute
                 }
                 left_analog_up_holding_time = 0;
                 left_analog_up_triggered = false;
@@ -647,17 +687,29 @@ void __not_in_flash_func(on_bt_data)(CHANNEL_TYPE channel, uint8_t *data, uint16
                 }
                 else
                 {
-                    new_config.speaker_volume = new_config.speaker_volume - 2.0f;
-                    if (new_config.speaker_volume < -100.0f) {
-                        new_config.speaker_volume = -100.0f;
+                    if(headset_plugged)
+                    {
+                        new_config.headset_volume = new_config.headset_volume - 2.0f;
+                        if (new_config.headset_volume < 0.0f) {
+                            new_config.headset_volume = 0.0f;
+                        }
+                        
+                        local_current_volume = new_config.headset_volume - 100.0f;
+                        set_global_config(new_config);
+                        request_temp_save = true;    
                     }
                     else
                     {
-                        current_speaker_volume = new_config.speaker_volume;
+                        new_config.speaker_volume = new_config.speaker_volume - 2.0f;
+                        if (new_config.speaker_volume < 0.0f) {
+                            new_config.speaker_volume = 0.0f;
+                        }
+                        
+                        local_current_volume = new_config.speaker_volume - 100.0f;
                         set_global_config(new_config);
-                        request_temp_save = true;
-                    }
-                    speaker_mute = false; // Disable mute
+                        request_temp_save = true;    
+                    } 
+                    audio_mute = false; // Disable mute
                 }
                 left_analog_down_triggered = false;
                 left_analog_down_holding_time = 0;
@@ -747,7 +799,15 @@ void __not_in_flash_func(on_bt_data)(CHANNEL_TYPE channel, uint8_t *data, uint16
             && !profile_switch_shortcut_lock_down && !profile_switch_shortcut_lock_left && !profile_switch_shortcut_lock_right
             && !haptic_gain_up_shortcut_lock && !haptic_gain_down_shortcut_lock)
             {
-                current_speaker_volume = get_global_config().speaker_volume; //Updating the volatile var for audio loop to use without a full flash save 
+                if(headset_plugged)
+                {
+                    local_current_volume = get_global_config().headset_volume - 100.0f; //Updating the volatile var for audio loop to use without a full flash save 
+                }
+                else
+                {
+                    local_current_volume = get_global_config().speaker_volume - 100.0f; //Updating the volatile var for audio loop to use without a full flash save 
+                }
+                
                 current_auto_haptics_gain = get_global_config().auto_haptics_gain;
                 request_temp_save = false;
                 // 2. Enforce the update of the internal state[] reading the new config modified by the shortcuts
@@ -778,8 +838,8 @@ void __not_in_flash_func(on_bt_data)(CHANNEL_TYPE channel, uint8_t *data, uint16
             if (request_flash_save) {
                 
                 save_requested = true;//Telling main loop to call flash save after some ms.
-                request_flash_save = false;    
-                current_speaker_volume = get_global_config().speaker_volume; //Updating the volatile var for audio loop to use without a full flash save
+                request_flash_save = false;
+                
                 current_auto_haptics_gain = get_global_config().auto_haptics_gain;
                 uint8_t dummy_buffer[sizeof(SetStateData) + 1] = {0};
                 state_update(dummy_buffer + 1, sizeof(SetStateData));
@@ -794,6 +854,15 @@ void __not_in_flash_func(on_bt_data)(CHANNEL_TYPE channel, uint8_t *data, uint16
                 bt_write(forced_pkt, sizeof(forced_pkt));
 
             }
+            if(headset_plugged)    
+            {
+                local_current_volume = get_global_config().headset_volume - 100.0f; //Updating the volatile var for audio loop to use without a full flash save
+            }
+            else
+            {
+                local_current_volume = get_global_config().speaker_volume - 100.0f; //Updating the volatile var for audio loop to use without a full flash save
+            }
+            set_volume(local_current_volume);
             Profile_Config_body local_profile_config = get_profile_config_index(local_profile_selected);
             //Hair trigger values override
             if(left_trigger_real_position>0)
@@ -814,7 +883,7 @@ void __not_in_flash_func(on_bt_data)(CHANNEL_TYPE channel, uint8_t *data, uint16
             
             
             //Only calculate gyro to analog values if the user has set a gyro button activator on the profile
-            if(get_profile_config_index(local_profile_selected).gyro_button_activator > 0)
+            if(local_profile_config.gyro_button_activator > 0)
             {
                 //Check if user is pressing the gyro button activator
                 if((gyro_shortcut_btn_pressed(data, get_profile_config_index(local_profile_selected).gyro_button_activator-2))||(get_profile_config_index(local_profile_selected).gyro_button_activator==1))//If the user is pressing the gyro button activator or if it is set to always on, we calculate the gyro to analog values
@@ -850,10 +919,11 @@ void __not_in_flash_func(on_bt_data)(CHANNEL_TYPE channel, uint8_t *data, uint16
                     }
 
                     
-                    
+                    uint8_t inverted_x = (local_profile_config.inverted_x_gyro) ? -1 : 1;
+                    uint8_t inverted_y = (local_profile_config.inverted_y_gyro) ? -1 : 1;
 
-                    uint8_t output_x = (uint8_t)std::clamp(std::round(final_right_stick_x), 0.0f, 255.0f);
-                    uint8_t output_y = (uint8_t)std::clamp(std::round(final_right_stick_y), 0.0f, 255.0f);
+                    uint8_t output_x = (uint8_t)std::clamp(std::round(final_right_stick_x), 0.0f, 255.0f) * inverted_x;
+                    uint8_t output_y = (uint8_t)std::clamp(std::round(final_right_stick_y), 0.0f, 255.0f) * inverted_y;
                     
 
                     //Assigning the new values to the data[] to be sent to the host only if gyro to analog values are higher than the current user input ones.

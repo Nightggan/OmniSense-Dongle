@@ -30,7 +30,8 @@ bool first_color_captured = false;
 bool trigger_left_mode_0_engaged = false;
 bool trigger_right_mode_0_engaged = false;
 extern bool config_mode_enabled;
-extern volatile float current_speaker_volume;
+extern volatile float local_current_volume;
+extern volatile bool headset_plugged;
 extern uint8_t local_profile_selected;
 extern uint8_t right_trigger_real_position;
 extern uint8_t left_trigger_real_position;
@@ -368,6 +369,9 @@ void state_update(const uint8_t *data, const uint8_t size) {
         memset(state + right_trigger_offset, 0, 11);// Reset right trigger state
     }
     
+    
+    
+    
     // Right Trigger
     if (current_config.trigger_right_mode != 0) {
         trigger_right_mode_0_engaged = false;
@@ -409,7 +413,32 @@ void state_update(const uint8_t *data, const uint8_t size) {
             state[right_trigger_offset + 3] = 255;  // Force to break the wall
             memset(state + right_trigger_offset + 4, 0, 7);
         }
-        
+        else if (current_config.trigger_right_mode == 5) {
+            
+            uint16_t amp = (uint16_t)update.RumbleEmulationRight * (uint16_t)current_config.rumple_trigger_strength / 100u;
+            if (amp > 255) amp = 255;
+            for (int i = 0; i < 11; ++i) state[right_trigger_offset + i] = 0;
+            // On-press gate: below ~25% pull, emit Off so the trigger stays quiet
+            // until the user actually presses it.
+            if (current_config.rumble_trigger_on_press && right_trigger_real_position < 64) { state[right_trigger_offset + 0] = 0x05; return; }
+            if (amp == 0) { state[right_trigger_offset + 0] = 0x05; return; }
+            state[right_trigger_offset + 0] = 0x26; // Vibration
+            // Full-travel zones now (position gating handles "on press"); this keeps
+            // the buzz feeling consistent once engaged rather than only in a sub-band.
+            const uint16_t zones = 0x03FF;
+            state[right_trigger_offset + 1] = (uint8_t)(zones & 0xFF);
+            state[right_trigger_offset + 2] = (uint8_t)((zones >> 8) & 0x03);
+            
+            uint8_t val3 = (uint8_t)(amp * 7u / 255u);
+            uint32_t bits = 0;
+            for (int z = 0; z <= 9; ++z)
+                if (zones & (1u << z)) bits |= (uint32_t)(val3 & 0x7u) << (3 * z);
+            state[right_trigger_offset + 3] = (uint8_t)(bits & 0xFF);
+            state[right_trigger_offset + 4] = (uint8_t)((bits >> 8) & 0xFF);
+            state[right_trigger_offset + 5] = (uint8_t)((bits >> 16) & 0xFF);
+            state[right_trigger_offset + 6] = (uint8_t)((bits >> 24) & 0xFF);
+            state[right_trigger_offset + 9] = current_config.rumble_trigger_frequency;
+        }
     }
 
     // Left Trigger
@@ -454,6 +483,31 @@ void state_update(const uint8_t *data, const uint8_t size) {
             state[left_trigger_offset + 3] = 255;  // Force to break the wall
             memset(state + left_trigger_offset + 4, 0, 7);
         }
+        else if (current_config.trigger_left_mode == 5) {
+            uint16_t amp = (uint16_t)update.RumbleEmulationLeft * (uint16_t)current_config.rumple_trigger_strength / 100u;
+            if (amp > 255) amp = 255;
+            for (int i = 0; i < 11; ++i) state[left_trigger_offset + i] = 0;
+            // On-press gate: below ~25% pull, emit Off so the trigger stays quiet
+            // until the user actually presses it.
+            if (current_config.rumble_trigger_on_press && left_trigger_real_position < 64) { state[left_trigger_offset + 0] = 0x05; return; }
+            if (amp == 0) { state[left_trigger_offset + 0] = 0x05; return; }
+            state[left_trigger_offset + 0] = 0x26; // Vibration
+            // Full-travel zones now (position gating handles "on press"); this keeps
+            // the buzz feeling consistent once engaged rather than only in a sub-band.
+            const uint16_t zones = 0x03FF;
+            state[left_trigger_offset + 1] = (uint8_t)(zones & 0xFF);
+            state[left_trigger_offset + 2] = (uint8_t)((zones >> 8) & 0x03);
+            uint8_t val3 = (uint8_t)(amp * 7u / 255u);
+            uint32_t bits = 0;
+            for (int z = 0; z <= 9; ++z)
+                if (zones & (1u << z)) bits |= (uint32_t)(val3 & 0x7u) << (3 * z);
+            state[left_trigger_offset + 3] = (uint8_t)(bits & 0xFF);
+            state[left_trigger_offset + 4] = (uint8_t)((bits >> 8) & 0xFF);
+            state[left_trigger_offset + 5] = (uint8_t)((bits >> 16) & 0xFF);
+            state[left_trigger_offset + 6] = (uint8_t)((bits >> 24) & 0xFF);
+            state[left_trigger_offset + 9] = current_config.rumble_trigger_frequency;
+            
+        }
     }
 
     state[04] = 0x04;
@@ -473,12 +527,14 @@ void state_update(const uint8_t *data, const uint8_t size) {
     {
         state[mute_light_mode_offset] = MuteLight::Off; //Mute Light off on not config mode
     }
-    size_t headphone_volume_offset = offsetof(SetStateData, VolumeHeadphones);
-    float headphone_volume_float = current_speaker_volume + 100;
-    headphone_volume_float *= 1.27;
-    uint8_t headphone_volume_byte = static_cast<uint8_t>(std::round(headphone_volume_float));
-
-    state[headphone_volume_offset] = headphone_volume_byte;
+    if(headset_plugged)
+    {
+        size_t headphone_volume_offset = offsetof(SetStateData, VolumeHeadphones);
+        float headphone_volume_float = local_current_volume + 100;
+        headphone_volume_float *= 1.27;
+        uint8_t headphone_volume_byte = static_cast<uint8_t>(std::round(headphone_volume_float));
+        state[headphone_volume_offset] = headphone_volume_byte;
+    }
 }
 
 void state_set_led_color(uint8_t r, uint8_t g, uint8_t b) {
