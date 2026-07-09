@@ -17,14 +17,15 @@ constexpr uint32_t CONFIG_MAGIC = 0xCAFEBABE;
 constexpr uint16_t CONFIG_VERSION = 2;
 constexpr uint32_t CONFIG_FLASH_OFFSET = PICO_FLASH_SIZE_BYTES - FLASH_SECTOR_SIZE;
 static Device_Config config{};
-extern volatile float current_speaker_volume;
+extern volatile float local_current_volume;
+extern volatile bool headset_plugged;
 extern volatile float current_auto_haptics_gain;
 extern uint8_t local_profile_selected;
 bool is_dse = false;
 
 // 编译期保护
 // 判断Config结构体是否能放进flash 256bytes
-static_assert(sizeof(Device_Config) <= FLASH_PAGE_SIZE);
+static_assert(sizeof(Device_Config) <= FLASH_PAGE_SIZE * 2);
 // 配置区起始地址必须按 flash sector 对齐。
 static_assert(CONFIG_FLASH_OFFSET % FLASH_SECTOR_SIZE == 0);
 
@@ -110,15 +111,21 @@ void global_config_valid() {
     }
     
     //Default speaker volume to -100 (min) to not scare your sleeping wife
-    if (std::isnan(global_body->speaker_volume) || global_body->speaker_volume < -100 || global_body->speaker_volume > 0) {
-        global_body->speaker_volume = -100;
+    if (std::isnan(global_body->speaker_volume) || global_body->speaker_volume < 0 || global_body->speaker_volume > 100) {
+        global_body->speaker_volume = 0;
         printf("[Config] Speaker Volume is invalid\n");
     }
     
+    //Default headset volume to 30
+    if (std::isnan(global_body->headset_volume) || global_body->headset_volume < 0 || global_body->headset_volume > 100) {
+        global_body->headset_volume = 50;
+        printf("[Config] Headset Volume is invalid\n");
+    }
+
     //Default to 1 to mute sound pass to speaker/headphones, does not affect haptics
     if (global_body->auto_mute_mode > 1){
         printf("[Config] Global Mute is invalid\n");
-        global_body->auto_mute_mode = 1;
+        global_body->auto_mute_mode = 0;
     } 
 
     if(global_body->time_config_mode < 0  || global_body->time_config_mode > 3000){
@@ -128,7 +135,7 @@ void global_config_valid() {
     if(config.magic != CONFIG_MAGIC)//First run after flash erase, set magic to valid value to avoid infinite loop of config validation
     {
         config.magic = CONFIG_MAGIC;
-        global_body->control_host_volume = 1; //Default to allow host volume control via HID Consumer Control
+        global_body->control_host_volume = 0; //Default to internal speaker volume
         printf("[Config] Config Magic Header is invalid\n");
     }
 
@@ -173,16 +180,18 @@ void profile_config_valid()
             printf("[Profile] Lightbar Breathing Mode is invalid\n");
         }
 
-        if (profile.trigger_left_mode > 4) {
+        if (profile.trigger_left_mode > 5) {
             profile.trigger_left_mode = 0; //Relaxed/Host controlled by default if invalid
             printf("[Profile] Left Trigger Mode is invalid\n");
         }
-        if (profile.trigger_right_mode > 4) {
+        if (profile.trigger_right_mode > 5) {
             profile.trigger_right_mode = 0; //Relaxed/Host controlled by default if invalid
             printf("[Profile] Right Trigger Mode is invalid\n");
         }
         if(config.initial_setup_completed!=7)
         {
+            std::string profile_name_temp = "Profile " + z +1;
+            std::strcpy(profile.profile_name, profile_name_temp.c_str()); 
             profile.feedback_start_point = 0;
             profile.feedback_force = 200;
             profile.trigger_start_point = 20;
@@ -192,11 +201,17 @@ void profile_config_valid()
             profile.vibration_frequency = 36;
             profile.vibration_force = 255;
             profile.hair_wall_start_point = 97;
+            profile.rumble_trigger_mode = 2;            // 3=Both
+            profile.rumble_trigger_on_press = false;    // 0=always
+            profile.rumple_trigger_strength = 100; // full strength
+            profile.rumble_trigger_frequency = 60;  // ~mid tactile buzz
             printf("[Profile] Initial Trigger Values Set\n");
             profile.gyro_button_activator = 0; //Disabled by default
             profile.analog_gyro_deadzone = 42.5f; //Default deadzone based on Steam Input 1/3 of the max value of 127.0f (10000 deadzone of 32767.0f)
             profile.max_stick_dps = 100; //Default max stick dps to 100 deg per second. Works best for small aiming movements. Higher values will make the gyro more sensitive to small movements but can be harder to control.
             profile.gyro_multiplier = 1.0f; //Default gyro multiplier to 1x
+            profile.inverted_x_gyro = false;
+            profile.inverted_y_gyro = false;
             printf("[Profile] Initial Gyro to Analog Values Set\n");
         }
         if(profile.analog_gyro_deadzone < 0.0f || profile.analog_gyro_deadzone > 100.0f)
@@ -239,7 +254,15 @@ void device_config_load() {
     global_config_valid();
     profile_config_valid();
     
-    current_speaker_volume = get_global_config().speaker_volume;
+    if(headset_plugged)
+    {
+        local_current_volume = get_global_config().headset_volume - 100.0f;
+    }
+    else
+    {
+        local_current_volume = get_global_config().speaker_volume - 100.0f;    
+    }
+    
     current_auto_haptics_gain = get_global_config().auto_haptics_gain;
     local_profile_selected = config.profile_selected;
 }
@@ -255,8 +278,8 @@ void set_profile_index(uint8_t new_profile)
 // the core1 park this races the audio core and corrupts audio (buzzing).
 static void config_save_flash_op(void *param) {
     size_t config_size = sizeof(Device_Config);
-    //size_t flash_write_size = ((config_size + FLASH_PAGE_SIZE - 1) / FLASH_PAGE_SIZE) * FLASH_PAGE_SIZE;
-    size_t flash_write_size = FLASH_PAGE_SIZE * 2;
+    size_t flash_write_size = ((config_size + FLASH_PAGE_SIZE - 1) / FLASH_PAGE_SIZE) * FLASH_PAGE_SIZE;
+    //size_t flash_write_size = FLASH_PAGE_SIZE * 2;
     
     const uint8_t *page = static_cast<const uint8_t *>(param);
     const uint32_t interrupts = save_and_disable_interrupts();
@@ -269,8 +292,8 @@ static void config_save_flash_op(void *param) {
 bool device_config_save() {
     config.global_crc32 = calc_global_config_crc(config);
     config.profile_crc32 = calc_profile_config_crc(config);
-    size_t config_size = sizeof(Device_Config);
-    size_t flash_write_size = FLASH_PAGE_SIZE * 2; //((config_size + FLASH_PAGE_SIZE - 1) / FLASH_PAGE_SIZE) * FLASH_PAGE_SIZE;
+    constexpr size_t config_size = sizeof(Device_Config);
+    constexpr size_t flash_write_size = ((config_size + FLASH_PAGE_SIZE - 1) / FLASH_PAGE_SIZE) * FLASH_PAGE_SIZE;
 
     alignas(4) uint8_t page[flash_write_size];
 
@@ -295,15 +318,20 @@ bool device_config_save() {
         printf("[Config] Config write flash verify failed\n");
     }
 
-    const auto verify_profile_crc32 = calc_profile_config_crc(verify);
-    if (verify_profile_crc32 == config.profile_crc32) {
-        printf("[Config] Profile configs write flash verify success\n");
-        flashSuccess = true;
-    }
-    else
+    if(flashSuccess)
     {
-        printf("[Config] Profile configs write flash verify failed\n");    
+        const auto verify_profile_crc32 = calc_profile_config_crc(verify);
+        if (verify_profile_crc32 == config.profile_crc32) {
+            printf("[Config] Profile configs write flash verify success\n");
+            flashSuccess = true;
+        }
+        else
+        {
+            printf("[Config] Profile configs write flash verify failed\n");
+            flashSuccess = false;    
+        }
     }
+    
 
     
     return flashSuccess;

@@ -43,8 +43,9 @@ static uint8_t opus_buf[200];
 critical_section_t opus_cs;
 
 //Custom vars Omni
-extern volatile float current_speaker_volume; //Live speaker volume prior to save to the flash
-extern volatile bool speaker_mute;
+static float local_current_volume; //Live speaker volume prior to save to the flash
+
+extern volatile bool audio_mute;
 extern volatile float current_auto_haptics_gain;
 //End Custom vars Omni
 struct audio_raw_element {
@@ -53,6 +54,10 @@ struct audio_raw_element {
 
 void set_headset(bool state) {
     plug_headset = state;
+}
+
+void set_volume(float volume) {
+    local_current_volume = volume;
 }
 
 void __not_in_flash_func(audio_loop)() {
@@ -92,12 +97,12 @@ void __not_in_flash_func(audio_loop)() {
     const uint8_t auto_mode  = get_global_config().auto_haptics_enable;
     const bool auto_mute     = ((auto_mode == 2 || actual_ch == 2) && get_global_config().auto_mute_mode) ||
                                (auto_mode == 1 && get_global_config().auto_mute_mode);
-    if(speaker_mute)//Check if mute shortcut
+    if(audio_mute)//Check if mute shortcut
         mute[0] = true;
     else
         mute[0] = false;
     
-    const float audio_gain   = (mute[0] || auto_mute) ? 0.0f : powf(10.0f, current_speaker_volume / 20.0f);
+    const float audio_gain   = (mute[0] || auto_mute) ? 0.0f : powf(10.0f, local_current_volume / 20.0f);
     const float haptics_gain = get_global_config().haptics_gain;
     // For 2ch mode (Windows/Stereo Mix), always enable auto-haptics DSP regardless of auto_mode setting
     const float auto_gain    = (auto_mode > 0 || actual_ch == 2) ? (current_auto_haptics_gain / 100.0f) * haptics_gain : 0.0f;
@@ -114,7 +119,7 @@ void __not_in_flash_func(audio_loop)() {
     constexpr float ENV_REL = 0.025f;
 
     for (int i = 0; i < nframes; i++) {
- #if !DISABLE_SPEAKER_PROC
+ 
         audio_buf[audio_buf_pos++] = raw[i * actual_ch] / 32768.0f * audio_gain;
         audio_buf[audio_buf_pos++] = raw[i * actual_ch + 1] / 32768.0f * audio_gain;
         if (audio_buf_pos == 512 * 2) {
@@ -128,7 +133,7 @@ void __not_in_flash_func(audio_loop)() {
             }
             audio_buf_pos = 0;
         }
-#endif
+
         // 4ch mode (Linux): use dedicated haptic channels ch2/ch3
         // 2ch mode (Windows): no dedicated haptic channels, DSP will derive from ch0/ch1 below
         float h_l = (actual_ch == 4) ? raw[i * 4 + 2] / 32768.0f * haptics_gain : 0.0f;
@@ -212,88 +217,12 @@ void __not_in_flash_func(audio_loop)() {
         pkt[11] = 0x10 | 0 << 6 | 1 << 7;
         pkt[12] = 63;
 
-        //After some testing it is not needed to push the lightbar color on the audio package
-        /*pkt[13 + 4] |= 0x04; //Lightbar full control
-        state_set(pkt + 13, 63);
-        //Mute light
-        //If in config state mode 
-        if(config_mode_enabled)
-        {
-            size_t muteLightModeOffset = 13 + offsetof(SetStateData, MuteLightMode);
-            pkt[muteLightModeOffset] = 0x02;
-        }
-        else
-        {
-            size_t muteLightModeOffset = 3 + offsetof(SetStateData, MuteLightMode);
-            pkt[muteLightModeOffset] = 0x00;
-        }
-        //Lightbar colors
-        pkt[60] = lb_controlled_red;
-        pkt[61] = lb_controlled_green;
-        pkt[62] = lb_controlled_blue;
-        */
+        
         // Haptics Audio Data
         pkt[76] = 0x12 | 0 << 6 | 1 << 7;
         pkt[77] = SAMPLE_SIZE;
         memcpy(pkt + 78, haptic_buf, SAMPLE_SIZE);
 
-        // Override of the trigger motors mode to push the machine gun integrated mode on the audio package (0x36)
-
-        const auto &profilecfg = get_profile_config();
-        uint32_t tiempo_ms = to_ms_since_boot(get_absolute_time());
-        
-        // Offset of 13 on the audio package
-        size_t r_off = 13 + offsetof(SetStateData, RightTriggerFFB);
-        size_t l_off = 13 + offsetof(SetStateData, LeftTriggerFFB);
-        size_t audio_motor_flag_offset = 13 + offsetof(SetStateData, HostTimestamp) + sizeof(uint32_t);
-
-        //Actual value of the trigger position to set the machine gun mode
-        extern uint8_t right_trigger_real_position;
-        extern uint8_t left_trigger_real_position;
-
-        // --- Right Trigger ---
-        if (profilecfg.trigger_right_mode == 3) {
-            
-
-            if (right_trigger_real_position > 15) {
-                pkt[13] |= 0x04; // Enforce valid flag of the right trigger with Valid_Flag0
-                if (audio_motor_flag_offset < REPORT_SIZE) {
-                    pkt[audio_motor_flag_offset] |= 0x03; // Inyectar amperaje máximo
-                }
-                
-                pkt[r_off + 0] = 0x06; // Modo Machine Gun
-                pkt[r_off + 1] = get_profile_config().vibration_frequency; ; // Parameter 1: Frecuency
-                pkt[r_off + 2] = get_profile_config().vibration_force; // Parameter 2: Force
-                pkt[r_off + 3] = get_profile_config().vibration_start_point; // Parameter 3: Start Point
-                memset(&pkt[r_off + 4], 0, 7);
-            } else {
-                pkt[r_off + 0] = 0x05; // Forzar suelto si no hay presión
-                memset(&pkt[r_off + 1], 0, 10);
-            }
-        }
-
-        // --- Left Trigger ---
-        if (profilecfg.trigger_left_mode == 3) {
-            
-
-            if (left_trigger_real_position > 15) {
-                pkt[13] |= 0x08; // Enforce valid flag of the left trigger with Valid_Flag0
-                if (audio_motor_flag_offset < REPORT_SIZE) {
-                    pkt[audio_motor_flag_offset] |= 0x03; 
-                }
-                pkt[l_off + 0] = 0x06; 
-                pkt[l_off + 1] = get_profile_config().vibration_frequency; ; // Parameter 1: Frecuency
-                pkt[l_off + 2] = get_profile_config().vibration_force; // Parameter 2: Force
-                pkt[l_off + 3] = get_profile_config().vibration_start_point; // Parameter 3: Start Point
-                memset(&pkt[l_off + 4], 0, 7);
-            } else {
-                pkt[l_off + 0] = 0x05; 
-                memset(&pkt[l_off + 1], 0, 10);
-            }
-        }
-        // ========================================================================
-
-#if !DISABLE_SPEAKER_PROC
         // Speaker Audio Data
         pkt[142] = (plug_headset ? 0x16 : 0x13) | 0 << 6 | 1 << 7; // Speaker: 0x13
         // L Headset Mono: 0x14
@@ -303,7 +232,7 @@ void __not_in_flash_func(audio_loop)() {
         critical_section_enter_blocking(&opus_cs);
         memcpy(pkt + 144, opus_buf, 200);
         critical_section_exit(&opus_cs);
-#endif
+
 
         bt_write(pkt, sizeof(pkt));
         haptic_buf_pos = 0;
@@ -315,11 +244,11 @@ void audio_init() {
     resampler.SetRates(48000, 3000);
     resampler.SetFeedMode(true);
     resampler.Prealloc(2, 24, 6);
- #if !DISABLE_SPEAKER_PROC
+ 
     queue_init(&audio_fifo, sizeof(audio_raw_element), 2);
     critical_section_init(&opus_cs);
     multicore_launch_core1_with_stack(core1_entry, audio_core1_stack, sizeof(audio_core1_stack));
-#endif
+
 }
 
 static OpusEncoder *encoder;
@@ -354,7 +283,7 @@ void __not_in_flash_func(core1_entry)() {
         resampler_audio.ResampleOut(out_buf, nframes, 480, 2);
 
         static uint8_t out[200];
-        (void) opus_encode_float(encoder, out_buf, 480, out, 200);
+        const int encoded_len = opus_encode_float(encoder, out_buf, 480, out, 200);
         critical_section_enter_blocking(&opus_cs);
         memcpy(opus_buf, out, 200);
         critical_section_exit(&opus_cs);
