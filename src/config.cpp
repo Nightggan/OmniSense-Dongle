@@ -203,7 +203,7 @@ void profile_config_valid()
             profile.hair_wall_start_point = 97;
             profile.rumble_trigger_mode = 2;            // 3=Both
             profile.rumble_trigger_on_press = false;    // 0=always
-            profile.rumple_trigger_strength = 100; // full strength
+            profile.rumble_trigger_strength = 100; // full strength
             profile.rumble_trigger_frequency = 60;  // ~mid tactile buzz
             printf("[Profile] Initial Trigger Values Set\n");
             profile.gyro_button_activator = 0; //Disabled by default
