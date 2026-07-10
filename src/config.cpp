@@ -132,6 +132,11 @@ void global_config_valid() {
         global_body->time_config_mode = 0;//Default instant press for config mode
         printf("[Config] Global Time Config is invalid\n");
     }
+
+    if(global_body->sleep_host_enable > 1){
+        printf("[Config] Sleep Host is invalid\n");
+        global_body->sleep_host_enable = 0; //Default to off to avoid sleep host prior to know shortcuts
+    }
     if(config.magic != CONFIG_MAGIC)//First run after flash erase, set magic to valid value to avoid infinite loop of config validation
     {
         config.magic = CONFIG_MAGIC;
@@ -190,8 +195,10 @@ void profile_config_valid()
         }
         if(config.initial_setup_completed!=7)
         {
-            std::string profile_name_temp = "Profile " + z +1;
-            std::strcpy(profile.profile_name, profile_name_temp.c_str()); 
+            char profile_name_temp[18];
+            snprintf(profile_name_temp, sizeof(profile_name_temp), "Game Profile %d", z + 1);
+            
+            memcpy(profile.profile_name, profile_name_temp, sizeof(profile.profile_name));
             profile.feedback_start_point = 0;
             profile.feedback_force = 200;
             profile.trigger_start_point = 20;
