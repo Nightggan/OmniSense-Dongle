@@ -20,6 +20,7 @@ struct __attribute__((packed)) Global_Config_body {
     uint16_t auto_haptics_lowpass_hz; // LP cutoff in Hz [20-400], default 80
     uint8_t enable_poweroff_shortcut; // 1: PS+<button> powers off controller, 0: disabled
     uint8_t wake_enable;              // 1: power off controller on host sleep + wake host on reconnect, 0: disabled
+    uint8_t sleep_host_enable;              // 1: sleep host on shortcut press
     float speaker_volume;     //Master Speaker volume [0-100] converted to -100 to 0 on audio.cpp
     float headset_volume; //Headset volume [0-100] converted to -100 to 0 on audio.cpp
     uint8_t auto_mute_mode; //Disable Speaker on Auto Haptics mode 1 and 2
@@ -59,7 +60,7 @@ struct __attribute__((packed)) Profile_Config_body {
     uint8_t rumble_trigger_strength;   // [0-100] amplitude multiplier applied to the rumble value
     uint8_t rumble_trigger_frequency;  // vibration frequency parameter for the 0x26 effect [1-255], ~tactile buzz
     uint8_t rumble_trigger_mode;  // 0: Left, 1: Right, 2: Both
-    char profile_name[12];
+    char profile_name[18];
 };
 
 
