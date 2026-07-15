@@ -208,7 +208,6 @@ void profile_config_valid()
             profile.vibration_frequency = 36;
             profile.vibration_force = 255;
             profile.hair_wall_start_point = 97;
-            profile.rumble_trigger_mode = 2;            // 3=Both
             profile.rumble_trigger_on_press = false;    // 0=always
             profile.rumble_trigger_strength = 100; // full strength
             profile.rumble_trigger_frequency = 20;  // Like Mode 3 Machine Gun, but a bit more subtle depending on rumble signal. 20 is a good default for most games, but can be adjusted to taste.
