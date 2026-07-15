@@ -59,9 +59,11 @@ static constexpr uint8_t state_init_data[63] = {
 };
 
 uint8_t state[63]{};
+static volatile uint16_t g_rumble_emulation = 0;
 
 void state_init() {
     memcpy(state, state_init_data, sizeof(state));
+    g_rumble_emulation = 0;
 }
 
 void __not_in_flash_func(state_set)(uint8_t *data, const uint8_t size) {
@@ -184,6 +186,8 @@ void state_update(const uint8_t *data, const uint8_t size) {
     
     SetStateData update{};
     memcpy(&update, data, sizeof(update));
+    g_rumble_emulation = static_cast<uint16_t>(update.RumbleEmulationRight) |
+                         (static_cast<uint16_t>(update.RumbleEmulationLeft) << 8);
 
     const auto copy_if_allowed = [&](const bool allowed, const size_t offset, const size_t length) {
         if (allowed) {
@@ -590,6 +594,16 @@ void state_set_led_color(uint8_t r, uint8_t g, uint8_t b) {
     state[offsetof(SetStateData, LedBlue)]  = b;
 }
 
+void state_get_rumble_emulation(uint8_t *right, uint8_t *left) {
+    const uint16_t rumble = g_rumble_emulation;
+    if (right != nullptr) {
+        *right = static_cast<uint8_t>(rumble & 0xFFu);
+    }
+    if (left != nullptr) {
+        *left = static_cast<uint8_t>((rumble >> 8) & 0xFFu);
+    }
+}
+
 bool state_motors_active() {
     return state[offsetof(SetStateData, RumbleEmulationRight)] != 0 ||
            state[offsetof(SetStateData, RumbleEmulationLeft)]  != 0;
@@ -598,9 +612,9 @@ bool state_motors_active() {
 void state_clear_motors() {
     state[offsetof(SetStateData, RumbleEmulationRight)] = 0;
     state[offsetof(SetStateData, RumbleEmulationLeft)]  = 0;
+    g_rumble_emulation = 0;
 }
 
 static uint8_t  g_host_cache[sizeof(SetStateData)];
 static uint8_t  g_host_cache_size = 0;
 static uint32_t g_last_host_ms = 0;
-

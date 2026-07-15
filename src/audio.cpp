@@ -30,6 +30,62 @@
 using std::clamp;
 using std::max;
 
+namespace {
+    constexpr float kHapticOutputSampleRate = 3000.0f;
+    struct ClassicRumbleMixTuning {
+        float heavy_freq_hz;
+        float light_freq_hz;
+        float heavy_gain;
+        float light_gain;
+        float heavy_attack_ms;
+        float heavy_release_ms;
+        float light_attack_ms;
+        float light_release_ms;
+    };
+
+    // Tuned to approximate legacy ERM "heavy/light" motor feel on voice-coil actuators.
+    constexpr ClassicRumbleMixTuning kClassicRumbleBalanced{
+        62.0f, 154.0f,
+        1.00f, 0.72f,
+        12.0f, 42.0f,
+        6.0f, 24.0f
+    };
+    constexpr ClassicRumbleMixTuning kClassicRumbleStrong{
+        56.0f, 168.0f,
+        1.25f, 0.92f,
+        8.0f, 36.0f,
+        4.0f, 18.0f
+    };
+    constexpr ClassicRumbleMixTuning kClassicRumbleOff{
+        62.0f, 154.0f,
+        0.0f, 0.0f,
+        12.0f, 42.0f,
+        6.0f, 24.0f
+    };
+
+    float triangle_lfo(float &phase, const float step) {
+        phase += step;
+        if (phase >= 1.0f) {
+            phase -= 1.0f;
+        }
+        return 1.0f - 4.0f * fabsf(phase - 0.5f);
+    }
+
+    const ClassicRumbleMixTuning &get_classic_rumble_mix_tuning(Global_Config_body global_config) {
+        int profile = global_config.classic_rumble_mix_profile;
+        switch (profile) {
+            case 0:
+                return kClassicRumbleBalanced;
+            case 1:
+                return kClassicRumbleStrong;
+            case 2:
+                return kClassicRumbleOff;
+            default:
+                return kClassicRumbleBalanced;
+        }
+    }
+}
+
 static WDL_Resampler resampler;
 static uint8_t reportSeqCounter = 0;
 static uint8_t packetCounter = 0;
@@ -94,29 +150,44 @@ void __not_in_flash_func(audio_loop)() {
     WDL_ResampleSample *in_buf;
     int nframes = resampler.ResamplePrepare(frames, OUTPUT_CHANNELS, &in_buf);
 
-    const uint8_t auto_mode  = get_global_config().auto_haptics_enable;
-    const bool auto_mute     = ((auto_mode == 2 || actual_ch == 2) && get_global_config().auto_mute_mode) ||
-                               (auto_mode == 1 && get_global_config().auto_mute_mode);
+    const auto &global_config = get_global_config();
+    const uint8_t auto_mode  = global_config.auto_haptics_enable;
+    const bool auto_mute     = ((auto_mode == 2 || actual_ch == 2) && global_config.auto_mute_mode) ||
+                               (auto_mode == 1 && global_config.auto_mute_mode);
     if(audio_mute)//Check if mute shortcut
         mute[0] = true;
     else
         mute[0] = false;
     
     const float audio_gain   = (mute[0] || auto_mute) ? 0.0f : powf(10.0f, local_current_volume / 20.0f);
-    const float haptics_gain = get_global_config().haptics_gain;
+    const float haptics_gain = global_config.haptics_gain;
     // For 2ch mode (Windows/Stereo Mix), always enable auto-haptics DSP regardless of auto_mode setting
     const float auto_gain    = (auto_mode > 0 || actual_ch == 2) ? (current_auto_haptics_gain / 100.0f) * haptics_gain : 0.0f;
 
-    const float lp_fc = (float)get_global_config().auto_haptics_lowpass_hz;
+    const float lp_fc = (float)global_config.auto_haptics_lowpass_hz;
     const float lp_a = 1.0f - expf(-2.0f * M_PI * lp_fc / 48000.0f);
 
     // Persistent DSP state across calls
     static float lp_l = 0.0f,  lp_r = 0.0f;     // 1-pole LP memory (speaker ch0/1)
     static float lp_h_l = 0.0f, lp_h_r = 0.0f;  // 1-pole LP memory (native haptic ch2/3, Mix mode)
     static float env_l = 0.0f, env_r = 0.0f;    // envelope follower memory
+    static float rumble_phase_l = 0.0f, rumble_phase_r = 0.0f;
+    static float rumble_env_l = 0.0f, rumble_env_r = 0.0f;
     // Attack ~1 ms, release ~80 ms (values are per-frame at 48 kHz, not per-sample)
     constexpr float ENV_ATK = 0.40f;
     constexpr float ENV_REL = 0.025f;
+    uint8_t rumble_right = 0;
+    uint8_t rumble_left = 0;
+    state_get_rumble_emulation(&rumble_right, &rumble_left);
+    const auto &rumble_tuning = get_classic_rumble_mix_tuning(global_config);
+    const float rumble_mix_l = (rumble_left / 255.0f) * rumble_tuning.heavy_gain;
+    const float rumble_mix_r = (rumble_right / 255.0f) * rumble_tuning.light_gain;
+    const float rumble_step_l = rumble_tuning.heavy_freq_hz / kHapticOutputSampleRate;
+    const float rumble_step_r = rumble_tuning.light_freq_hz / kHapticOutputSampleRate;
+    const float rumble_atk_l = 1.0f - expf(-1.0f / ((rumble_tuning.heavy_attack_ms * 0.001f) * kHapticOutputSampleRate));
+    const float rumble_rel_l = 1.0f - expf(-1.0f / ((rumble_tuning.heavy_release_ms * 0.001f) * kHapticOutputSampleRate));
+    const float rumble_atk_r = 1.0f - expf(-1.0f / ((rumble_tuning.light_attack_ms * 0.001f) * kHapticOutputSampleRate));
+    const float rumble_rel_r = 1.0f - expf(-1.0f / ((rumble_tuning.light_release_ms * 0.001f) * kHapticOutputSampleRate));
 
     for (int i = 0; i < nframes; i++) {
  
@@ -191,8 +262,28 @@ void __not_in_flash_func(audio_loop)() {
 
     // 4. 转换为int8并缓冲，满64字节即组包发送
     for (int i = 0; i < out_frames; i++) {
-        int val_l = static_cast<int>(out_buf[i * 2] * 127.0f);
-        int val_r = static_cast<int>(out_buf[i * 2 + 1] * 127.0f);
+        float mixed_l = out_buf[i * 2];
+        float mixed_r = out_buf[i * 2 + 1];
+        if (rumble_mix_l > rumble_env_l) {
+            rumble_env_l += (rumble_mix_l - rumble_env_l) * rumble_atk_l;
+        } else {
+            rumble_env_l += (rumble_mix_l - rumble_env_l) * rumble_rel_l;
+        }
+        if (rumble_mix_r > rumble_env_r) {
+            rumble_env_r += (rumble_mix_r - rumble_env_r) * rumble_atk_r;
+        } else {
+            rumble_env_r += (rumble_mix_r - rumble_env_r) * rumble_rel_r;
+        }
+        if (rumble_env_l > 0.001f) {
+            mixed_l += triangle_lfo(rumble_phase_l, rumble_step_l) * rumble_env_l;
+        }
+        if (rumble_env_r > 0.001f) {
+            mixed_r += triangle_lfo(rumble_phase_r, rumble_step_r) * rumble_env_r;
+        }
+        mixed_l = mixed_l / (1.0f + (mixed_l < 0.0f ? -mixed_l : mixed_l));
+        mixed_r = mixed_r / (1.0f + (mixed_r < 0.0f ? -mixed_r : mixed_r));
+        int val_l = static_cast<int>(clamp(mixed_l, -1.0f, 1.0f) * 127.0f);
+        int val_r = static_cast<int>(clamp(mixed_r, -1.0f, 1.0f) * 127.0f);
         haptic_buf[haptic_buf_pos++] = (int8_t) clamp(val_l, -128, 127); // 似乎clamp有点多余？还是以防万一吧
         haptic_buf[haptic_buf_pos++] = (int8_t) clamp(val_r, -128, 127);
 
@@ -216,6 +307,12 @@ void __not_in_flash_func(audio_loop)() {
         // SetStateData
         pkt[11] = 0x10 | 0 << 6 | 1 << 7;
         pkt[12] = 63;
+        state_set(pkt + 13, sizeof(SetStateData));
+        // Legacy rumble is mixed into the PCM haptics stream below, so keep 0x36
+        // in haptics mode instead of letting the controller switch to bypass mode.
+        pkt[13 + offsetof(SetStateData, RumbleEmulationRight)] = 0;
+        pkt[13 + offsetof(SetStateData, RumbleEmulationLeft)] = 0;
+        pkt[13] &= static_cast<uint8_t>(~(1u << 1));
 
         
         // Haptics Audio Data

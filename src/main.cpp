@@ -474,10 +474,10 @@ void __not_in_flash_func(on_bt_data)(CHANNEL_TYPE channel, uint8_t *data, uint16
             static bool haptic_gain_up_shortcut_lock = false;
             static bool haptic_gain_down_shortcut_lock = false;
             static bool sleep_host_shortcut_lock = false;
-
+            static bool rumble_mode_switch_shortcut_lock = false;
             // Obtaining D-Pad value
             uint8_t dpad_value = data[10] & 0x0F;
-            Global_Config_body new_config = get_global_config();
+            Global_Config_body actual_global_config = get_global_config();
             // Profile switch: DPAD
             if (dpad_value == 0)//Profile 0
             {    
@@ -601,6 +601,21 @@ void __not_in_flash_func(on_bt_data)(CHANNEL_TYPE channel, uint8_t *data, uint16
                 lightbar_mode_switch_shortcut_lock = false;
             }
             
+            // Rumble To Haptics mode: Cross
+            if (shortcut_btn_pressed(data, 1))
+            {    
+                if (!rumble_mode_switch_shortcut_lock) {
+                    
+                    actual_global_config.classic_rumble_mix_profile = (actual_global_config.classic_rumble_mix_profile + 1) % 3; // Ciclar modos de luz
+                    set_global_config(actual_global_config);
+                    request_temp_save = true; //Temp save request to update the state
+                    rumble_mode_switch_shortcut_lock = true; // Locking the lock
+                }
+            } else {
+                // Unlocking the lock on button release
+                rumble_mode_switch_shortcut_lock = false;
+            }
+
             //Breathing on/off: Options
             if (shortcut_btn_pressed(data, 7))
             {
@@ -697,24 +712,24 @@ void __not_in_flash_func(on_bt_data)(CHANNEL_TYPE channel, uint8_t *data, uint16
                 {   
                     if(headset_plugged)
                     {
-                        new_config.headset_volume = new_config.headset_volume + 2.0f;
-                        if (new_config.headset_volume > 100.0f) {
-                            new_config.headset_volume = 100.0f;
+                        actual_global_config.headset_volume = actual_global_config.headset_volume + 2.0f;
+                        if (actual_global_config.headset_volume > 100.0f) {
+                            actual_global_config.headset_volume = 100.0f;
                         }
                         
-                        local_current_volume = new_config.headset_volume - 100.0f;
-                        set_global_config(new_config);
+                        local_current_volume = actual_global_config.headset_volume - 100.0f;
+                        set_global_config(actual_global_config);
                         request_temp_save = true;    
                     }
                     else
                     {
-                        new_config.speaker_volume = new_config.speaker_volume + 2.0f;
-                        if (new_config.speaker_volume > 100.0f) {
-                            new_config.speaker_volume = 100.0f;
+                        actual_global_config.speaker_volume = actual_global_config.speaker_volume + 2.0f;
+                        if (actual_global_config.speaker_volume > 100.0f) {
+                            actual_global_config.speaker_volume = 100.0f;
                         }
                         
-                        local_current_volume = new_config.speaker_volume - 100.0f;
-                        set_global_config(new_config);
+                        local_current_volume = actual_global_config.speaker_volume - 100.0f;
+                        set_global_config(actual_global_config);
                         request_temp_save = true;    
                     }
                     audio_mute = false; // Disable mute
@@ -736,24 +751,24 @@ void __not_in_flash_func(on_bt_data)(CHANNEL_TYPE channel, uint8_t *data, uint16
                 {
                     if(headset_plugged)
                     {
-                        new_config.headset_volume = new_config.headset_volume - 2.0f;
-                        if (new_config.headset_volume < 0.0f) {
-                            new_config.headset_volume = 0.0f;
+                        actual_global_config.headset_volume = actual_global_config.headset_volume - 2.0f;
+                        if (actual_global_config.headset_volume < 0.0f) {
+                            actual_global_config.headset_volume = 0.0f;
                         }
                         
-                        local_current_volume = new_config.headset_volume - 100.0f;
-                        set_global_config(new_config);
+                        local_current_volume = actual_global_config.headset_volume - 100.0f;
+                        set_global_config(actual_global_config);
                         request_temp_save = true;    
                     }
                     else
                     {
-                        new_config.speaker_volume = new_config.speaker_volume - 2.0f;
-                        if (new_config.speaker_volume < 0.0f) {
-                            new_config.speaker_volume = 0.0f;
+                        actual_global_config.speaker_volume = actual_global_config.speaker_volume - 2.0f;
+                        if (actual_global_config.speaker_volume < 0.0f) {
+                            actual_global_config.speaker_volume = 0.0f;
                         }
                         
-                        local_current_volume = new_config.speaker_volume - 100.0f;
-                        set_global_config(new_config);
+                        local_current_volume = actual_global_config.speaker_volume - 100.0f;
+                        set_global_config(actual_global_config);
                         request_temp_save = true;    
                     } 
                     audio_mute = false; // Disable mute
@@ -807,14 +822,14 @@ void __not_in_flash_func(on_bt_data)(CHANNEL_TYPE channel, uint8_t *data, uint16
             //Haptic Gain Up Shortcut control: Right Analog Up
             if (haptic_gain_up_shortcut_lock) {
                 
-                new_config.auto_haptics_gain = new_config.auto_haptics_gain + 4;
-                if (new_config.auto_haptics_gain > 200) {
-                    new_config.auto_haptics_gain = 200;
+                actual_global_config.auto_haptics_gain = actual_global_config.auto_haptics_gain + 4;
+                if (actual_global_config.auto_haptics_gain > 200) {
+                    actual_global_config.auto_haptics_gain = 200;
                 }
                 else
                 {
-                    current_auto_haptics_gain = new_config.auto_haptics_gain;
-                    set_global_config(new_config);
+                    current_auto_haptics_gain = actual_global_config.auto_haptics_gain;
+                    set_global_config(actual_global_config);
                     request_temp_save = true;
                 }
                 right_analog_up_holding_time = 0;
@@ -825,14 +840,14 @@ void __not_in_flash_func(on_bt_data)(CHANNEL_TYPE channel, uint8_t *data, uint16
             //Haptic Gain Down Shortcut control: Right Analog Down
             if (haptic_gain_down_shortcut_lock) {
                 
-                new_config.auto_haptics_gain = new_config.auto_haptics_gain - 4;
-                if (new_config.auto_haptics_gain < 0) {
-                    new_config.auto_haptics_gain = 0;
+                actual_global_config.auto_haptics_gain = actual_global_config.auto_haptics_gain - 4;
+                if (actual_global_config.auto_haptics_gain < 0) {
+                    actual_global_config.auto_haptics_gain = 0;
                 }
                 else
                 {
-                    current_auto_haptics_gain = new_config.auto_haptics_gain;
-                    set_global_config(new_config);
+                    current_auto_haptics_gain = actual_global_config.auto_haptics_gain;
+                    set_global_config(actual_global_config);
                     request_temp_save = true;
                 }
                 right_analog_down_holding_time = 0;
@@ -844,7 +859,7 @@ void __not_in_flash_func(on_bt_data)(CHANNEL_TYPE channel, uint8_t *data, uint16
             && !right_trigger_mode_override_shortcut_lock && !lightbar_breathing_shortcut_lock
             && !lightbar_mode_switch_shortcut_lock && !speaker_volume_down_shortcut_lock && !speaker_volume_up_shortcut_lock && !profile_switch_shortcut_lock_up
             && !profile_switch_shortcut_lock_down && !profile_switch_shortcut_lock_left && !profile_switch_shortcut_lock_right
-            && !haptic_gain_up_shortcut_lock && !haptic_gain_down_shortcut_lock)
+            && !haptic_gain_up_shortcut_lock && !haptic_gain_down_shortcut_lock && !sleep_host_shortcut_lock && !rumble_mode_switch_shortcut_lock)
             {
                 if(headset_plugged)
                 {
@@ -1065,15 +1080,11 @@ void __not_in_flash_func(on_bt_data)(CHANNEL_TYPE channel, uint8_t *data, uint16
 uint16_t tud_hid_get_report_cb(uint8_t itf, uint8_t report_id, hid_report_type_t report_type, uint8_t *buffer,
                                uint16_t reqlen) {
     (void) report_type;
-    if (itf == 1) itf=0; //Ignores Control requests on Consumer interface (itf=1) to avoid STALLs on the host side and reroutes them to DS itf
-    if (is_pico_cmd(report_id)) {
+   
+    if (is_pico_cmd(report_id) && itf != 1) {
         return pico_cmd_get(report_id, buffer, reqlen);
     }
 
-    if (itf == 1 && report_id == HID_REPORT_ID_KEYBOARD) {
-        return 0;
-    }
-    
     if(itf!=1)//DualSense full reports
     {
         std::vector<uint8_t> feature_data = get_feature_data(report_id, reqlen);
@@ -1084,15 +1095,22 @@ uint16_t tud_hid_get_report_cb(uint8_t itf, uint8_t report_id, hid_report_type_t
         }
     }
 
-    if(report_id!=0x09 && itf==1)//DualSense full reports except 0x09 to avoid duplicate mac address for HID-Consumer
+    if(itf == 1)
     {
-        std::vector<uint8_t> feature_data = get_feature_data(report_id, reqlen);
-        if (!feature_data.empty()) {
-            uint16_t len = (uint16_t)std::min((size_t)reqlen, feature_data.size() - 1);
-            memcpy(buffer, feature_data.data() + 1, len);
-            return len;
+        /*if(report_id!=0x09)//DualSense full reports except 0x09 to avoid duplicate mac address for HID-Consumer
+        {
+            std::vector<uint8_t> feature_data = get_feature_data(report_id, reqlen);
+            if (!feature_data.empty()) {
+                uint16_t len = (uint16_t)std::min((size_t)reqlen, feature_data.size() - 1);
+                memcpy(buffer, feature_data.data() + 1, len);
+                return len;
+            }
+        }*/
+        if (report_id == HID_REPORT_ID_KEYBOARD) {
+            return 0;
         }
     }
+    
     // BT feature data not yet cached — return zeros instead of STALLing.
     // hid_playstation calls GET_FEATURE(0x20) during probe; a STALL causes
     // it to fail and leaves the device without a driver.
@@ -1388,7 +1406,7 @@ int main() {
                     state_clear_motors();
                 }
             }
-            state_keepalive();
+            
         }
         
         if (usb_reconnect_requested) {
@@ -1435,7 +1453,7 @@ int main() {
             last_time_check_lb = to_ms_since_boot(get_absolute_time());
         }
         
-        //state_keepalive();
+        state_keepalive(); //Running every cycle to keep alive the DualSense haptic subsystem and lightbar effects
         
         lightbar_loop();
 
