@@ -25,7 +25,8 @@ struct __attribute__((packed)) Global_Config_body {
     float headset_volume; //Headset volume [0-100] converted to -100 to 0 on audio.cpp
     uint8_t auto_mute_mode; //Disable Speaker on Auto Haptics mode 1 and 2
     uint16_t time_config_mode; //Millisecs to hold mute to enter config mode
-    uint8_t control_host_volume; // 1: allow host volume control via HID Consumer Control, 0: control internal ds speaker volume only
+    uint8_t control_host_volume; //0: internal DS volume, 1: host HID volume control
+    uint8_t classic_rumble_mix_profile; //0: balanced, 1: strong, 2: off
     
 };
 struct __attribute__((packed)) Profile_Config_body {

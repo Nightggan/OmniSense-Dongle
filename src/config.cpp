@@ -211,7 +211,7 @@ void profile_config_valid()
             profile.rumble_trigger_mode = 2;            // 3=Both
             profile.rumble_trigger_on_press = false;    // 0=always
             profile.rumble_trigger_strength = 100; // full strength
-            profile.rumble_trigger_frequency = 60;  // ~mid tactile buzz
+            profile.rumble_trigger_frequency = 20;  // Like Mode 3 Machine Gun, but a bit more subtle depending on rumble signal. 20 is a good default for most games, but can be adjusted to taste.
             printf("[Profile] Initial Trigger Values Set\n");
             profile.gyro_button_activator = 0; //Disabled by default
             profile.analog_gyro_deadzone = 42.5f; //Default deadzone based on Steam Input 1/3 of the max value of 127.0f (10000 deadzone of 32767.0f)
