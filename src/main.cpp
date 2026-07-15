@@ -245,25 +245,49 @@ auto set_bit = [](uint8_t &byte, const int bit, const bool value) {
         byte = (byte & ~(1 << bit)) | (value << bit);
     };
 
-// Volume Async system
+// HID Async system
+static constexpr uint8_t HID_REPORT_ID_KEYBOARD = 1;
+static constexpr uint8_t HID_REPORT_ID_VOLUME = 3;
+static constexpr uint8_t HID_REPORT_ID_SYSTEM_CONTROL = 2;
+//static constexpr uint16_t HID_USAGE_CONSUMER_SLEEP = 0x0032;
 static uint16_t current_media_key = 0;
 static bool media_key_needs_release = false;
 static uint32_t media_key_timer = 0;
+static uint8_t current_system_control = 0;
+static bool system_control_needs_release = false;
+static uint32_t system_control_timer = 0;
 
 void process_media_keys() {
     if (!tud_hid_n_ready(1)) return; 
+
+    if (system_control_needs_release) {
+        if (to_ms_since_boot(get_absolute_time()) - system_control_timer > 20) {
+            uint8_t empty = 0;
+            tud_hid_n_report(1, HID_REPORT_ID_SYSTEM_CONTROL, &empty, sizeof(empty));
+            system_control_needs_release = false;
+        }
+        return;
+    }
+
+    if (current_system_control != 0) {
+        tud_hid_n_report(1, HID_REPORT_ID_SYSTEM_CONTROL, &current_system_control, sizeof(current_system_control));
+        system_control_needs_release = true;
+        system_control_timer = to_ms_since_boot(get_absolute_time());
+        current_system_control = 0;
+        return;
+    }
 
     if (media_key_needs_release) {
         // Han pasado 20 milisegundos? Soltamos la tecla.
         if (to_ms_since_boot(get_absolute_time()) - media_key_timer > 20) {
             uint16_t empty = 0;
-            tud_hid_n_report(1, 3, &empty, sizeof(empty));
+            tud_hid_n_report(1, HID_REPORT_ID_VOLUME, &empty, sizeof(empty));
             media_key_needs_release = false;
         }
     } 
     else if (current_media_key != 0) {
         // Enviar la nueva tecla
-        tud_hid_n_report(1, 3, &current_media_key, sizeof(current_media_key));
+        tud_hid_n_report(1, HID_REPORT_ID_VOLUME, &current_media_key, sizeof(current_media_key));
         media_key_needs_release = true;
         media_key_timer = to_ms_since_boot(get_absolute_time());
         current_media_key = 0; // Limpiamos la solicitud
@@ -281,6 +305,10 @@ void send_volume_down_command() {
 
 void send_mute_command() {
     if (!media_key_needs_release) current_media_key = HID_USAGE_CONSUMER_MUTE;
+}
+
+void send_sleep_command() {
+    if (!media_key_needs_release && !system_control_needs_release) current_system_control = 0x02;
 }
 
 //Custon on_bt_data adding trigger/lightbar modes and shortcuts
@@ -445,6 +473,7 @@ void __not_in_flash_func(on_bt_data)(CHANNEL_TYPE channel, uint8_t *data, uint16
             static bool profile_switch_shortcut_lock_right = false;
             static bool haptic_gain_up_shortcut_lock = false;
             static bool haptic_gain_down_shortcut_lock = false;
+            static bool sleep_host_shortcut_lock = false;
 
             // Obtaining D-Pad value
             uint8_t dpad_value = data[10] & 0x0F;
@@ -506,6 +535,22 @@ void __not_in_flash_func(on_bt_data)(CHANNEL_TYPE channel, uint8_t *data, uint16
                 profile_switch_shortcut_lock_left = false;
             }
 
+            // Sleep Host: Circle
+            if (get_global_config().sleep_host_enable) {
+                    
+                    
+                if (shortcut_btn_pressed(data, 2))
+                {
+                    send_sleep_command();
+                    config_button_pressed = false;
+                    config_mode_enabled = false;
+                    sleep_host_shortcut_lock = true;
+                    bt_disconnect();
+                } else {
+                    sleep_host_shortcut_lock = false;
+                }
+            }
+
             // Power Off: TRIANGLE
             if (get_global_config().enable_poweroff_shortcut)
             {
@@ -521,9 +566,11 @@ void __not_in_flash_func(on_bt_data)(CHANNEL_TYPE channel, uint8_t *data, uint16
             {    
                 if(get_global_config().control_host_volume==1)
                 {
-                    //Send a volume up command to the host
-                    send_mute_command();
-                    mute_speaker_shortcut_lock = true;
+                    if (!mute_speaker_shortcut_lock) {
+                        //Send a volume up command to the host
+                        send_mute_command();
+                        mute_speaker_shortcut_lock = true;
+                    }
                 }
                 else
                 {
@@ -610,7 +657,7 @@ void __not_in_flash_func(on_bt_data)(CHANNEL_TYPE channel, uint8_t *data, uint16
                 speaker_volume_up_shortcut_lock = false;
                 
             }
-            if(left_analog_up_holding_time != 0 && (to_ms_since_boot(get_absolute_time()) - left_analog_up_holding_time > 50))
+            if(left_analog_up_holding_time != 0 && (to_ms_since_boot(get_absolute_time()) - left_analog_up_holding_time > 100))
             {
                 speaker_volume_up_shortcut_lock = true;
             }
@@ -631,7 +678,7 @@ void __not_in_flash_func(on_bt_data)(CHANNEL_TYPE channel, uint8_t *data, uint16
                 left_analog_down_triggered = false;
                 speaker_volume_down_shortcut_lock = false;
             }
-            if(left_analog_down_holding_time != 0 && (to_ms_since_boot(get_absolute_time()) - left_analog_down_holding_time > 50))
+            if(left_analog_down_holding_time != 0 && (to_ms_since_boot(get_absolute_time()) - left_analog_down_holding_time > 100))
             {
                 speaker_volume_down_shortcut_lock = true;
             }
@@ -1018,9 +1065,13 @@ void __not_in_flash_func(on_bt_data)(CHANNEL_TYPE channel, uint8_t *data, uint16
 uint16_t tud_hid_get_report_cb(uint8_t itf, uint8_t report_id, hid_report_type_t report_type, uint8_t *buffer,
                                uint16_t reqlen) {
     (void) report_type;
-       
-    if (is_pico_cmd(report_id) && itf!=1) {
+    if (itf == 1) itf=0; //Ignores Control requests on Consumer interface (itf=1) to avoid STALLs on the host side and reroutes them to DS itf
+    if (is_pico_cmd(report_id)) {
         return pico_cmd_get(report_id, buffer, reqlen);
+    }
+
+    if (itf == 1 && report_id == HID_REPORT_ID_KEYBOARD) {
+        return 0;
     }
     
     if(itf!=1)//DualSense full reports
@@ -1083,25 +1134,30 @@ void tud_hid_set_report_cb(uint8_t itf, uint8_t report_id, hid_report_type_t rep
         return;
     }
 
-    // INTERRUPT OUT
-    if (report_id == 0) {
-        switch (buffer[0]) {
-            case 0x02: {
-                state_update(buffer + 1, bufsize - 1);
-                last_rumble_report_us = to_us_since_boot(get_absolute_time());
-                uint8_t outputData[78]{};
-                outputData[0] = 0x31;
-                outputData[1] = reportSeqCounter << 4;
-                if (++reportSeqCounter == 256) {
-                    reportSeqCounter = 0;
-                }
-                outputData[2] = 0x10;
-                // memcpy(outputData + 3, buffer + 1, bufsize - 1);
-                state_set(outputData + 3,sizeof(SetStateData));
-                bt_write(outputData, sizeof(outputData));
-                break;
-            }
+    auto forward_ds_output_report = [&](const uint8_t *payload, uint16_t payload_size) {
+        state_update(payload, payload_size);
+        last_rumble_report_us = to_us_since_boot(get_absolute_time());
+        uint8_t outputData[78]{};
+        outputData[0] = 0x31;
+        outputData[1] = reportSeqCounter << 4;
+        if (++reportSeqCounter == 256) {
+            reportSeqCounter = 0;
         }
+        outputData[2] = 0x10;
+        state_set(outputData + 3, sizeof(SetStateData));
+        bt_write(outputData, sizeof(outputData));
+    };
+
+    // INTERRUPT OUT:
+    // - Some hosts send report_id=0 and put 0x02 in buffer[0].
+    // - Others send report_id=0x02 directly with payload-only data.
+    if (report_id == 0 && bufsize > 0 && buffer[0] == 0x02) {
+        forward_ds_output_report(buffer + 1, bufsize - 1);
+    } else if (report_id == 0x02) {
+        const bool prefixed_payload = (bufsize > sizeof(SetStateData) && buffer[0] == 0x02);
+        const uint8_t *payload = prefixed_payload ? (buffer + 1) : buffer;
+        const uint16_t payload_size = prefixed_payload ? (bufsize - 1) : bufsize;
+        forward_ds_output_report(payload, payload_size);
     }
     if (report_id == 0x80 ||
         // DSE: Write Profile Block
@@ -1134,7 +1190,7 @@ static void state_keepalive() {
     const auto &cfg = get_profile_config();
 
     // Offset of Valid_Flag1 to push max amps to the trigger motors
-    size_t out_motor_flag_offset = 3 + offsetof(SetStateData, HostTimestamp) + sizeof(uint32_t);
+    //size_t out_motor_flag_offset = 3 + offsetof(SetStateData, HostTimestamp) + sizeof(uint32_t);
 
     // Pushing trigger mode 3 (Machine Gun) every loop, otherwise it falls back to relax mode
     if (cfg.trigger_right_mode == 3) {
@@ -1145,9 +1201,9 @@ static void state_keepalive() {
         if (right_trigger_real_position > 15) {
             set_bit(pkt[3], 2, true);
             //pkt[3 + 0] |= 0x04; // Valid_Flag0: Telling that the R2 is being updated
-            if (out_motor_flag_offset < 78) {
+            /*if (out_motor_flag_offset < 78) {
                 pkt[out_motor_flag_offset] |= 0x03; // Enforcing power stage
-            }
+            }*/
 
             
             pkt[r_off + 0] = 0x06; // L2/R2 trigger effect mode (Machine Gun)
@@ -1170,9 +1226,9 @@ static void state_keepalive() {
         if (left_trigger_real_position > 15) {
             set_bit(pkt[3], 3, true);
             //pkt[3 + 0] |= 0x08; // Valid_Flag0: Telling that the L2 is being updated
-            if (out_motor_flag_offset < 78) {
+            /*if (out_motor_flag_offset < 78) {
                 pkt[out_motor_flag_offset] |= 0x03; 
-            }
+            }*/
 
             pkt[l_off + 0] = 0x06; 
             pkt[l_off + 1] = get_profile_config().vibration_frequency; ; // Parameter 1: Frecuency
@@ -1298,10 +1354,27 @@ int main() {
 #if !ENABLE_SERIAL
         watchdog_update();
 #endif
+        /*{
+            static uint32_t last_synth_tick_ms = 0;
+            const uint32_t now = to_ms_since_boot(get_absolute_time());
+            if (now - last_synth_tick_ms >= 50) {
+                last_synth_tick_ms = now;
+                if (state_synth_tick()) {
+                    uint8_t outputData[78]{};
+                    outputData[0] = 0x31;
+                    outputData[1] = reportSeqCounter << 4;
+                    if (++reportSeqCounter == 256) reportSeqCounter = 0;
+                    outputData[2] = 0x10;
+                    state_set(outputData + 3, sizeof(SetStateData));
+                    bt_write(outputData, sizeof(outputData));
+                }
+            }
+        }*/
         cyw43_arch_poll();
         tud_task();
         process_media_keys();
         //original audio loop location
+        audio_loop();
         interrupt_loop();
         // Run keepalive when audio haptics are active OR when game motors are on.
         // This sustains vibration for game rumble (DualSense needs periodic 0x31).
@@ -1315,8 +1388,9 @@ int main() {
                     state_clear_motors();
                 }
             }
-            //state_keepalive();
+            state_keepalive();
         }
+        
         if (usb_reconnect_requested) {
             if (usb_is_enabled) {
                 tud_disconnect();
@@ -1344,7 +1418,8 @@ int main() {
             pending_save_time = 0;
         }
 
-        audio_loop();
+        
+        //test audio loop location
         if(check_lb_again)//Enforce to check lightbar host color after a cooldown to avoid flashing between 2 host color request
         {
             uint32_t tiempo_actual_local = to_ms_since_boot(get_absolute_time());
@@ -1360,7 +1435,7 @@ int main() {
             last_time_check_lb = to_ms_since_boot(get_absolute_time());
         }
         
-        state_keepalive();
+        //state_keepalive();
         
         lightbar_loop();
 

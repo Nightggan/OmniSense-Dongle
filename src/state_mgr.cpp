@@ -10,7 +10,7 @@
 #include <pico/time.h>
 #include "config.h"
 #include <cmath>
-extern bool spk_active;
+
 
 //Custom vars Omni
 extern uint8_t host_real_color_r;
@@ -181,7 +181,7 @@ void state_update(const uint8_t *data, const uint8_t size) {
             
         }
     }
-
+    
     SetStateData update{};
     memcpy(&update, data, sizeof(update));
 
@@ -202,16 +202,34 @@ void state_update(const uint8_t *data, const uint8_t size) {
     //   0x36 (audio-haptics) reste traité. state_update() n'étant appelé que
     //   sur rapport HID, l'audio seul conserve l'état init (bit1=0).
     const bool motors_on = (update.RumbleEmulationRight || update.RumbleEmulationLeft);
+    const auto &current_config = get_profile_config();
+    
     set_bit(state[0], 0, true);
     set_bit(state[0], 1, motors_on);
     set_bit(state[38], 2, true);
-
-    copy_if_allowed(
+    /*copy_if_allowed(
         true,
         offsetof(SetStateData, RumbleEmulationRight),
         2
-    );//Right and Left
+    );*/ //Right and Left
 
+    //Always allow Rumble Emulation to be set by the host
+    memcpy(
+        state + offsetof(SetStateData, RumbleEmulationRight), 
+        data + offsetof(SetStateData, RumbleEmulationRight),
+        sizeof(uint8_t)
+    );
+
+    memcpy(
+        state + offsetof(SetStateData, RumbleEmulationLeft), 
+        data + offsetof(SetStateData, RumbleEmulationLeft),
+        sizeof(uint8_t)
+    );
+
+    //set_bit(state[kMotorPowerLevelOffset], 0, true);
+    //set_bit(state[kMotorPowerLevelOffset], 1, true);
+    
+    /*
     size_t motor_flag_offset = offsetof(SetStateData, HostTimestamp) + sizeof(uint32_t); 
     if (motor_flag_offset < 63) {
         // Copying what the Host is asking to not break the haptics modes
@@ -221,7 +239,7 @@ void state_update(const uint8_t *data, const uint8_t size) {
         // Enforcing Bit 1 (Enabling Haptic Actuators)
         set_bit(state[motor_flag_offset], 0, true);
         set_bit(state[motor_flag_offset], 1, true);
-    }
+    }*/
 
     
     //Always allow headphone volume control
@@ -356,7 +374,6 @@ void state_update(const uint8_t *data, const uint8_t size) {
     }
     
     // Enforce trigger modes at the end of state_update
-    const auto &current_config = get_profile_config();
     size_t right_trigger_offset = offsetof(SetStateData, RightTriggerFFB);
     size_t left_trigger_offset = offsetof(SetStateData, LeftTriggerFFB);
     
@@ -370,17 +387,14 @@ void state_update(const uint8_t *data, const uint8_t size) {
         memset(state + right_trigger_offset, 0, 11);// Reset right trigger state
     }
     
-    
-    
-    
     // Right Trigger
     if (current_config.trigger_right_mode != 0) {
         trigger_right_mode_0_engaged = false;
         // Other modes: Forcing validity bits on state[0] and Valid_Flag1
         set_bit(state[0], 2, true); 
-        if (motor_flag_offset < 63) {
-            state[motor_flag_offset] |= 0x03; // Calibration and active power stage
-        }
+        /*if (kMotorPowerLevelOffset < 63) {
+            state[kMotorPowerLevelOffset] |= 0x03; // Calibration and active power stage
+        }*/
 
         if (current_config.trigger_right_mode == 1) { // Resistance mode
             state[right_trigger_offset + 0] = 0x01; // Continous Resistance
@@ -464,9 +478,9 @@ void state_update(const uint8_t *data, const uint8_t size) {
     if (current_config.trigger_left_mode != 0) {
         trigger_left_mode_0_engaged = false;
         set_bit(state[0], 3, true); 
-        if (motor_flag_offset < 63) {
-            state[motor_flag_offset] |= 0x03; 
-        }
+        /*if (kMotorPowerLevelOffset < 63) {
+            state[kMotorPowerLevelOffset] |= 0x03; 
+        }*/
 
         if (current_config.trigger_left_mode == 1) {
             state[left_trigger_offset + 0] = 0x01; 
@@ -502,7 +516,9 @@ void state_update(const uint8_t *data, const uint8_t size) {
         }
         else if (current_config.trigger_left_mode == 5) {
             uint16_t amp = (uint16_t)update.RumbleEmulationLeft * (uint16_t)current_config.rumble_trigger_strength / 100u;
-            if (amp > 255) amp = 255;
+            if (amp > 255) 
+                amp = 255;
+
             for (int i = 0; i < 11; ++i) 
                 state[left_trigger_offset + i] = 0;
             // On-press gate: below ~25% pull, emit Off so the trigger stays quiet
@@ -538,12 +554,10 @@ void state_update(const uint8_t *data, const uint8_t size) {
                 }
                 
             }
-            
-            
         }
     }
 
-    state[04] = 0x04;
+    //state[04] = 0x04;
     size_t led_red_offset = offsetof(SetStateData, LedRed);
 
     state[led_red_offset] = lb_controlled_red;   // Calculated colors
@@ -585,3 +599,8 @@ void state_clear_motors() {
     state[offsetof(SetStateData, RumbleEmulationRight)] = 0;
     state[offsetof(SetStateData, RumbleEmulationLeft)]  = 0;
 }
+
+static uint8_t  g_host_cache[sizeof(SetStateData)];
+static uint8_t  g_host_cache_size = 0;
+static uint32_t g_last_host_ms = 0;
+
