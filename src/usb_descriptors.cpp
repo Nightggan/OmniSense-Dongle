@@ -30,6 +30,7 @@
 #ifndef ENABLE_SERIAL
 #define ENABLE_SERIAL 0
 #endif
+#define REPORT_ID_KEYBOARD 1
 #define REPORT_ID_VOLUME 3
 bool ds_mode() {
     if (get_global_config().controller_mode == 2) {
@@ -118,9 +119,43 @@ uint8_t const *tud_descriptor_device_cb(void) {
 
 #define EPNUM_HID_CONSUMER   0x07
 
-// Descriptor HID específico para control de volumen/multimedia
+// Descriptor HID para teclado estándar + control multimedia
 uint8_t const desc_hid_report_consumer[] = {
-    TUD_HID_REPORT_DESC_CONSUMER(HID_REPORT_ID(REPORT_ID_VOLUME))
+    0x05, 0x01, // Usage Page (Generic Desktop)
+    0x09, 0x06, // Usage (Keyboard)
+    0xA1, 0x01, // Collection (Application)
+    0x85, REPORT_ID_KEYBOARD, // Report ID (keyboard)
+    0x05, 0x07, // Usage Page (Keyboard/Keypad)
+    0x19, 0xE0, // Usage Minimum (224)
+    0x29, 0xE7, // Usage Maximum (231)
+    0x15, 0x00, // Logical Minimum (0)
+    0x25, 0x01, // Logical Maximum (1)
+    0x75, 0x01, // Report Size (1)
+    0x95, 0x08, // Report Count (8)
+    0x81, 0x02, // Input (Data,Var,Abs)
+    0x95, 0x01, // Report Count (1)
+    0x75, 0x08, // Report Size (8)
+    0x81, 0x01, // Input (Const,Array,Abs)
+    0x95, 0x05, // Report Count (5)
+    0x75, 0x01, // Report Size (1)
+    0x05, 0x08, // Usage Page (LEDs)
+    0x19, 0x01, // Usage Minimum (1)
+    0x29, 0x05, // Usage Maximum (5)
+    0x91, 0x02, // Output (Data,Var,Abs)
+    0x95, 0x01, // Report Count (1)
+    0x75, 0x03, // Report Size (3)
+    0x91, 0x01, // Output (Const,Array,Abs)
+    0x95, 0x06, // Report Count (6)
+    0x75, 0x08, // Report Size (8)
+    0x15, 0x00, // Logical Minimum (0)
+    0x25, 0x65, // Logical Maximum (101)
+    0x05, 0x07, // Usage Page (Keyboard/Keypad)
+    0x19, 0x00, // Usage Minimum (0)
+    0x29, 0x65, // Usage Maximum (101)
+    0x81, 0x00, // Input (Data,Array,Abs)
+    0xC0,       // End Collection
+    TUD_HID_REPORT_DESC_CONSUMER(HID_REPORT_ID(REPORT_ID_VOLUME)),
+    TUD_HID_REPORT_DESC_SYSTEM_CONTROL(HID_REPORT_ID(2))
 };
 
 //--------------------------------------------------------------------+
@@ -887,8 +922,6 @@ uint8_t const *tud_hid_descriptor_report_cb(uint8_t instance) {
         }
         return desc_hid_report_dse;
     } else if (instance == 1) {
-        // Consumer control interface
-
         return desc_hid_report_consumer;
     }
     return NULL;

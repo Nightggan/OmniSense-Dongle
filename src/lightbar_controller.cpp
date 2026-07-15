@@ -15,7 +15,7 @@
 #include "utils.h"
 
 extern uint8_t interrupt_in_data[63]; // defined in main.cpp
-extern bool spk_active; // main.cpp: true while host USB speaker stream is open
+//extern bool spk_active; // main.cpp: true while host USB speaker stream is open
 extern uint8_t host_real_color_r;
 extern uint8_t host_real_color_g;
 extern uint8_t host_real_color_b;
@@ -111,49 +111,6 @@ namespace{
     int lb_mode = 0;
     bool g_lightbar_override = false; // true when firmware is controlling the LED, false when host controls it
     bool g_lightbar_override_breathing = false; // true when firmware is controlling the LED with a breathing effect, false otherwise
-
-    void send_lightbar_color(uint8_t r, uint8_t g, uint8_t b) {
-        uint8_t pkt[78] = {};
-        pkt[0] = 0x31;
-        pkt[2] = 0x10;
-        // valid_flag1: LIGHTBAR_CONTROL_ENABLE (bit 2)
-        // Flags de validez: Bit 0 = Motores/Gatillos, Bit 2 = Lightbar
-        pkt[4] = 0x04;// valid_flag1: LIGHTBAR_CONTROL_ENABLE (bit 2)
-        
-        pkt[47] = r;   // lightbar_red
-        pkt[48] = g;   // lightbar_green
-        pkt[49] = b;   // lightbar_blue
-        
-        //If in profile_config state mode 
-        if(config_mode_enabled)
-        {
-            pkt[11] = MuteLight::Breathing; //Mute Light Breathing on profile_config mode 3+8
-        }
-        else
-        {
-            pkt[11] = MuteLight::Off; //Mute Light Breathing on profile_config mode 3+8
-        }
-        
-        //Profile to player lights
-        if(local_profile_selected == 0)
-        {
-            pkt[46] = 0x04;
-        }
-        else if(local_profile_selected == 1)
-        {
-            pkt[46] = 0x02;
-        }
-        else if(local_profile_selected == 2)
-        {
-            pkt[46] = 0x15;
-        }
-        else if(local_profile_selected == 3)
-        {
-            pkt[46] = 0x1B;
-        }
-
-        bt_write(pkt, sizeof(pkt));
-    }
 
     void battery_color_init(void) {
         last_report_us = 0;
@@ -347,12 +304,8 @@ namespace{
                     lb_controlled_red = led_final_r;
                     lb_controlled_green = led_final_g;
                     lb_controlled_blue = led_final_b;
-                    state_set_led_color(led_final_r, led_final_g, led_final_b);
-                    
-                    
-                    if (!spk_active) {
-                        send_lightbar_color(led_final_r, led_final_g, led_final_b);
-                    }
+                    //state_set_led_color(led_final_r, led_final_g, led_final_b);
+
                 }
                 else
                 {
@@ -437,7 +390,7 @@ namespace{
                 if(g_lightbar_override_breathing)
                 {
                     lightbar_compute_mode(lb_mode, now_ms);
-                    return;// in HOST mode with breathing enabled, we want to keep the breathing effect but use the host color as the base color for the breathing effect, so we call lightbar_compute_mode to compute the breathing effect on top of the host color, and then we return here to skip the rest of the function, which means we won't be calling state_set_led_color or send_lightbar_color again in this function, so the firmware won't be controlling the LED anymore after this point, and the host will have control over the LED with a breathing effect applied on top of it, which is what we want in this case.
+                    return;
                 }
                 else
                 {
@@ -456,14 +409,7 @@ namespace{
         lb_controlled_red = lb_r; //Asigned the calculated new color with all the effects applied to the extern var for main.cpp to use on keep_alive
         lb_controlled_green = lb_g;
         lb_controlled_blue = lb_b;
-        state_set_led_color(lb_r, lb_g, lb_b);  // ride every host/audio frame
-        if (!spk_active) {
-            // Active push so the LED updates when the host is idle and animations
-            // keep moving. Skipped during audio: the 0x36 frames already carry
-            // state[]'s LED at audio rate, and slipping a 0x31 between them would
-            // intrude on the load-bearing audio/haptic packet cadence.
-            send_lightbar_color(lb_r, lb_g, lb_b);
-        }
+        //state_set_led_color(lb_r, lb_g, lb_b);  // ride every host/audio frame
     }
     
     
