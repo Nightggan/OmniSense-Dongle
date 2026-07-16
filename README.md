@@ -119,6 +119,18 @@ You have **4 distinct profiles**, each storing its own unique setup for:
 
 ---
 
+## ⚙️ Linux Settings
+
+The auto-haptics system needs the pro-audio profile that can be set manually on audio control panel o running this command (once):
+
+```bash
+pactl set-card-profile alsa_card.usb-Sony_Interactive_Entertainment_DualSense_Wireless_Controller-00 pro-audio
+```
+
+If you notice anything unusual after an update of Linux or the Dongle firmware be aware that sometimes the device audio profile cache gets corrupted and needs to be checked running the command above or re enabling the pro-audio profile manually on the audio control panel.
+
+---
+
 ## 📝 Changes from the Original Fork
 
 - Removed the shortcut to disable the touchpad.
