@@ -46,9 +46,12 @@ You don't always need the web app to make changes. You can enter **Configuration
 | **Options** | Toggle Lightbar Breathing Effect | Saved to Profile |
 | **L1** | Cycle Left Trigger Mode | Saved to Profile |
 | **R1** | Cycle Right Trigger Mode | Saved to Profile |
-| **Left Stick Up/Down** | Increase/Decrease Volume (Speaker & Headphones) | Global |
+| **Left Stick Up/Down** | Increase/Decrease Volume (Speaker & Headphones / Windows Host) | Global |
 | **Right Stick Up/Down** | Increase/Decrease Haptic Gain | Global |
-| **Square** | Mute Audio (Speaker & Headphones) | Global |
+| **Square** | Mute Audio (Speaker & Headphones / Windows Host) | Global |
+| **Circle** | Sleep Host (Windows) | Global |
+| **Cross** | Change Rumble to Haptics Mode | Global |
+| **Triangle** | Power off controller | Global |
 | **D-PAD (Any dir.)** | Cycle through Profiles 0 to 3 | Global |
 
 > **Pro-Tip:** The quick Mute state (Square) resets when you turn off the controller. If you want to permanently mute the audio, use the Left Stick Down to lower the volume to 0%, as volume levels are saved permanently.
@@ -60,11 +63,14 @@ You don't always need the web app to make changes. You can enter **Configuration
 ### Global Settings
 These settings apply to the dongle universally, regardless of which profile is active:
 - Audio-based Haptic Configuration & Gain
+- Mixing Classic Rumble signal with Audio-based Haptics
 - Speaker/Headphone Master Volume
 - USB Emulation Profile (DualSense, DualSense Edge, or Auto)
 - USB Polling Rate
 - Idle Disconnect Timeout & Host Wake-up
-- Power-off Button Shortcut & Dongle LED toggle
+- Activation of Power-off Shortcut
+- Option to control Host volume
+- Option to sleep host on button Shortcut.
 
 ### Profile Settings
 You have **4 distinct profiles**, each storing its own unique setup for:
@@ -87,6 +93,7 @@ You have **4 distinct profiles**, each storing its own unique setup for:
 | **2** | **Weapon Click** | Simulates the tactile "snap" or click of firing a gun. |
 | **3** | **Machine Gun** | Provides continuous recoil and vibration when pulled. |
 | **4** | **Hair Trigger** | The trigger hits a hard wall halfway down, immediately sending a 100% full-press signal with minimal effort. Great for shooters. |
+| **5** | **Rumble Trigger** | Sends the classic rumble signal to the triggers. |
 
 ---
 
@@ -109,13 +116,6 @@ You have **4 distinct profiles**, each storing its own unique setup for:
 | **> 40%** | Solid Green |
 | **10% - 39%** | Solid Yellow |
 | **< 10%** | Fast Red flashing (Overrides all other modes to warn you) |
-
----
-
-## 🚧 Work in Progress
-
-- Full support for the built-in microphone, including a dedicated controller shortcut to toggle it.
-- A new controller shortcut to quickly cycle between Auto-Haptic operating modes.
 
 ---
 

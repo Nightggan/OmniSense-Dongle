@@ -49,7 +49,10 @@ No siempre necesitas la aplicación web para hacer cambios. Puedes entrar al **M
 | **Stick Izq. Arriba/Abajo** | Subir/Bajar Volumen (Altavoz y Auriculares) | Global |
 | **Stick Der. Arriba/Abajo** | Subir/Bajar Ganancia Háptica | Global |
 | **Cuadrado** | Silenciar Audio / Mute (Altavoz y Auriculares) | Global |
-| **D-PAD (Cualquier dir.)** | Alternar entre Perfiles 0 al 3 | Global |
+| **Círculo** | Suspender host (Windows) | Global |
+| **Cruz** | Cambiar modo de Rumble en Háoticas por Audio | Global |
+| **Triangle** | Apagar Control | Global |
+| **D-PAD (Cualquier dir.)** | Alternar entre Perfiles 1 al 4 | Global |
 
 > **Pro-Tip:** El silenciado rápido (Cuadrado) se reinicia al apagar el mando. Si quieres silenciar el audio de forma permanente, usa el Stick Izquierdo hacia Abajo para bajar el volumen al 0%, ya que los niveles de volumen sí se guardan en la memoria.
 
@@ -65,6 +68,9 @@ Estas opciones se aplican al dongle universalmente, independientemente del perfi
 - Tasa de Sondeo (Polling Rate) USB
 - Tiempo de Apagado por Inactividad y Despertar Host
 - Atajo de Botón de Apagado y encendido del LED del Dongle
+- Activación de atajo para apagar control
+- Opción para controlar volumen del host en lugare del control
+- Opción para suspender host con atajo del control
 
 ### Configuraciones de Perfil
 Tienes **4 perfiles distintos**, y cada uno guarda su propia configuración para:
@@ -86,7 +92,8 @@ Tienes **4 perfiles distintos**, y cada uno guarda su propia configuración para
 | **1** | **Resistencia** | Aplica una rigidez constante durante todo el recorrido del gatillo. |
 | **2** | **Disparo (Weapon Click)** | Simula el "clic" táctil al disparar un arma. |
 | **3** | **Metralla (Machine Gun)** | Proporciona un retroceso y vibración continua al presionarlo. |
-| **4** | **Gatillo Sensible (Hair Trigger)** | El gatillo choca con un muro rígido a mitad de recorrido, enviando inmediatamente una señal de presión del 100% con el mínimo esfuerzo. Excelente para shooters. |
+| **4** | **Gatillo Rápido (Hair Trigger)** | El gatillo choca con un muro rígido a mitad de recorrido, enviando inmediatamente una señal de presión del 100% con el mínimo esfuerzo. Excelente para shooters. |
+| **5** | **Gatillo Rumble** | Envía la señal de vibración clásica a los gatillos. |
 
 ---
 
@@ -109,13 +116,6 @@ Tienes **4 perfiles distintos**, y cada uno guarda su propia configuración para
 | **> 40%** | Verde Sólido |
 | **10% - 39%** | Amarillo Sólido |
 | **< 10%** | Parpadeo rápido en Rojo (Sobrescribe los demás modos para avisarte) |
-
----
-
-## 🚧 Trabajo en Progreso
-
-- Soporte total para el micrófono integrado, incluyendo un atajo dedicado en el mando para alternarlo.
-- Un nuevo atajo en el mando para cambiar rápidamente entre los modos de funcionamiento Auto-Hápticos.
 
 ---
 
