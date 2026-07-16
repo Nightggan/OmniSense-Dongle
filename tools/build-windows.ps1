@@ -7,7 +7,7 @@
     Installs every prerequisite (winget where possible, portable downloads as a
     fallback), fetches the pinned Raspberry Pi Pico SDK + TinyUSB, initialises
     this repo's submodules, then configures and builds the firmware with CMake +
-    Ninja. The resulting ds5-bridge.uf2 is copied next to this script and onto
+    Ninja. The resulting omnisense-dongle.uf2 is copied next to this script and onto
     your Desktop.
 
     The script is idempotent: re-running it skips anything already installed or
@@ -274,7 +274,7 @@ function Ensure-PicoSdk {
 function Test-Ds5Checkout ($dir) {
     if (-not $dir) { return $false }
     $cml = Join-Path $dir 'CMakeLists.txt'
-    return (Test-Path $cml) -and (Select-String -Path $cml -Pattern 'ds5-bridge' -Quiet)
+    return (Test-Path $cml) -and (Select-String -Path $cml -Pattern 'omnisense-dongle' -Quiet)
 }
 
 # Runs git so NOTHING reaches the pipeline: every stream is written to the
@@ -471,15 +471,15 @@ Info "Configuring: cmake $($cmakeArgs -join ' ')"
 & cmake @cmakeArgs
 if ($LASTEXITCODE -ne 0) { Die 'CMake configure failed.' }
 
-Info 'Building ds5-bridge...'
-& cmake --build $buildDir --target ds5-bridge
+Info 'Building omnisense-dongle...'
+& cmake --build $buildDir --target omnisense-dongle
 if ($LASTEXITCODE -ne 0) { Die 'Build failed.' }
 
 # --- Collect output ----------------------------------------------------------
-$uf2 = Join-Path $buildDir 'ds5-bridge.uf2'
+$uf2 = Join-Path $buildDir 'omnisense-dongle.uf2'
 if (-not (Test-Path $uf2)) { Die "Expected $uf2 was not produced." }
 
-$outName = if ($Variant -eq 'standard') { 'ds5-bridge.uf2' } else { "ds5-bridge-$Variant.uf2" }
+$outName = if ($Variant -eq 'standard') { 'omnisense-dongle.uf2' } else { "omnisense-dongle-$Variant.uf2" }
 $nextToScript = Join-Path $PSScriptRoot $outName
 Copy-Item $uf2 $nextToScript -Force
 $desktop = [Environment]::GetFolderPath('Desktop')

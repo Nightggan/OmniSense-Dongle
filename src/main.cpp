@@ -1080,36 +1080,25 @@ void __not_in_flash_func(on_bt_data)(CHANNEL_TYPE channel, uint8_t *data, uint16
 uint16_t tud_hid_get_report_cb(uint8_t itf, uint8_t report_id, hid_report_type_t report_type, uint8_t *buffer,
                                uint16_t reqlen) {
     (void) report_type;
-   
-    if (is_pico_cmd(report_id) && itf != 1) {
+    
+    // if (itf == 1) itf=0; //Ignores Control requests on Consumer interface (itf=1) to avoid STALLs on the host side and reroutes them to DS itf
+    if (is_pico_cmd(report_id)) {
         return pico_cmd_get(report_id, buffer, reqlen);
     }
 
-    if(itf!=1)//DualSense full reports
-    {
-        std::vector<uint8_t> feature_data = get_feature_data(report_id, reqlen);
-        if (!feature_data.empty()) {
-            uint16_t len = (uint16_t)std::min((size_t)reqlen, feature_data.size() - 1);
-            memcpy(buffer, feature_data.data() + 1, len);
-            return len;
-        }
+    if (report_id == HID_REPORT_ID_KEYBOARD) {
+        return 0;
     }
+    
 
-    if(itf == 1)
-    {
-        /*if(report_id!=0x09)//DualSense full reports except 0x09 to avoid duplicate mac address for HID-Consumer
-        {
-            std::vector<uint8_t> feature_data = get_feature_data(report_id, reqlen);
-            if (!feature_data.empty()) {
-                uint16_t len = (uint16_t)std::min((size_t)reqlen, feature_data.size() - 1);
-                memcpy(buffer, feature_data.data() + 1, len);
-                return len;
-            }
-        }*/
-        if (report_id == HID_REPORT_ID_KEYBOARD) {
-            return 0;
-        }
+    std::vector<uint8_t> feature_data = get_feature_data(report_id, reqlen);
+    if (!feature_data.empty()) {
+        uint16_t len = (uint16_t)std::min((size_t)reqlen, feature_data.size() - 1);
+        memcpy(buffer, feature_data.data() + 1, len);
+        return len;
     }
+    
+
     
     // BT feature data not yet cached — return zeros instead of STALLing.
     // hid_playstation calls GET_FEATURE(0x20) during probe; a STALL causes

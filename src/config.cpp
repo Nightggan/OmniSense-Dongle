@@ -125,7 +125,7 @@ void global_config_valid() {
     //Default to 1 to mute sound pass to speaker/headphones, does not affect haptics
     if (global_body->auto_mute_mode > 1){
         printf("[Config] Global Mute is invalid\n");
-        global_body->auto_mute_mode = 0;
+        global_body->auto_mute_mode = 1; //Default to on to avoid audio feedback when auto haptics is enabled
     } 
 
     if(global_body->time_config_mode < 0  || global_body->time_config_mode > 3000){
@@ -136,6 +136,11 @@ void global_config_valid() {
     if(global_body->sleep_host_enable > 1){
         printf("[Config] Sleep Host is invalid\n");
         global_body->sleep_host_enable = 0; //Default to off to avoid sleep host prior to know shortcuts
+    }
+
+    if(global_body->classic_rumble_mix_profile > 2){
+        printf("[Config] Classic Rumble Mix Profile is invalid\n");
+        global_body->classic_rumble_mix_profile = 0; //Default to balanced
     }
     if(config.magic != CONFIG_MAGIC)//First run after flash erase, set magic to valid value to avoid infinite loop of config validation
     {

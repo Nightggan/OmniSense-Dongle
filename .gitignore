@@ -4,3 +4,5 @@ build
 example
 __pycache__/
 *.pyc
+src/usb_descriptorsnoextradesc
+src/maincppbkpnoextradesc
