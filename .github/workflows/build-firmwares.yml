@@ -123,7 +123,7 @@ jobs:
         run: |
           VERSION_ARG=()
           [ -n "${FW_VER:-}" ] && VERSION_ARG=(-DVERSION="$FW_VER")
-          cmake -S . -B build/standard -G Ninja \
+          cmake -S . -B build/windows -G Ninja \
             -DCMAKE_BUILD_TYPE=Release \
             -DPICO_SDK_PATH="$PICO_SDK_PATH" \
             -DUSE_LINUX_USB_DESCRIPTORS="OFF" \
@@ -136,7 +136,7 @@ jobs:
         run: |
           VERSION_ARG=()
           [ -n "${FW_VER:-}" ] && VERSION_ARG=(-DVERSION="$FW_VER")
-          cmake -S . -B build/standard -G Ninja \
+          cmake -S . -B build/linux -G Ninja \
             -DCMAKE_BUILD_TYPE=Release \
             -DPICO_SDK_PATH="$PICO_SDK_PATH" \
             -DUSE_LINUX_USB_DESCRIPTORS="ON" \
