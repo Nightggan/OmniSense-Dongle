@@ -126,6 +126,7 @@ jobs:
           cmake -S . -B build/standard -G Ninja \
             -DCMAKE_BUILD_TYPE=Release \
             -DPICO_SDK_PATH="$PICO_SDK_PATH" \
+            -DUSE_LINUX_USB_DESCRIPTORS="OFF" \
             "${VERSION_ARG[@]}"
           cmake --build build/standard --target omnisense-dongle 
           mkdir -p artifacts
