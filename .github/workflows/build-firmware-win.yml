@@ -119,7 +119,7 @@ jobs:
           fi
           git -C "$PICO_SDK_PATH/lib/tinyusb" checkout --detach "$TINYUSB_REF"
 
-      - name: Build standard firmware
+      - name: Build Windows firmware
         run: |
           VERSION_ARG=()
           [ -n "${FW_VER:-}" ] && VERSION_ARG=(-DVERSION="$FW_VER")
@@ -130,13 +130,33 @@ jobs:
             "${VERSION_ARG[@]}"
           cmake --build build/standard --target omnisense-dongle 
           mkdir -p artifacts
-          cp build/standard/omnisense-dongle.uf2 "artifacts/omnisense-dongle${{ inputs.asset_suffix }}.uf2"
+          cp build/standard/omnisense-dongle-win.uf2 "artifacts/omnisense-dongle-win${{ inputs.asset_suffix }}.uf2"
 
-      - name: Upload standard UF2 artifact
+      - name: Upload Windows UF2 artifact
         uses: actions/upload-artifact@v4
         with:
           name: OmniSense-Dongle${{ inputs.asset_suffix }}
-          path: artifacts/omnisense-dongle${{ inputs.asset_suffix }}.uf2
+          path: artifacts/omnisense-dongle-win${{ inputs.asset_suffix }}.uf2
+          if-no-files-found: error
+
+      - name: Build Linux firmware
+        run: |
+          VERSION_ARG=()
+          [ -n "${FW_VER:-}" ] && VERSION_ARG=(-DVERSION="$FW_VER")
+          cmake -S . -B build/standard -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DPICO_SDK_PATH="$PICO_SDK_PATH" \
+            -DUSE_LINUX_USB_DESCRIPTORS="ON" \
+            "${VERSION_ARG[@]}"
+          cmake --build build/standard --target omnisense-dongle 
+          mkdir -p artifacts
+          cp build/standard/omnisense-dongle-lin.uf2 "artifacts/omnisense-dongle-lin${{ inputs.asset_suffix }}.uf2"
+
+      - name: Upload Linux UF2 artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: OmniSense-Dongle${{ inputs.asset_suffix }}
+          path: artifacts/omnisense-dongle-lin${{ inputs.asset_suffix }}.uf2
           if-no-files-found: error
 
       - name: Attach UF2s to release
