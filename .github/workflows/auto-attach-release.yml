@@ -10,7 +10,7 @@ permissions:
 jobs:
   build:
     name: Build and upload release UF2
-    uses: ./.github/workflows/build-firmware.yml
+    uses: ./.github/workflows/build-firmwares.yml
     with:
       ref: ${{ github.event.release.tag_name }}
       version: ${{ github.event.release.tag_name }}
