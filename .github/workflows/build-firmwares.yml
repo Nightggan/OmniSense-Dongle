@@ -135,7 +135,7 @@ jobs:
       - name: Upload Windows UF2 artifact
         uses: actions/upload-artifact@v4
         with:
-          name: OmniSense-Dongle${{ inputs.asset_suffix }}
+          name: OmniSense-Dongle-Windows${{ inputs.asset_suffix }}
           path: artifacts/omnisense-dongle-windows${{ inputs.asset_suffix }}.uf2
           if-no-files-found: error
 
@@ -155,7 +155,7 @@ jobs:
       - name: Upload Linux UF2 artifact
         uses: actions/upload-artifact@v4
         with:
-          name: OmniSense-Dongle${{ inputs.asset_suffix }}
+          name: OmniSense-Dongle-Linux${{ inputs.asset_suffix }}
           path: artifacts/omnisense-dongle-linux${{ inputs.asset_suffix }}.uf2
           if-no-files-found: error
 
