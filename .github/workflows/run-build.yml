@@ -12,6 +12,6 @@ permissions:
 jobs:
   build:
     name: Build UF2 artifacts
-    uses: ./.github/workflows/build-firmware.yml
+    uses: ./.github/workflows/build-firmware-win.yml
     with:
       version: ${{ github.sha }}   # reusable build shortens a full SHA to 7
