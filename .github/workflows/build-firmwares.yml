@@ -128,16 +128,9 @@ jobs:
             -DPICO_SDK_PATH="$PICO_SDK_PATH" \
             -DUSE_LINUX_USB_DESCRIPTORS="OFF" \
             "${VERSION_ARG[@]}"
-          cmake --build build/standard --target omnisense-dongle 
+          cmake --build build/windows --target omnisense-dongle 
           mkdir -p artifacts
-          cp build/standard/omnisense-dongle-windows.uf2 "artifacts/omnisense-dongle-windows${{ inputs.asset_suffix }}.uf2"
-
-      - name: Upload Windows UF2 artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: OmniSense-Dongle-Windows${{ inputs.asset_suffix }}
-          path: artifacts/omnisense-dongle-windows${{ inputs.asset_suffix }}.uf2
-          if-no-files-found: error
+          cp build/windows/omnisense-dongle-windows.uf2 "artifacts/omnisense-dongle-windows${{ inputs.asset_suffix }}.uf2"
 
       - name: Build Linux firmware
         run: |
@@ -148,15 +141,22 @@ jobs:
             -DPICO_SDK_PATH="$PICO_SDK_PATH" \
             -DUSE_LINUX_USB_DESCRIPTORS="ON" \
             "${VERSION_ARG[@]}"
-          cmake --build build/standard --target omnisense-dongle 
+          cmake --build build/linux --target omnisense-dongle 
           mkdir -p artifacts
-          cp build/standard/omnisense-dongle-linux.uf2 "artifacts/omnisense-dongle-linux${{ inputs.asset_suffix }}.uf2"
+          cp build/linux/omnisense-dongle-linux.uf2 "artifacts/omnisense-dongle-linux${{ inputs.asset_suffix }}.uf2"
 
       - name: Upload Linux UF2 artifact
         uses: actions/upload-artifact@v4
         with:
           name: OmniSense-Dongle-Linux${{ inputs.asset_suffix }}
           path: artifacts/omnisense-dongle-linux${{ inputs.asset_suffix }}.uf2
+          if-no-files-found: error
+
+      - name: Upload Windows UF2 artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: OmniSense-Dongle-Windows${{ inputs.asset_suffix }}
+          path: artifacts/omnisense-dongle-windows${{ inputs.asset_suffix }}.uf2
           if-no-files-found: error
 
       - name: Attach UF2s to release
