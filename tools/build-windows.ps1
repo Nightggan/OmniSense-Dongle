@@ -7,7 +7,8 @@
     Installs every prerequisite (winget where possible, portable downloads as a
     fallback), fetches the pinned Raspberry Pi Pico SDK + TinyUSB, initialises
     this repo's submodules, then configures and builds the firmware with CMake +
-    Ninja. The resulting omnisense-dongle.uf2 is copied next to this script and onto
+    Ninja. The resulting UF2 (omnisense-dongle-linux.uf2 or
+    omnisense-dongle-windows.uf2) is copied next to this script and onto
     your Desktop.
 
     The script is idempotent: re-running it skips anything already installed or
@@ -59,7 +60,7 @@ $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 
 # Bump on every change so a stale download is obvious in the banner.
-$SCRIPT_REV   = '2026-05-16.7'
+$SCRIPT_REV   = '2026-07-16.8'
 
 # --- Pinned versions: keep in sync with .github/workflows/build-firmware.yml ---
 $PICO_SDK_REF = '2.2.0'
@@ -476,10 +477,22 @@ Info 'Building omnisense-dongle...'
 if ($LASTEXITCODE -ne 0) { Die 'Build failed.' }
 
 # --- Collect output ----------------------------------------------------------
-$uf2 = Join-Path $buildDir 'omnisense-dongle.uf2'
-if (-not (Test-Path $uf2)) { Die "Expected $uf2 was not produced." }
+$candidateUf2Names = @(
+    'omnisense-dongle-linux.uf2',
+    'omnisense-dongle-windows.uf2',
+    'omnisense-dongle.uf2'
+)
+$uf2Name = $candidateUf2Names | Where-Object { Test-Path (Join-Path $buildDir $_) } | Select-Object -First 1
+if (-not $uf2Name) {
+    Die "No UF2 output found in $buildDir (expected one of: $($candidateUf2Names -join ', '))."
+}
+$uf2 = Join-Path $buildDir $uf2Name
 
-$outName = if ($Variant -eq 'standard') { 'omnisense-dongle.uf2' } else { "omnisense-dongle-$Variant.uf2" }
+$outName = if ($Variant -eq 'standard') {
+    $uf2Name
+} else {
+    "$([System.IO.Path]::GetFileNameWithoutExtension($uf2Name))-$Variant.uf2"
+}
 $nextToScript = Join-Path $PSScriptRoot $outName
 Copy-Item $uf2 $nextToScript -Force
 $desktop = [Environment]::GetFolderPath('Desktop')

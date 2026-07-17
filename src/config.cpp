@@ -132,12 +132,17 @@ void global_config_valid() {
         global_body->time_config_mode = 0;//Default instant press for config mode
         printf("[Config] Global Time Config is invalid\n");
     }
-
-    if(global_body->sleep_host_enable > 1){
-        printf("[Config] Sleep Host is invalid\n");
-        global_body->sleep_host_enable = 0; //Default to off to avoid sleep host prior to know shortcuts
-    }
-
+    #if USE_LINUX_USB_DESCRIPTORS
+        
+        printf("[Config] On Linux Build sleep_host is always off\n");
+        global_body->sleep_host_enable = 0; //On Linux builds, sleep host is always off to avoid issues with Linux HID driver.
+        
+    #else
+        if(global_body->sleep_host_enable > 1){
+            printf("[Config] Sleep Host is invalid\n");
+            global_body->sleep_host_enable = 0; //Default to off to avoid sleep host prior to know shortcuts
+        }
+    #endif
     if(global_body->classic_rumble_mix_profile > 2){
         printf("[Config] Classic Rumble Mix Profile is invalid\n");
         global_body->classic_rumble_mix_profile = 0; //Default to balanced
@@ -145,10 +150,16 @@ void global_config_valid() {
     if(config.magic != CONFIG_MAGIC)//First run after flash erase, set magic to valid value to avoid infinite loop of config validation
     {
         config.magic = CONFIG_MAGIC;
-        global_body->control_host_volume = 0; //Default to internal speaker volume
+        #if USE_LINUX_USB_DESCRIPTORS
+            printf("[Config] On Linux Build control_host_volume is always off\n");
+            global_body->control_host_volume = 0; //Default to internal speaker volume. On Linux builds, control host volume is always off to avoid issues with Linux HID driver.
+        #else
+            global_body->control_host_volume = 1; //Default to host volume control. On Linux builds, control host volume is always off to avoid issues with Linux HID driver.
+        #endif
         printf("[Config] Config Magic Header is invalid\n");
     }
 
+    
 }
 
 void profile_config_valid()

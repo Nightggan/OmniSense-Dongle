@@ -1,9 +1,0 @@
-[Desktop Entry]
-Name=DS5Dongle Config
-Comment=Configure DS5Dongle firmware settings
-Exec=ds5dongle-config
-Icon=com.github.loteran.DS5DongleConfig
-Terminal=false
-Type=Application
-Categories=Game;Settings;
-StartupNotify=true

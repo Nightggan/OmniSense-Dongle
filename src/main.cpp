@@ -534,7 +534,7 @@ void __not_in_flash_func(on_bt_data)(CHANNEL_TYPE channel, uint8_t *data, uint16
                 // Unlocking the lock on button release
                 profile_switch_shortcut_lock_left = false;
             }
-
+            #if !USE_LINUX_USB_DESCRIPTORS
             // Sleep Host: Circle
             if (get_global_config().sleep_host_enable) {
                     
@@ -550,7 +550,7 @@ void __not_in_flash_func(on_bt_data)(CHANNEL_TYPE channel, uint8_t *data, uint16
                     sleep_host_shortcut_lock = false;
                 }
             }
-
+            #endif
             // Power Off: TRIANGLE
             if (get_global_config().enable_poweroff_shortcut)
             {
@@ -1046,10 +1046,6 @@ void __not_in_flash_func(on_bt_data)(CHANNEL_TYPE channel, uint8_t *data, uint16
         }
 
         
-        
-
-        
-
 
         if (get_global_config().polling_rate_mode != 2) {
         memcpy(interrupt_in_data, data + 3, 63);
@@ -1086,10 +1082,11 @@ uint16_t tud_hid_get_report_cb(uint8_t itf, uint8_t report_id, hid_report_type_t
         return pico_cmd_get(report_id, buffer, reqlen);
     }
 
-    if (report_id == HID_REPORT_ID_KEYBOARD) {
-        return 0;
-    }
-    
+    #if !USE_LINUX_USB_DESCRIPTORS
+        if (report_id == HID_REPORT_ID_KEYBOARD) {
+            return 0;
+        }
+    #endif
 
     std::vector<uint8_t> feature_data = get_feature_data(report_id, reqlen);
     if (!feature_data.empty()) {
@@ -1133,47 +1130,86 @@ void tud_hid_set_report_cb(uint8_t itf, uint8_t report_id, hid_report_type_t rep
     (void) report_type;
     (void) buffer;
     (void) bufsize;
-    if (itf == 1) itf=0; //Ignores Control requests on Consumer interface (itf=1) to avoid STALLs on the host side and reroutes them to DS itf
-    
-    if (is_pico_cmd(report_id)) {
-        printf("[HID] Receive 0xf6 setting config, funcid:0x%02X\n", buffer[0]);
-        pico_cmd_set(report_id, buffer, bufsize);
-        return;
-    }
 
-    auto forward_ds_output_report = [&](const uint8_t *payload, uint16_t payload_size) {
-        state_update(payload, payload_size);
-        last_rumble_report_us = to_us_since_boot(get_absolute_time());
-        uint8_t outputData[78]{};
-        outputData[0] = 0x31;
-        outputData[1] = reportSeqCounter << 4;
-        if (++reportSeqCounter == 256) {
-            reportSeqCounter = 0;
+    #if USE_LINUX_USB_DESCRIPTORS
+        
+        if (is_pico_cmd(report_id)) {
+            printf("[HID] Receive 0xf6 setting config, funcid:0x%02X\n", buffer[0]);
+            pico_cmd_set(report_id, buffer, bufsize);
+            return;
         }
-        outputData[2] = 0x10;
-        state_set(outputData + 3, sizeof(SetStateData));
-        bt_write(outputData, sizeof(outputData));
-    };
 
-    // INTERRUPT OUT:
-    // - Some hosts send report_id=0 and put 0x02 in buffer[0].
-    // - Others send report_id=0x02 directly with payload-only data.
-    if (report_id == 0 && bufsize > 0 && buffer[0] == 0x02) {
-        forward_ds_output_report(buffer + 1, bufsize - 1);
-    } else if (report_id == 0x02) {
-        const bool prefixed_payload = (bufsize > sizeof(SetStateData) && buffer[0] == 0x02);
-        const uint8_t *payload = prefixed_payload ? (buffer + 1) : buffer;
-        const uint16_t payload_size = prefixed_payload ? (bufsize - 1) : bufsize;
-        forward_ds_output_report(payload, payload_size);
-    }
-    if (report_id == 0x80 ||
-        // DSE: Write Profile Block
-        report_id == 0x60 ||
-        report_id == 0x62 ||
-        report_id == 0x61) {
-        set_feature_data(report_id, const_cast<uint8_t *>(buffer), bufsize);
-        return;
-    }
+        // INTERRUPT OUT
+        if (report_id == 0) {
+            switch (buffer[0]) {
+                case 0x02: {
+                    state_update(buffer + 1, bufsize - 1);
+                    last_rumble_report_us = to_us_since_boot(get_absolute_time());
+                    uint8_t outputData[78]{};
+                    outputData[0] = 0x31;
+                    outputData[1] = reportSeqCounter << 4;
+                    if (++reportSeqCounter == 256) {
+                        reportSeqCounter = 0;
+                    }
+                    outputData[2] = 0x10;
+                    // memcpy(outputData + 3, buffer + 1, bufsize - 1);
+                    state_set(outputData + 3,sizeof(SetStateData));
+                    bt_write(outputData, sizeof(outputData));
+                    break;
+                }
+            }
+        }
+        if (report_id == 0x80 ||
+            // DSE: Write Profile Block
+            report_id == 0x60 ||
+            report_id == 0x62 ||
+            report_id == 0x61) {
+            set_feature_data(report_id, const_cast<uint8_t *>(buffer), bufsize);
+            return;
+        }
+    #else
+        if (itf == 1) itf=0; //Ignores Control requests on Consumer interface (itf=1) to avoid STALLs on the host side and reroutes them to DS itf
+        
+        if (is_pico_cmd(report_id)) {
+            printf("[HID] Receive 0xf6 setting config, funcid:0x%02X\n", buffer[0]);
+            pico_cmd_set(report_id, buffer, bufsize);
+            return;
+        }
+
+        auto forward_ds_output_report = [&](const uint8_t *payload, uint16_t payload_size) {
+            state_update(payload, payload_size);
+            last_rumble_report_us = to_us_since_boot(get_absolute_time());
+            uint8_t outputData[78]{};
+            outputData[0] = 0x31;
+            outputData[1] = reportSeqCounter << 4;
+            if (++reportSeqCounter == 256) {
+                reportSeqCounter = 0;
+            }
+            outputData[2] = 0x10;
+            state_set(outputData + 3, sizeof(SetStateData));
+            bt_write(outputData, sizeof(outputData));
+        };
+
+        // INTERRUPT OUT:
+        // - Some hosts send report_id=0 and put 0x02 in buffer[0].
+        // - Others send report_id=0x02 directly with payload-only data.
+        if (report_id == 0 && bufsize > 0 && buffer[0] == 0x02) {
+            forward_ds_output_report(buffer + 1, bufsize - 1);
+        } else if (report_id == 0x02) {
+            const bool prefixed_payload = (bufsize > sizeof(SetStateData) && buffer[0] == 0x02);
+            const uint8_t *payload = prefixed_payload ? (buffer + 1) : buffer;
+            const uint16_t payload_size = prefixed_payload ? (bufsize - 1) : bufsize;
+            forward_ds_output_report(payload, payload_size);
+        }
+        if (report_id == 0x80 ||
+            // DSE: Write Profile Block
+            report_id == 0x60 ||
+            report_id == 0x62 ||
+            report_id == 0x61) {
+            set_feature_data(report_id, const_cast<uint8_t *>(buffer), bufsize);
+            return;
+        }
+    #endif
 }
 
 // Periodic 0x31 keepalive: the DualSense haptic subsystem times out if no

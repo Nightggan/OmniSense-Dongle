@@ -95,9 +95,17 @@ project(omnisense-dongle C CXX ASM)
 # Initialise the Raspberry Pi Pico SDK
 pico_sdk_init()
 
+#Removes extra hid descriptors for Linux. Avoiding issues with Linux hid-playstation driver.
+option(USE_LINUX_USB_DESCRIPTORS "Enable Linux USB HID descriptors")
+if (USE_LINUX_USB_DESCRIPTORS STREQUAL "ON")
+        set(USE_LINUX_USB_DESCRIPTORS_VALUE 1)
+        set(OMNISENSE_FIRMWARE_NAME "omnisense-dongle-linux")
+else ()
+        set(USE_LINUX_USB_DESCRIPTORS_VALUE 0)
+        set(OMNISENSE_FIRMWARE_NAME "omnisense-dongle-windows")
+endif ()
 # Add executable. Default name is the project name, version 0.1
 add_executable(omnisense-dongle
-        src/usb_descriptors.cpp
         src/main.cpp
         src/usb.cpp
         src/audio.cpp
@@ -108,6 +116,7 @@ add_executable(omnisense-dongle
         src/lightbar_controller.cpp
         src/ram_mem.c
 )
+set_target_properties(omnisense-dongle PROPERTIES OUTPUT_NAME "${OMNISENSE_FIRMWARE_NAME}")
 
 if (ENABLE_BATT_LED)
         target_sources(omnisense-dongle PRIVATE src/battery_led.cpp)
@@ -281,6 +290,7 @@ target_compile_definitions(omnisense-dongle PRIVATE
         ENABLE_BATT_LED=${ENABLE_BATT_LED_VALUE}
         SYS_CLOCK_KHZ=${SYS_CLOCK_KHZ_VALUE}
         DISABLE_SPEAKER_PROC=${DISABLE_SPEAKER_PROC_VALUE}
+        USE_LINUX_USB_DESCRIPTORS=${USE_LINUX_USB_DESCRIPTORS_VALUE}
 )
 
 # Wake-on-PS + Xbox Game Bar are now in the base firmware, gated at runtime by the
@@ -292,6 +302,18 @@ target_compile_definitions(omnisense-dongle PRIVATE ENABLE_WAKE_HID)
 target_sources(omnisense-dongle PRIVATE
         src/wake.cpp
 )
+
+if(USE_LINUX_USB_DESCRIPTORS)
+        target_sources(omnisense-dongle PRIVATE
+                        src/usb_descriptors_linux.cpp
+                        src/tusb_config_linux.h)
+else()
+        target_sources(omnisense-dongle PRIVATE
+                src/usb_descriptors.cpp
+                src/tusb_config.h)
+endif()
+
+
 
 option(WAKE_DEBUG "Print wake-FSM transitions to UART (developer use)" OFF)
 if(WAKE_DEBUG)

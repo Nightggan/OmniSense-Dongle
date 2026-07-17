@@ -30,8 +30,7 @@
 #ifndef ENABLE_SERIAL
 #define ENABLE_SERIAL 0
 #endif
-#define REPORT_ID_KEYBOARD 1
-#define REPORT_ID_VOLUME 3
+
 bool ds_mode() {
     if (get_global_config().controller_mode == 2) {
         return !is_dse;
@@ -44,7 +43,6 @@ enum {
     ITF_NUM_AUDIO_STREAMING_OUT,
     ITF_NUM_AUDIO_STREAMING_IN,
     ITF_NUM_HID,
-    ITF_NUM_HID_CONSUMER,// HID Consumer Control for Volume Up/Down, Mute, etc.
 #if ENABLE_SERIAL
     ITF_NUM_CDC,
     ITF_NUM_CDC_DATA,
@@ -57,8 +55,7 @@ enum {
 #else
         0,
 #endif
-    CONFIG_DESC_LEN_ORIGINAL = 0x010E + CONFIG_DESC_LEN_AUDIO_IAD,
-    CONFIG_DESC_LEN_BASE = CONFIG_DESC_LEN_ORIGINAL + TUD_HID_DESC_LEN,
+    CONFIG_DESC_LEN_BASE = 0x010E + CONFIG_DESC_LEN_AUDIO_IAD,
     CONFIG_DESC_LEN_TOTAL = CONFIG_DESC_LEN_BASE
 #if ENABLE_SERIAL
         + TUD_CDC_DESC_LEN
@@ -116,47 +113,6 @@ uint8_t const *tud_descriptor_device_cb(void) {
     desc_device.idProduct = ds_mode() ? 0x0CE6 : 0x0DF2;
     return reinterpret_cast<uint8_t const *>(&desc_device);
 }
-
-#define EPNUM_HID_CONSUMER   0x07
-
-// Descriptor HID para teclado estándar + control multimedia
-uint8_t const desc_hid_report_consumer[] = {
-    0x05, 0x01, // Usage Page (Generic Desktop)
-    0x09, 0x06, // Usage (Keyboard)
-    0xA1, 0x01, // Collection (Application)
-    0x85, REPORT_ID_KEYBOARD, // Report ID (keyboard)
-    0x05, 0x07, // Usage Page (Keyboard/Keypad)
-    0x19, 0xE0, // Usage Minimum (224)
-    0x29, 0xE7, // Usage Maximum (231)
-    0x15, 0x00, // Logical Minimum (0)
-    0x25, 0x01, // Logical Maximum (1)
-    0x75, 0x01, // Report Size (1)
-    0x95, 0x08, // Report Count (8)
-    0x81, 0x02, // Input (Data,Var,Abs)
-    0x95, 0x01, // Report Count (1)
-    0x75, 0x08, // Report Size (8)
-    0x81, 0x01, // Input (Const,Array,Abs)
-    0x95, 0x05, // Report Count (5)
-    0x75, 0x01, // Report Size (1)
-    0x05, 0x08, // Usage Page (LEDs)
-    0x19, 0x01, // Usage Minimum (1)
-    0x29, 0x05, // Usage Maximum (5)
-    0x91, 0x02, // Output (Data,Var,Abs)
-    0x95, 0x01, // Report Count (1)
-    0x75, 0x03, // Report Size (3)
-    0x91, 0x01, // Output (Const,Array,Abs)
-    0x95, 0x06, // Report Count (6)
-    0x75, 0x08, // Report Size (8)
-    0x15, 0x00, // Logical Minimum (0)
-    0x25, 0x65, // Logical Maximum (101)
-    0x05, 0x07, // Usage Page (Keyboard/Keypad)
-    0x19, 0x00, // Usage Minimum (0)
-    0x29, 0x65, // Usage Maximum (101)
-    0x81, 0x00, // Input (Data,Array,Abs)
-    0xC0,       // End Collection
-    TUD_HID_REPORT_DESC_CONSUMER(HID_REPORT_ID(REPORT_ID_VOLUME)),
-    TUD_HID_REPORT_DESC_SYSTEM_CONTROL(HID_REPORT_ID(2))
-};
 
 //--------------------------------------------------------------------+
 // Configuration Descriptor
@@ -476,10 +432,7 @@ uint8_t descriptor_configuration[] = {
     0x03, // bmAttributes: Interrupt
     0x40, 0x00, // wMaxPacketSize: 64
     0x01, // bInterval: 1 (polling every 4ms -> 1ms)
-    // --- INTERFACE DESCRIPTOR: HID Consumer Control ---
-    //TUD_CONFIG_DESCRIPTOR(ITF_NUM_HID_CONSUMER, ITF_NUM_TOTAL, 0, CONFIG_DESC_LEN_TOTAL, TUSB_DESC_CONFIG_ATT_REMOTE_WAKEUP, 100),
-    // Interface number, string index, protocol, report descriptor len, EP In address, size & polling interval
-    TUD_HID_DESCRIPTOR(ITF_NUM_HID_CONSUMER, 0, HID_ITF_PROTOCOL_KEYBOARD, sizeof(desc_hid_report_consumer), EPNUM_HID_CONSUMER | 0x80, CFG_TUD_HID_EP_BUFSIZE, 10),
+
 #if ENABLE_SERIAL
     // --- CDC ACM (USB Serial) ---
     TUD_CDC_DESCRIPTOR(ITF_NUM_CDC, STRID_CDC, 0x85, 0x08, 0x06, 0x86, 0x40),
@@ -503,7 +456,7 @@ uint8_t const *tud_descriptor_configuration_cb(uint8_t index) {
             bInterval = 0x01;
             break;
     }
-    constexpr auto offset = CONFIG_DESC_LEN_ORIGINAL;
+    constexpr auto offset = CONFIG_DESC_LEN_BASE;
     descriptor_configuration[offset - 1] = bInterval;
     descriptor_configuration[offset - 8] = bInterval;
     if (ds_mode()) {
@@ -905,26 +858,12 @@ static_assert(sizeof(desc_hid_report_dse) == 0x01B5);
 // Invoked when received GET HID REPORT DESCRIPTOR
 // Application return pointer to descriptor
 // Descriptor contents must exist long enough for transfer to complete
-// Original DS5Dongle descriptor
-/*uint8_t const *tud_hid_descriptor_report_cb(uint8_t itf) {
+uint8_t const *tud_hid_descriptor_report_cb(uint8_t itf) {
     (void) itf;
     if (ds_mode()) {
         return desc_hid_report_ds;
     }
     return desc_hid_report_dse;
-}
-*/
-
-uint8_t const *tud_hid_descriptor_report_cb(uint8_t instance) {
-    if (instance == 0) {
-        if (ds_mode()) {
-            return desc_hid_report_ds;
-        }
-        return desc_hid_report_dse;
-    } else if (instance == 1) {
-        return desc_hid_report_consumer;
-    }
-    return NULL;
 }
 
 //--------------------------------------------------------------------+
@@ -950,7 +889,6 @@ static uint16_t _desc_str[60 + 1];
 uint16_t const *tud_descriptor_string_cb(uint8_t index, uint16_t langid) {
     (void) langid;
     size_t chr_count;
-    
 
     if (ds_mode()) {
         string_desc_arr[2] = "DualSense Wireless Controller";
