@@ -130,13 +130,13 @@ jobs:
             "${VERSION_ARG[@]}"
           cmake --build build/standard --target omnisense-dongle 
           mkdir -p artifacts
-          cp build/standard/omnisense-dongle-win.uf2 "artifacts/omnisense-dongle-win${{ inputs.asset_suffix }}.uf2"
+          cp build/standard/omnisense-dongle-windows.uf2 "artifacts/omnisense-dongle-windows${{ inputs.asset_suffix }}.uf2"
 
       - name: Upload Windows UF2 artifact
         uses: actions/upload-artifact@v4
         with:
           name: OmniSense-Dongle${{ inputs.asset_suffix }}
-          path: artifacts/omnisense-dongle-win${{ inputs.asset_suffix }}.uf2
+          path: artifacts/omnisense-dongle-windows${{ inputs.asset_suffix }}.uf2
           if-no-files-found: error
 
       - name: Build Linux firmware
@@ -150,13 +150,13 @@ jobs:
             "${VERSION_ARG[@]}"
           cmake --build build/standard --target omnisense-dongle 
           mkdir -p artifacts
-          cp build/standard/omnisense-dongle-lin.uf2 "artifacts/omnisense-dongle-lin${{ inputs.asset_suffix }}.uf2"
+          cp build/standard/omnisense-dongle-linux.uf2 "artifacts/omnisense-dongle-linux${{ inputs.asset_suffix }}.uf2"
 
       - name: Upload Linux UF2 artifact
         uses: actions/upload-artifact@v4
         with:
           name: OmniSense-Dongle${{ inputs.asset_suffix }}
-          path: artifacts/omnisense-dongle-lin${{ inputs.asset_suffix }}.uf2
+          path: artifacts/omnisense-dongle-linux${{ inputs.asset_suffix }}.uf2
           if-no-files-found: error
 
       - name: Attach UF2s to release
