@@ -1,0 +1,8 @@
+# 1. Audífono USB VR (Soundcore VR P10)
+ATTRS{idVendor}=="291a", ATTRS{idProduct}=="385d", TAG+="systemd", ENV{SYSTEMD_WANTS}+="usb-audio-trigger.service"
+
+# 2. Raspberry Pi Pico 2W (Firmware DS5Dongle) - MODO DUALSENSE
+ATTRS{idVendor}=="054c", ATTRS{idProduct}=="0ce6", TAG+="systemd", ENV{SYSTEMD_WANTS}+="usb-audio-trigger.service"
+
+# 3. REGLA DE SEGURIDAD (Por si acaso la Pico inicia con su VID/PID nativo de Raspberry Pi)
+ATTRS{idVendor}=="2e8a", TAG+="systemd", ENV{SYSTEMD_WANTS}+="usb-audio-trigger.service"

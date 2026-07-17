@@ -119,15 +119,21 @@ You have **4 distinct profiles**, each storing its own unique setup for:
 
 ---
 
-## ⚙️ Linux Settings
+## ⚙️ Steam Deck
 
-The auto-haptics system needs the pro-audio profile that can be set manually on audio control panel o running this command (once):
+If you want to send audio to the dongle at the same time as HDMI, Speakers or 3.5mm jack, you can use the provided script "restaurar_respaldo.sh" on the scripts folder. This will give a stable name to the dongle and then every time you plug it the deck will send audio to the HDMI, Speakers or headphones at the same time as the dongle so you can enjoy haptics using your desired audio out. Also it will set the audio profile for the dongle to pro-audio which is needed for haptics to work properly on Linux.
 
-```bash
-pactl set-card-profile alsa_card.usb-Sony_Interactive_Entertainment_DualSense_Wireless_Controller-00 pro-audio
-```
+First, make sure you have a password set for the `deck` user. If not enter the terminal an run `passwd`. The system will ask for a new password and a confirmation.
 
-If you notice anything unusual after an update of Linux or the Dongle firmware be aware that sometimes the device audio profile cache gets corrupted and needs to be checked running the command above or re enabling the pro-audio profile manually on the audio control panel.
+Then, plug the dongle, pair the controller and follow these steps:
+
+1. Make a new directory on `/home/deck/` called `audio_mix` 
+2. Paste the `scripts` folder contents on the new folder `/home/deck/audio_mix`
+3. Enter the terminal an run `sh /home/deck/audio_mix/restaurar_respaldo.sh`
+4. The script will ask you the root pasword.
+5. After it ends, unplug an plug the dongle again for the changes to apply
+
+You will need to do this once, but, after an update, Steam could probably overwrite the changes, so you will have to run the script again (Step 3 only).
 
 ---
 

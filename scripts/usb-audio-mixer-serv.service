@@ -1,0 +1,12 @@
+[Unit]
+Description=Mix actual audio output with Dualsense Dongle
+After=pipewire.service
+Requires=pipewire.service
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/usb-audio-mixer.sh
+Restart=no
+
+[Install]
+WantedBy=default.target

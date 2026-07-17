@@ -119,15 +119,22 @@ Tienes **4 perfiles distintos**, cada uno almacenando su propia configuración �
 
 ---
 
-## ⚙️ Configuraciones en Linux
+## ⚙️ Steam Deck
 
-El sistema de auto-háptica necesita el perfil pro-audio que se puede configurar manualmente en el panel de control de audio o ejecutando este comando (una sola vez):
+Si quieres enviar audio al dongle simultáneamente con HDMI, altavoces o conector de 3,5 mm, puedes usar el script "restaurar_respaldo.sh" que se encuentra en la carpeta de scripts. Esto le dará un nombre fijo al dongle y, cada vez que lo conectes, la Deck enviará audio al HDMI, altavoces o auriculares al mismo tiempo que al dongle, para que puedas disfrutar de la retroalimentación háptica con la salida de audio que prefieras. Además, configurará el perfil de audio del dongle a pro-audio, lo cual es necesario para que la retroalimentación háptica funcione correctamente en Linux.
 
-```bash
-pactl set-card-profile alsa_card.usb-Sony_Interactive_Entertainment_DualSense_Wireless_Controller-00 pro-audio
-```
+Primero, asegúrate de tener una contraseña configurada para el usuario `deck`. Si no la tienes, abre la terminal y ejecuta `passwd`. El sistema te pedirá una nueva contraseña y la confirmación.
 
-Si notas algo inusual después de una actualización de Linux o del firmware del Dongle, ten en cuenta que a veces la caché del perfil de audio del dispositivo se corrompe y necesita ser verificada ejecutando el comando anterior o re-activando el perfil pro-audio manualmente en el panel de control de audio.
+Luego, conecta el dongle, empareja el mando y sigue estos pasos:
+
+1. Crea una nueva carpeta en `/home/deck/` llamada `audio_mix`.
+2. Copia el contenido de la carpeta `scripts` en la nueva carpeta `/home/deck/audio_mix`.
+3. Abre la terminal y ejecuta `sh /home/deck/audio_mix/restaurar_respaldo.sh`.
+4. El script te pedirá la contraseña de root.
+
+5. Una vez finalizado, desconecta y vuelve a conectar el dongle para que se apliquen los cambios.
+
+Tendrás que hacer esto una sola vez, pero, después de una actualización, Steam podría sobrescribir los cambios, por lo que tendrás que ejecutar el script de nuevo (solo el paso 3).
 
 ---
 

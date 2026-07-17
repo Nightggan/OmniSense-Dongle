@@ -1,0 +1,14 @@
+[Unit]
+Description=Puente de audio USB para el usuario Deck
+After=user@1000.service
+Requires=user@1000.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=false
+ExecStartPre=/usr/bin/sleep 4
+# CAMBIAMOS 'start' POR 'restart'
+ExecStart=/usr/bin/sudo -u deck XDG_RUNTIME_DIR=/run/user/1000 systemctl --user restart usb-audio-mixer-serv.service
+
+[Install]
+WantedBy=multi-user.target
