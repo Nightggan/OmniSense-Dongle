@@ -38,16 +38,16 @@ static uint64_t last_rumble_report_us = 0;
 
 //Custom vars Omni
 
-uint8_t right_trigger_real_position = 0;
-uint8_t left_trigger_real_position = 0;
+volatile uint8_t right_trigger_real_position = 0;
+volatile uint8_t left_trigger_real_position = 0;
 
 uint8_t host_real_color_r = 0;
 uint8_t host_real_color_g = 0;
 uint8_t host_real_color_b = 0;
 
-uint8_t lb_controlled_red = 0;
-uint8_t lb_controlled_green = 0;
-uint8_t lb_controlled_blue = 0;
+volatile uint8_t lb_controlled_red = 0;
+volatile uint8_t lb_controlled_green = 0;
+volatile uint8_t lb_controlled_blue = 0;
 
 bool check_lb_again = false;
 static uint32_t last_time_check_lb = 0;
@@ -57,7 +57,7 @@ volatile bool usb_reconnect_requested = false;
 static bool usb_is_enabled = false;
 volatile bool save_requested = false;
 uint32_t pending_save_time = 0;
-bool config_mode_enabled = false;
+volatile bool config_mode_enabled = false;
 bool config_button_pressed = false;
 bool save_config_now = false;
 uint32_t left_analog_up_holding_time = 0;
@@ -73,7 +73,7 @@ volatile float local_current_volume = -100.0f;
 volatile bool headset_plugged = false;
 volatile bool audio_mute = false;
 volatile float current_auto_haptics_gain = 1.5f;
-uint8_t local_profile_selected;
+volatile uint8_t local_profile_selected;
 uint32_t time_config_pending_time;
 uint32_t mute_button_press_time;
 bool exiting_config = false;
@@ -1077,7 +1077,6 @@ uint16_t tud_hid_get_report_cb(uint8_t itf, uint8_t report_id, hid_report_type_t
                                uint16_t reqlen) {
     (void) report_type;
     
-    // if (itf == 1) itf=0; //Ignores Control requests on Consumer interface (itf=1) to avoid STALLs on the host side and reroutes them to DS itf
     if (is_pico_cmd(report_id)) {
         return pico_cmd_get(report_id, buffer, reqlen);
     }
@@ -1094,8 +1093,6 @@ uint16_t tud_hid_get_report_cb(uint8_t itf, uint8_t report_id, hid_report_type_t
         memcpy(buffer, feature_data.data() + 1, len);
         return len;
     }
-    
-
     
     // BT feature data not yet cached — return zeros instead of STALLing.
     // hid_playstation calls GET_FEATURE(0x20) during probe; a STALL causes
@@ -1131,85 +1128,49 @@ void tud_hid_set_report_cb(uint8_t itf, uint8_t report_id, hid_report_type_t rep
     (void) buffer;
     (void) bufsize;
 
-    #if USE_LINUX_USB_DESCRIPTORS
-        
-        if (is_pico_cmd(report_id)) {
-            printf("[HID] Receive 0xf6 setting config, funcid:0x%02X\n", buffer[0]);
-            pico_cmd_set(report_id, buffer, bufsize);
-            return;
-        }
-
-        // INTERRUPT OUT
-        if (report_id == 0) {
-            switch (buffer[0]) {
-                case 0x02: {
-                    state_update(buffer + 1, bufsize - 1);
-                    last_rumble_report_us = to_us_since_boot(get_absolute_time());
-                    uint8_t outputData[78]{};
-                    outputData[0] = 0x31;
-                    outputData[1] = reportSeqCounter << 4;
-                    if (++reportSeqCounter == 256) {
-                        reportSeqCounter = 0;
-                    }
-                    outputData[2] = 0x10;
-                    // memcpy(outputData + 3, buffer + 1, bufsize - 1);
-                    state_set(outputData + 3,sizeof(SetStateData));
-                    bt_write(outputData, sizeof(outputData));
-                    break;
-                }
-            }
-        }
-        if (report_id == 0x80 ||
-            // DSE: Write Profile Block
-            report_id == 0x60 ||
-            report_id == 0x62 ||
-            report_id == 0x61) {
-            set_feature_data(report_id, const_cast<uint8_t *>(buffer), bufsize);
-            return;
-        }
-    #else
+    #if !USE_LINUX_USB_DESCRIPTORS
         if (itf == 1) itf=0; //Ignores Control requests on Consumer interface (itf=1) to avoid STALLs on the host side and reroutes them to DS itf
-        
-        if (is_pico_cmd(report_id)) {
-            printf("[HID] Receive 0xf6 setting config, funcid:0x%02X\n", buffer[0]);
-            pico_cmd_set(report_id, buffer, bufsize);
-            return;
-        }
-
-        auto forward_ds_output_report = [&](const uint8_t *payload, uint16_t payload_size) {
-            state_update(payload, payload_size);
-            last_rumble_report_us = to_us_since_boot(get_absolute_time());
-            uint8_t outputData[78]{};
-            outputData[0] = 0x31;
-            outputData[1] = reportSeqCounter << 4;
-            if (++reportSeqCounter == 256) {
-                reportSeqCounter = 0;
-            }
-            outputData[2] = 0x10;
-            state_set(outputData + 3, sizeof(SetStateData));
-            bt_write(outputData, sizeof(outputData));
-        };
-
-        // INTERRUPT OUT:
-        // - Some hosts send report_id=0 and put 0x02 in buffer[0].
-        // - Others send report_id=0x02 directly with payload-only data.
-        if (report_id == 0 && bufsize > 0 && buffer[0] == 0x02) {
-            forward_ds_output_report(buffer + 1, bufsize - 1);
-        } else if (report_id == 0x02) {
-            const bool prefixed_payload = (bufsize > sizeof(SetStateData) && buffer[0] == 0x02);
-            const uint8_t *payload = prefixed_payload ? (buffer + 1) : buffer;
-            const uint16_t payload_size = prefixed_payload ? (bufsize - 1) : bufsize;
-            forward_ds_output_report(payload, payload_size);
-        }
-        if (report_id == 0x80 ||
-            // DSE: Write Profile Block
-            report_id == 0x60 ||
-            report_id == 0x62 ||
-            report_id == 0x61) {
-            set_feature_data(report_id, const_cast<uint8_t *>(buffer), bufsize);
-            return;
-        }
     #endif
+        
+    if (is_pico_cmd(report_id)) {
+        printf("[HID] Receive 0xf6 setting config, funcid:0x%02X\n", buffer[0]);
+        pico_cmd_set(report_id, buffer, bufsize);
+        return;
+    }
+
+    auto forward_ds_output_report = [&](const uint8_t *payload, uint16_t payload_size) {
+        state_update(payload, payload_size);
+        last_rumble_report_us = to_us_since_boot(get_absolute_time());
+        uint8_t outputData[78]{};
+        outputData[0] = 0x31;
+        outputData[1] = reportSeqCounter << 4;
+        if (++reportSeqCounter == 256) {
+            reportSeqCounter = 0;
+        }
+        outputData[2] = 0x10;
+        state_set(outputData + 3, sizeof(SetStateData));
+        bt_write(outputData, sizeof(outputData));
+    };
+
+    // INTERRUPT OUT:
+    // - Some hosts send report_id=0 and put 0x02 in buffer[0].
+    // - Others send report_id=0x02 directly with payload-only data.
+    if (report_id == 0 && bufsize > 0 && buffer[0] == 0x02) {
+        forward_ds_output_report(buffer + 1, bufsize - 1);
+    } else if (report_id == 0x02) {
+        const bool prefixed_payload = (bufsize > sizeof(SetStateData) && buffer[0] == 0x02);
+        const uint8_t *payload = prefixed_payload ? (buffer + 1) : buffer;
+        const uint16_t payload_size = prefixed_payload ? (bufsize - 1) : bufsize;
+        forward_ds_output_report(payload, payload_size);
+    }
+    if (report_id == 0x80 ||
+        // DSE: Write Profile Block
+        report_id == 0x60 ||
+        report_id == 0x62 ||
+        report_id == 0x61) {
+        set_feature_data(report_id, const_cast<uint8_t *>(buffer), bufsize);
+        return;
+    }  
 }
 
 // Periodic 0x31 keepalive: the DualSense haptic subsystem times out if no
@@ -1231,10 +1192,15 @@ static void state_keepalive() {
     state_set(pkt + 3, sizeof(SetStateData));
     // Read actual config
     const auto &cfg = get_profile_config();
+    size_t right_trigger_offset = 3 + offsetof(SetStateData, RightTriggerFFB);
+    size_t left_trigger_offset = 3 + offsetof(SetStateData, LeftTriggerFFB);
 
+    uint8_t rumble_right = 0;
+    uint8_t rumble_left = 0;
+    state_get_rumble_emulation(&rumble_right, &rumble_left);
     // Offset of Valid_Flag1 to push max amps to the trigger motors
     //size_t out_motor_flag_offset = 3 + offsetof(SetStateData, HostTimestamp) + sizeof(uint32_t);
-
+    
     // Pushing trigger mode 3 (Machine Gun) every loop, otherwise it falls back to relax mode
     if (cfg.trigger_right_mode == 3) {
         size_t r_off = 3 + offsetof(SetStateData, RightTriggerFFB);
@@ -1243,16 +1209,11 @@ static void state_keepalive() {
         // Only applies if the user is actually pushing the trigger beyond a threshold of 15 (0 to 255)
         if (right_trigger_real_position > 15) {
             set_bit(pkt[3], 2, true);
-            //pkt[3 + 0] |= 0x04; // Valid_Flag0: Telling that the R2 is being updated
-            /*if (out_motor_flag_offset < 78) {
-                pkt[out_motor_flag_offset] |= 0x03; // Enforcing power stage
-            }*/
 
-            
             pkt[r_off + 0] = 0x06; // L2/R2 trigger effect mode (Machine Gun)
-            pkt[r_off + 1] = get_profile_config().vibration_frequency; ; // Parameter 1: Frecuency
-            pkt[r_off + 2] = get_profile_config().vibration_force; // Parameter 2: Force
-            pkt[r_off + 3] = get_profile_config().vibration_start_point; // Parameter 3: Start Point
+            pkt[r_off + 1] = cfg.vibration_frequency; ; // Parameter 1: Frecuency
+            pkt[r_off + 2] = cfg.vibration_force; // Parameter 2: Force
+            pkt[r_off + 3] = cfg.vibration_start_point; // Parameter 3: Start Point
             memset(&pkt[r_off + 4], 0, 7);
             
         } else {
@@ -1261,6 +1222,48 @@ static void state_keepalive() {
             memset(&pkt[r_off + 1], 0, 10);
         }
     }
+    else if (cfg.trigger_right_mode == 5) {// Rumble to Trigger
+            
+        uint16_t amp = (uint16_t)rumble_right * (uint16_t)cfg.rumble_trigger_strength / 100u;
+        if (amp > 255) amp = 255;
+        for (int i = 0; i < 11; ++i) 
+            pkt[right_trigger_offset + i] = 0;//Cleans trigger parameters
+        // On-press gate: below ~25% pull, emit Off so the trigger stays quiet
+        // until the user actually presses it.
+        if (cfg.rumble_trigger_on_press && right_trigger_real_position < 64) 
+        { 
+            pkt[right_trigger_offset + 0] = 0x05; 
+        }
+        else
+        {
+            if (amp == 0) 
+            { 
+                pkt[right_trigger_offset + 0] = 0x05; 
+                
+            }
+            else
+            {
+                pkt[right_trigger_offset + 0] = 0x26; // Vibration
+                // Full-travel zones now (position gating handles "on press"); this keeps
+                // the buzz feeling consistent once engaged rather than only in a sub-band.
+                const uint16_t zones = 0x03FF;
+                pkt[right_trigger_offset + 1] = (uint8_t)(zones & 0xFF);
+                pkt[right_trigger_offset + 2] = (uint8_t)((zones >> 8) & 0x03);
+                
+                uint8_t val3 = (uint8_t)(amp * 7u / 255u);
+                uint32_t bits = 0;
+                for (int z = 0; z <= 9; ++z)
+                    if (zones & (1u << z)) bits |= (uint32_t)(val3 & 0x7u) << (3 * z);
+                pkt[right_trigger_offset + 3] = (uint8_t)(bits & 0xFF);
+                pkt[right_trigger_offset + 4] = (uint8_t)((bits >> 8) & 0xFF);
+                pkt[right_trigger_offset + 5] = (uint8_t)((bits >> 16) & 0xFF);
+                pkt[right_trigger_offset + 6] = (uint8_t)((bits >> 24) & 0xFF);
+                pkt[right_trigger_offset + 9] = cfg.rumble_trigger_frequency;
+            }
+        }
+        
+        
+    }
 
     
     if (cfg.trigger_left_mode == 3) {
@@ -1268,22 +1271,59 @@ static void state_keepalive() {
         size_t l_off = 3 + offsetof(SetStateData, LeftTriggerFFB);
         if (left_trigger_real_position > 15) {
             set_bit(pkt[3], 3, true);
-            //pkt[3 + 0] |= 0x08; // Valid_Flag0: Telling that the L2 is being updated
-            /*if (out_motor_flag_offset < 78) {
-                pkt[out_motor_flag_offset] |= 0x03; 
-            }*/
-
+        
             pkt[l_off + 0] = 0x06; 
-            pkt[l_off + 1] = get_profile_config().vibration_frequency; ; // Parameter 1: Frecuency
-            pkt[l_off + 2] = get_profile_config().vibration_force; // Parameter 2: Force
-            pkt[l_off + 3] = get_profile_config().vibration_start_point; // Parameter 3: Start Point
+            pkt[l_off + 1] = cfg.vibration_frequency; ; // Parameter 1: Frecuency
+            pkt[l_off + 2] = cfg.vibration_force; // Parameter 2: Force
+            pkt[l_off + 3] = cfg.vibration_start_point; // Parameter 3: Start Point
             memset(&pkt[l_off + 4], 0, 7);
         } else {
             pkt[l_off + 0] = 0x05; 
             memset(&pkt[l_off + 1], 0, 10);
         }
     }
-
+    else if (cfg.trigger_left_mode == 5) {// Rumble to Trigger
+            
+        uint16_t amp = (uint16_t)rumble_left * (uint16_t)cfg.rumble_trigger_strength / 100u;
+        if (amp > 255) amp = 255;
+        for (int i = 0; i < 11; ++i) 
+            pkt[left_trigger_offset + i] = 0;//Cleans trigger parameters
+        // On-press gate: below ~25% pull, emit Off so the trigger stays quiet
+        // until the user actually presses it.
+        if (cfg.rumble_trigger_on_press && left_trigger_real_position < 64) 
+        { 
+            pkt[left_trigger_offset + 0] = 0x05; 
+        }
+        else
+        {
+            if (amp == 0) 
+            { 
+                pkt[left_trigger_offset + 0] = 0x05; 
+                
+            }
+            else
+            {
+                pkt[left_trigger_offset + 0] = 0x26; // Vibration
+                // Full-travel zones now (position gating handles "on press"); this keeps
+                // the buzz feeling consistent once engaged rather than only in a sub-band.
+                const uint16_t zones = 0x03FF;
+                pkt[left_trigger_offset + 1] = (uint8_t)(zones & 0xFF);
+                pkt[left_trigger_offset + 2] = (uint8_t)((zones >> 8) & 0x03);
+                
+                uint8_t val3 = (uint8_t)(amp * 7u / 255u);
+                uint32_t bits = 0;
+                for (int z = 0; z <= 9; ++z)
+                    if (zones & (1u << z)) bits |= (uint32_t)(val3 & 0x7u) << (3 * z);
+                pkt[left_trigger_offset + 3] = (uint8_t)(bits & 0xFF);
+                pkt[left_trigger_offset + 4] = (uint8_t)((bits >> 8) & 0xFF);
+                pkt[left_trigger_offset + 5] = (uint8_t)((bits >> 16) & 0xFF);
+                pkt[left_trigger_offset + 6] = (uint8_t)((bits >> 24) & 0xFF);
+                pkt[left_trigger_offset + 9] = cfg.rumble_trigger_frequency;
+            }
+        }
+        
+    }
+    
     
     pkt[4] |= 0x04;// valid_flag1: LIGHTBAR_CONTROL_ENABLE (bit 2)
     pkt[47] = lb_controlled_red;   // lightbar_red
@@ -1415,7 +1455,9 @@ int main() {
         }*/
         cyw43_arch_poll();
         tud_task();
-        process_media_keys();
+        #if !USE_LINUX_USB_DESCRIPTORS
+            process_media_keys();
+        #endif
         //original audio loop location
         audio_loop();
         interrupt_loop();

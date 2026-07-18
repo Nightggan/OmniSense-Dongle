@@ -23,8 +23,8 @@
  *
  */
 
-#ifndef TUSB_CONFIG_H_
-#define TUSB_CONFIG_H_
+#ifndef TUSB_CONFIG_LINUX_H_
+#define TUSB_CONFIG_LINUX_H_
 
 #ifdef __cplusplus
  extern "C" {
@@ -147,4 +147,4 @@
 }
 #endif
 
-#endif /* TUSB_CONFIG_H_ */
+#endif /* TUSB_CONFIG_LINUX_H_ */

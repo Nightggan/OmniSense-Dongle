@@ -103,6 +103,15 @@ static float local_current_volume; //Live speaker volume prior to save to the fl
 
 extern volatile bool audio_mute;
 extern volatile float current_auto_haptics_gain;
+extern volatile uint8_t local_profile_selected;
+extern volatile bool trigger_left_mode_0_engaged;
+extern volatile bool trigger_right_mode_0_engaged;
+extern volatile uint8_t right_trigger_real_position;
+extern volatile uint8_t left_trigger_real_position;
+extern volatile uint8_t lb_controlled_red;
+extern volatile uint8_t lb_controlled_green;
+extern volatile uint8_t lb_controlled_blue;
+extern volatile bool config_mode_enabled;
 //End Custom vars Omni
 struct audio_raw_element {
     float data[512 * 2];
@@ -115,6 +124,10 @@ void set_headset(bool state) {
 void set_volume(float volume) {
     local_current_volume = volume;
 }
+
+auto set_audio_bit = [](uint8_t &byte, const int bit, const bool value) {
+        byte = (byte & ~(1 << bit)) | (value << bit);
+    };
 
 void __not_in_flash_func(audio_loop)() {
     // 1. 读取 USB 音频数据
@@ -314,7 +327,150 @@ void __not_in_flash_func(audio_loop)() {
         pkt[13 + offsetof(SetStateData, RumbleEmulationLeft)] = 0;
         pkt[13] &= static_cast<uint8_t>(~(1u << 1));
 
+
+        // Pushing bytes that need to be sent to the controller when sending 0x36 audio reports. This is a bit of a hack, but it works. The controller expects these bytes to be sent in the same report as the audio data, so we need to include them here.
+        Profile_Config_body local_profile_config = get_profile_config_index(local_profile_selected);
+
         
+        size_t right_trigger_offset = 13 + offsetof(SetStateData, RightTriggerFFB);
+        size_t left_trigger_offset = 13 + offsetof(SetStateData, LeftTriggerFFB);
+
+        // Right Trigger
+        if (local_profile_config.trigger_right_mode != 0) {
+            trigger_right_mode_0_engaged = false;
+            // Other modes: Forcing validity bits on state[0] and Valid_Flag1
+            set_audio_bit(pkt[13 + 0], 2, true); 
+
+            if (local_profile_config.trigger_right_mode == 3) { // Machine Gun mode
+                if (right_trigger_real_position > 15) {
+                    pkt[right_trigger_offset + 0] = 0x06; 
+                    pkt[right_trigger_offset + 1] = local_profile_config.vibration_frequency; ; // Parameter 1: Frecuency
+                    pkt[right_trigger_offset + 2] = local_profile_config.vibration_force; // Parameter 2: Force
+                    pkt[right_trigger_offset + 3] = local_profile_config.vibration_start_point; // Parameter 3: Start Point
+                    memset(pkt + right_trigger_offset + 4, 0, 7);
+                } else {
+                    pkt[right_trigger_offset + 0] = 0x05;  
+                    memset(pkt + right_trigger_offset + 4, 0, 7);
+                }
+            }
+            else if (local_profile_config.trigger_right_mode == 5) {// Rumble to Trigger
+                
+                uint16_t amp = (uint16_t)rumble_right * (uint16_t)local_profile_config.rumble_trigger_strength / 100u;
+                if (amp > 255) amp = 255;
+                for (int i = 0; i < 11; ++i) 
+                    pkt[right_trigger_offset + i] = 0;//Cleans trigger parameters
+                // On-press gate: below ~25% pull, emit Off so the trigger stays quiet
+                // until the user actually presses it.
+                if (local_profile_config.rumble_trigger_on_press && right_trigger_real_position < 64) 
+                { 
+                    pkt[right_trigger_offset + 0] = 0x05; 
+                }
+                else
+                {
+                    if (amp == 0) 
+                    { 
+                        pkt[right_trigger_offset + 0] = 0x05;   
+                    }
+                    else
+                    {
+                        pkt[right_trigger_offset + 0] = 0x26; // Vibration
+                        // Full-travel zones now (position gating handles "on press"); this keeps
+                        // the buzz feeling consistent once engaged rather than only in a sub-band.
+                        const uint16_t zones = 0x03FF;
+                        pkt[right_trigger_offset + 1] = (uint8_t)(zones & 0xFF);
+                        pkt[right_trigger_offset + 2] = (uint8_t)((zones >> 8) & 0x03);
+                        
+                        uint8_t val3 = (uint8_t)(amp * 7u / 255u);
+                        uint32_t bits = 0;
+                        for (int z = 0; z <= 9; ++z)
+                            if (zones & (1u << z)) bits |= (uint32_t)(val3 & 0x7u) << (3 * z);
+                        pkt[right_trigger_offset + 3] = (uint8_t)(bits & 0xFF);
+                        pkt[right_trigger_offset + 4] = (uint8_t)((bits >> 8) & 0xFF);
+                        pkt[right_trigger_offset + 5] = (uint8_t)((bits >> 16) & 0xFF);
+                        pkt[right_trigger_offset + 6] = (uint8_t)((bits >> 24) & 0xFF);
+                        pkt[right_trigger_offset + 9] = local_profile_config.rumble_trigger_frequency;
+                    }
+                }
+            }
+        }
+
+        // Left Trigger
+        if (local_profile_config.trigger_left_mode != 0) {
+            trigger_left_mode_0_engaged = false;
+            set_audio_bit(pkt[13], 3, true);
+
+            if (local_profile_config.trigger_left_mode == 3) { // Machine Gun mode
+                if (left_trigger_real_position > 15) {
+                    pkt[left_trigger_offset + 0] = 0x06; //0x06; 
+                    pkt[left_trigger_offset + 1] = local_profile_config.vibration_frequency; ; // Parameter 1: Frecuency
+                    pkt[left_trigger_offset + 2] = local_profile_config.vibration_force; // Parameter 2: Force
+                    pkt[left_trigger_offset + 3] = local_profile_config.vibration_start_point; // Parameter 3: Start Point
+                    memset(pkt + left_trigger_offset + 4, 0, 7);
+                } else {
+                    pkt[left_trigger_offset + 0] = 0x05;  
+                    memset(pkt + left_trigger_offset + 4, 0, 7);
+                }
+            }
+            else if (local_profile_config.trigger_left_mode == 5) {
+                uint16_t amp = (uint16_t)rumble_left * (uint16_t)local_profile_config.rumble_trigger_strength / 100u;
+                if (amp > 255) 
+                    amp = 255;
+
+                for (int i = 0; i < 11; ++i) 
+                    pkt[left_trigger_offset + i] = 0;
+                // On-press gate: below ~25% pull, emit Off so the trigger stays quiet
+                // until the user actually presses it.
+                if (local_profile_config.rumble_trigger_on_press && left_trigger_real_position < 64) 
+                { 
+                    pkt[left_trigger_offset + 0] = 0x05;
+                }
+                else
+                {
+                    if (amp == 0) 
+                    { 
+                        pkt[left_trigger_offset + 0] = 0x05; 
+                    }
+                    else
+                    {
+                        pkt[left_trigger_offset + 0] = 0x26; // Vibration
+                        // Full-travel zones now (position gating handles "on press"); this keeps
+                        // the buzz feeling consistent once engaged rather than only in a sub-band.
+                        const uint16_t zones = 0x03FF;
+                        pkt[left_trigger_offset + 1] = (uint8_t)(zones & 0xFF);
+                        pkt[left_trigger_offset + 2] = (uint8_t)((zones >> 8) & 0x03);
+                        uint8_t val3 = (uint8_t)(amp * 7u / 255u);
+                        uint32_t bits = 0;
+                        for (int z = 0; z <= 9; ++z)
+                            if (zones & (1u << z)) bits |= (uint32_t)(val3 & 0x7u) << (3 * z);
+                        pkt[left_trigger_offset + 3] = (uint8_t)(bits & 0xFF);
+                        pkt[left_trigger_offset + 4] = (uint8_t)((bits >> 8) & 0xFF);
+                        pkt[left_trigger_offset + 5] = (uint8_t)((bits >> 16) & 0xFF);
+                        pkt[left_trigger_offset + 6] = (uint8_t)((bits >> 24) & 0xFF);
+                        pkt[left_trigger_offset + 9] = local_profile_config.rumble_trigger_frequency;
+                    }
+                }
+            }
+        }
+        
+        
+        size_t led_red_offset = 13 + offsetof(SetStateData, LedRed);
+
+        pkt[led_red_offset] = lb_controlled_red;   // Calculated colors
+        pkt[led_red_offset + 1] = lb_controlled_green;
+        pkt[led_red_offset + 2] = lb_controlled_blue;
+        
+        size_t mute_light_mode_offset = 13 + offsetof(SetStateData, MuteLightMode);
+        pkt[mute_light_mode_offset] |= 0x01;//Enable Mute Light Control
+        //If in config state mode 
+        if(config_mode_enabled)
+        {
+            pkt[mute_light_mode_offset] = MuteLight::Breathing; //Mute Light Breathing on config mode
+        }
+        else
+        {
+            pkt[mute_light_mode_offset] = MuteLight::Off; //Mute Light off on not config mode
+        }
+
         // Haptics Audio Data
         pkt[76] = 0x12 | 0 << 6 | 1 << 7;
         pkt[77] = SAMPLE_SIZE;
