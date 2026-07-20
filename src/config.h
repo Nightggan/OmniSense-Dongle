@@ -6,7 +6,8 @@
 #define DS5_BRIDGE_CONFIG_H
 #include <cstdint>
 struct __attribute__((packed)) Global_Config_body {
-    uint8_t config_version; // Device_Config Version
+    uint8_t so_version; // Device_Config Version
+    uint8_t config_version; // sizeof(Device_Config)
     float haptics_gain; // [1.0,2.0]
     uint8_t inactive_time; // [5,60] min
     uint8_t disable_inactive_disconnect; // bool: 0 disable,1 enable

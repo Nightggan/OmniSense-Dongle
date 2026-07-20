@@ -36,16 +36,15 @@ bool is_pico_cmd(uint8_t report_id) {
 uint16_t pico_cmd_get(uint8_t report_id, uint8_t *buffer, uint16_t reqlen) {
     if (report_id == 0xf7) {
         printf("[HID] Receive 0xf7 getting config\n");
-        // Skip config_version (internal field), expose from haptics_gain so
-        // clients see a layout matching their struct definition.
+        
         const Global_Config_body& global_body = get_global_config();
-        constexpr size_t offset = offsetof(Global_Config_body, haptics_gain);
-        constexpr size_t body_len = sizeof(Global_Config_body) - offset;
+        //constexpr size_t offset = offsetof(Global_Config_body, haptics_gain);
+        constexpr size_t body_len = sizeof(Global_Config_body);
         if (body_len > reqlen) {
             printf("[Device_Config] Warning: Config_body overflow\n");
         }
         const auto len = std::min(body_len, static_cast<size_t>(reqlen));
-        memcpy(buffer, reinterpret_cast<const uint8_t*>(&global_body) + offset, len);
+        memcpy(buffer, reinterpret_cast<const uint8_t*>(&global_body), len);
         return static_cast<uint16_t>(len);
     }
     if (report_id == 0xf8) {

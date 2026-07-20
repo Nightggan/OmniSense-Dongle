@@ -14,7 +14,12 @@
 #include "pico/flash.h"
 
 constexpr uint32_t CONFIG_MAGIC = 0xCAFEBABE;
-constexpr uint16_t CONFIG_VERSION = 2;
+#if USE_LINUX_USB_DESCRIPTORS
+    constexpr uint16_t SO_VERSION = 1;
+#else
+    constexpr uint16_t SO_VERSION = 2;
+#endif
+constexpr uint16_t CONFIG_VERSION = 7;
 constexpr uint32_t CONFIG_FLASH_OFFSET = PICO_FLASH_SIZE_BYTES - FLASH_SECTOR_SIZE;
 static Device_Config config{};
 extern volatile float local_current_volume;
@@ -42,20 +47,24 @@ const Device_Config *flash_config() {
 }
 
 void global_config_valid() {
-    // valid config and set default value
-    if (config.version != CONFIG_VERSION) {
-        config.version = CONFIG_VERSION;
-        printf("[Config] Config Version is invalid\n");
-    }
-    if (config.global_config_size != sizeof(Device_Config)) {
-        config.global_config_size = sizeof(Device_Config);
-        printf("[Config] Config Body size is invalid\n");
-    }
+   
     //Profile index validation
     if (config.profile_selected > 3) {//0 - 3 profile index
         config.profile_selected = 0;
     }
+
     auto global_body = &config.global_body;
+    // Validate config values and set defaults if invalid
+
+    if (global_body->config_version != CONFIG_VERSION) {
+        global_body->config_version = CONFIG_VERSION;
+        printf("[Config] Device Config version is invalid\n");
+    }
+     
+    if (global_body->so_version != SO_VERSION) {
+        global_body->so_version = SO_VERSION;
+        printf("[Config] SO Version is invalid\n");
+    }
     if (std::isnan(global_body->haptics_gain) || global_body->haptics_gain < 1.0f || global_body->haptics_gain > 2.0f) {
         global_body->haptics_gain = 1.5f;
         printf("[Config] Haptics Gain value is invalid\n");
@@ -66,7 +75,7 @@ void global_config_valid() {
     }
     if (global_body->disable_inactive_disconnect > 1) {
         global_body->disable_inactive_disconnect = 0;
-        printf("[Config] disable_auto_disconnect is invalid\n");
+        printf("[Config] disable_inactive_disconnect is invalid\n");
     }
     if (global_body->disable_pico_led > 1) {
         global_body->disable_pico_led = 0;
@@ -78,15 +87,11 @@ void global_config_valid() {
     }
     if (global_body->audio_buffer_length < 16 || global_body->audio_buffer_length > 128) {
         global_body->audio_buffer_length = 64;
-        printf("[Config] haptics_buffer_length is invalid\n");
+        printf("[Config] audio_buffer_length is invalid\n");
     }
     if (global_body->controller_mode > 2) {
         global_body->controller_mode = 2;
         printf("[Config] controller_mode is invalid\n");
-    }
-    if (global_body->config_version != CONFIG_VERSION) {
-        global_body->config_version = CONFIG_VERSION;
-        printf("[Config] Warning: Config may breaking change\n");
     }
     if (global_body->auto_haptics_enable > 2) {
         global_body->auto_haptics_enable = 1;
@@ -371,7 +376,7 @@ const Profile_Config_body& get_profile_config_index(uint8_t index){
 }
 void set_global_config(const uint8_t *new_global_config, const uint16_t len) {
     
-    // HID payload starts at haptics_gain (config_version is internal, not sent over HID)
+    // HID payload starts at haptics_gain (so_version is internal, not sent over HID)
     constexpr size_t offset = offsetof(Global_Config_body, haptics_gain);
     const size_t body_len = sizeof(Global_Config_body) - offset;
     const auto copy_len = len < body_len ? len : body_len;

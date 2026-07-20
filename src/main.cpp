@@ -33,7 +33,6 @@
 int reportSeqCounter = 0;
 uint8_t packetCounter = 0;
 bool spk_active = false;
-bool touchpad_runtime_enabled = true;
 static uint64_t last_rumble_report_us = 0;
 
 //Custom vars Omni
@@ -314,8 +313,9 @@ void send_sleep_command() {
 //Custon on_bt_data adding trigger/lightbar modes and shortcuts
 void __not_in_flash_func(on_bt_data)(CHANNEL_TYPE channel, uint8_t *data, uint16_t len) {
     static bool request_flash_save = false;
+    Global_Config_body actual_global_config = get_global_config();
     if (channel == INTERRUPT && data[1] == 0x31) {
-        if ((data[56] & 1) != (interrupt_in_data[53] & 1)) {
+        if ((data[56] & 1) != (interrupt_in_data[53] & 1)) { // Speaker/Headset control
             set_headset(data[56] & 1);
             
             config_button_pressed = true;
@@ -324,11 +324,11 @@ void __not_in_flash_func(on_bt_data)(CHANNEL_TYPE channel, uint8_t *data, uint16
             headset_plugged = data[56] & 1; 
             if(headset_plugged)//Updating the volatile to update the volume live on headset plug/unplugg
             {
-                local_current_volume = get_global_config().headset_volume - 100.0f;
+                local_current_volume = actual_global_config.headset_volume - 100.0f;
             }
             else
             {
-                local_current_volume = get_global_config().speaker_volume - 100.0f;
+                local_current_volume = actual_global_config.speaker_volume - 100.0f;
             }
 
             uint8_t dummy_buffer[sizeof(SetStateData) + 1] = {0};
@@ -347,6 +347,7 @@ void __not_in_flash_func(on_bt_data)(CHANNEL_TYPE channel, uint8_t *data, uint16
             // Sending by BT the forced package to update the controller
             bt_write(forced_pkt, sizeof(forced_pkt));
         }
+        
         // Obtaining real triggers position
         left_trigger_real_position = data[7];  // Byte 7: L2 (0-255)
         right_trigger_real_position = data[8];  // Byte 8: R2 (0-255)
@@ -359,8 +360,11 @@ void __not_in_flash_func(on_bt_data)(CHANNEL_TYPE channel, uint8_t *data, uint16
         uint8_t right_stick_x = data[5]; //0: Full Left - 128: Center - 255: Full Right (Not in use atm)
         uint8_t right_stick_y = data[6]; //0: Full Up - 128: Center - 255: Full Down
 
+        Profile_Config_body local_profile_config = get_profile_config_index(local_profile_selected);
+
         //Only process gyro to analog if the gyro_button_activator is set to a value > 0 (Not Disabled)
-        if(get_profile_config_index(local_profile_selected).gyro_button_activator>0)
+        
+        if(local_profile_config.gyro_button_activator>0)
         {
             raw_ang_vel_x = (int16_t)((data[19] << 8) | data[18]);
             raw_ang_vel_z = (int16_t)((data[21] << 8) | data[20]);
@@ -378,8 +382,8 @@ void __not_in_flash_func(on_bt_data)(CHANNEL_TYPE channel, uint8_t *data, uint16
             }
 
             // Normalize the angular velocity values
-            uint16_t local_max_stick_dps = get_profile_config_index(local_profile_selected).max_stick_dps;
-            float local_gyro_multiplier = get_profile_config_index(local_profile_selected).gyro_multiplier;
+            uint16_t local_max_stick_dps = local_profile_config.max_stick_dps;
+            float local_gyro_multiplier = local_profile_config.gyro_multiplier;
             speed_ang_vel_x = (speed_ang_vel_x / local_max_stick_dps) * 100.0f;
             speed_ang_vel_z = (speed_ang_vel_z / local_max_stick_dps) * 100.0f;
 
@@ -390,11 +394,11 @@ void __not_in_flash_func(on_bt_data)(CHANNEL_TYPE channel, uint8_t *data, uint16
             final_pct_z = std::clamp(speed_ang_vel_z, -100.0f, 100.0f);
         }
         
-        // Device_Config Shortcut: Mute press
+        // Config Mode Shortcut: Mute press
         if (shortcut_btn_pressed(data, 8)) {
             if(!config_mode_enabled)
             {
-                if(get_global_config().time_config_mode>0)
+                if(actual_global_config.time_config_mode>0)
                 {
                     data[12] &= ~0x04;//Supress mute until release if realeased prior to get_global_config().time_config_mode
                     mute_button_press_time = 0;
@@ -408,7 +412,7 @@ void __not_in_flash_func(on_bt_data)(CHANNEL_TYPE channel, uint8_t *data, uint16
                     }
                     
                     
-                    if (time_config_pending_time != 0 && (to_ms_since_boot(get_absolute_time()) - time_config_pending_time >= get_global_config().time_config_mode)) {
+                    if (time_config_pending_time != 0 && (to_ms_since_boot(get_absolute_time()) - time_config_pending_time >= actual_global_config.time_config_mode)) {
                         time_config_pending_time = 0;          
                         config_mode_enabled = true;
                         mute_button_soft_pressed = false;
@@ -477,7 +481,7 @@ void __not_in_flash_func(on_bt_data)(CHANNEL_TYPE channel, uint8_t *data, uint16
             static bool rumble_mode_switch_shortcut_lock = false;
             // Obtaining D-Pad value
             uint8_t dpad_value = data[10] & 0x0F;
-            Global_Config_body actual_global_config = get_global_config();
+            
             // Profile switch: DPAD
             if (dpad_value == 0)//Profile 0
             {    
@@ -534,9 +538,10 @@ void __not_in_flash_func(on_bt_data)(CHANNEL_TYPE channel, uint8_t *data, uint16
                 // Unlocking the lock on button release
                 profile_switch_shortcut_lock_left = false;
             }
-            #if !USE_LINUX_USB_DESCRIPTORS
+            
+            #if !USE_LINUX_USB_DESCRIPTORS // Host Sleep command, disabled on Linux
             // Sleep Host: Circle
-            if (get_global_config().sleep_host_enable) {
+            if (actual_global_config.sleep_host_enable) {
                     
                     
                 if (shortcut_btn_pressed(data, 2))
@@ -551,8 +556,11 @@ void __not_in_flash_func(on_bt_data)(CHANNEL_TYPE channel, uint8_t *data, uint16
                 }
             }
             #endif
+
+            Profile_Config_body new_config = get_profile_config();
+
             // Power Off: TRIANGLE
-            if (get_global_config().enable_poweroff_shortcut)
+            if (actual_global_config.enable_poweroff_shortcut)
             {
                 if (shortcut_btn_pressed(data, 3))
                 {
@@ -561,10 +569,11 @@ void __not_in_flash_func(on_bt_data)(CHANNEL_TYPE channel, uint8_t *data, uint16
                     bt_disconnect();
                 }
             }
+            
             // Mute Speaker: SQUARE
             if (shortcut_btn_pressed(data, 0))
             {    
-                if(get_global_config().control_host_volume==1)
+                if(actual_global_config.control_host_volume==1)
                 {
                     if (!mute_speaker_shortcut_lock) {
                         //Send a volume up command to the host
@@ -588,7 +597,6 @@ void __not_in_flash_func(on_bt_data)(CHANNEL_TYPE channel, uint8_t *data, uint16
             if (shortcut_btn_pressed(data, 6))
             {    
                 if (!lightbar_mode_switch_shortcut_lock) {
-                    Profile_Config_body new_config = get_profile_config();
                     new_config.lightbar_mode = (new_config.lightbar_mode + 1) % 9; // Ciclar modos de luz
                     
                     set_profile_config(new_config);
@@ -605,7 +613,6 @@ void __not_in_flash_func(on_bt_data)(CHANNEL_TYPE channel, uint8_t *data, uint16
             if (shortcut_btn_pressed(data, 1))
             {    
                 if (!rumble_mode_switch_shortcut_lock) {
-                    
                     actual_global_config.classic_rumble_mix_profile = (actual_global_config.classic_rumble_mix_profile + 1) % 3; // Ciclar modos de luz
                     set_global_config(actual_global_config);
                     request_temp_save = true; //Temp save request to update the state
@@ -620,7 +627,6 @@ void __not_in_flash_func(on_bt_data)(CHANNEL_TYPE channel, uint8_t *data, uint16
             if (shortcut_btn_pressed(data, 7))
             {
                 if (!lightbar_breathing_shortcut_lock) {
-                    Profile_Config_body new_config = get_profile_config();
                     new_config.lightbar_breathing = !new_config.lightbar_breathing;
                     set_profile_config(new_config);
                     request_temp_save = true;
@@ -633,7 +639,6 @@ void __not_in_flash_func(on_bt_data)(CHANNEL_TYPE channel, uint8_t *data, uint16
             // Right Trigger mode: R1
             if (shortcut_btn_pressed(data, 5) /* R1 */) {
                 if (!right_trigger_mode_override_shortcut_lock) {
-                    Profile_Config_body new_config = get_profile_config();
                     new_config.trigger_right_mode = (new_config.trigger_right_mode + 1) % 6; 
                     set_profile_config(new_config);
                     request_temp_save = true;
@@ -646,7 +651,6 @@ void __not_in_flash_func(on_bt_data)(CHANNEL_TYPE channel, uint8_t *data, uint16
             // Left Trigger mode: L1
             if (shortcut_btn_pressed(data, 4)) {
                 if (!left_trigger_mode_override_shortcut_lock) {
-                    Profile_Config_body new_config = get_profile_config();
                     new_config.trigger_left_mode = (new_config.trigger_left_mode + 1) % 6; 
                     set_profile_config(new_config);
                     request_temp_save = true;
@@ -703,7 +707,7 @@ void __not_in_flash_func(on_bt_data)(CHANNEL_TYPE channel, uint8_t *data, uint16
             //Speaker Volume Up Shortcut control: Left Analog Up
             if (speaker_volume_up_shortcut_lock) {
                 
-                if(get_global_config().control_host_volume==1)
+                if(actual_global_config.control_host_volume==1)
                 {
                     //Send a volume up command to the host
                     send_volume_up_command();
@@ -742,7 +746,7 @@ void __not_in_flash_func(on_bt_data)(CHANNEL_TYPE channel, uint8_t *data, uint16
             //Speaker Volume Down Shortcut control: Left Analog Down
             if (speaker_volume_down_shortcut_lock) {
                 
-                if(get_global_config().control_host_volume==1)
+                if(actual_global_config.control_host_volume==1)
                 {
                     //Send a volume down command to the host
                     send_volume_down_command();
@@ -783,7 +787,7 @@ void __not_in_flash_func(on_bt_data)(CHANNEL_TYPE channel, uint8_t *data, uint16
             {
                 if(!right_analog_up_triggered)
                 {
-                right_analog_up_holding_time = to_ms_since_boot(get_absolute_time());
+                    right_analog_up_holding_time = to_ms_since_boot(get_absolute_time());
                     right_analog_up_triggered = true;
                 }
             }
@@ -863,14 +867,14 @@ void __not_in_flash_func(on_bt_data)(CHANNEL_TYPE channel, uint8_t *data, uint16
             {
                 if(headset_plugged)
                 {
-                    local_current_volume = get_global_config().headset_volume - 100.0f; //Updating the volatile var for audio loop to use without a full flash save 
+                    local_current_volume = actual_global_config.headset_volume - 100.0f; //Updating the volatile var for audio loop to use without a full flash save 
                 }
                 else
                 {
-                    local_current_volume = get_global_config().speaker_volume - 100.0f; //Updating the volatile var for audio loop to use without a full flash save 
+                    local_current_volume = actual_global_config.speaker_volume - 100.0f; //Updating the volatile var for audio loop to use without a full flash save 
                 }
                 
-                current_auto_haptics_gain = get_global_config().auto_haptics_gain;
+                current_auto_haptics_gain = actual_global_config.auto_haptics_gain;
                 request_temp_save = false;
                 // 2. Enforce the update of the internal state[] reading the new config modified by the shortcuts
                 uint8_t dummy_buffer[sizeof(SetStateData) + 1] = {0};
@@ -891,10 +895,9 @@ void __not_in_flash_func(on_bt_data)(CHANNEL_TYPE channel, uint8_t *data, uint16
                 request_flash_save = true;
                 
             }
-            suppress_all_inputs(data);
-            
+            suppress_all_inputs(data); 
         }
-        else//Exiting config state mode
+        else//Out of Config Mode, we can save to flash if requested by the shortcuts
         {
             //Only safe save to flash when out of config mode after request_flash_save is true
             if (request_flash_save) {
@@ -902,7 +905,7 @@ void __not_in_flash_func(on_bt_data)(CHANNEL_TYPE channel, uint8_t *data, uint16
                 save_requested = true;//Telling main loop to call flash save after some ms.
                 request_flash_save = false;
                 
-                current_auto_haptics_gain = get_global_config().auto_haptics_gain;
+                current_auto_haptics_gain = actual_global_config.auto_haptics_gain;
                 uint8_t dummy_buffer[sizeof(SetStateData) + 1] = {0};
                 state_update(dummy_buffer + 1, sizeof(SetStateData));
 
@@ -914,18 +917,17 @@ void __not_in_flash_func(on_bt_data)(CHANNEL_TYPE channel, uint8_t *data, uint16
                 
                 state_set(forced_pkt + 3, sizeof(SetStateData));
                 bt_write(forced_pkt, sizeof(forced_pkt));
-
             }
             if(headset_plugged)    
             {
-                local_current_volume = get_global_config().headset_volume - 100.0f; //Updating the volatile var for audio loop to use without a full flash save
+                local_current_volume = actual_global_config.headset_volume - 100.0f; //Updating the volatile var for audio loop to use without a full flash save
             }
             else
             {
-                local_current_volume = get_global_config().speaker_volume - 100.0f; //Updating the volatile var for audio loop to use without a full flash save
+                local_current_volume = actual_global_config.speaker_volume - 100.0f; //Updating the volatile var for audio loop to use without a full flash save
             }
             set_volume(local_current_volume);
-            Profile_Config_body local_profile_config = get_profile_config_index(local_profile_selected);
+            
             //Hair trigger values override
             if(left_trigger_real_position>0)
             {
@@ -948,9 +950,9 @@ void __not_in_flash_func(on_bt_data)(CHANNEL_TYPE channel, uint8_t *data, uint16
             if(local_profile_config.gyro_button_activator > 0)
             {
                 //Check if user is pressing the gyro button activator
-                if((gyro_shortcut_btn_pressed(data, get_profile_config_index(local_profile_selected).gyro_button_activator-2))||(get_profile_config_index(local_profile_selected).gyro_button_activator==1))//If the user is pressing the gyro button activator or if it is set to always on, we calculate the gyro to analog values
+                if((gyro_shortcut_btn_pressed(data, local_profile_config.gyro_button_activator-2))||(local_profile_config.gyro_button_activator==1))//If the user is pressing the gyro button activator or if it is set to always on, we calculate the gyro to analog values
                 {
-                    float local_analog_gyro_deadzone = get_profile_config_index(local_profile_selected).analog_gyro_deadzone;
+                    float local_analog_gyro_deadzone = local_profile_config.analog_gyro_deadzone;
                     
                     float final_right_stick_y = 0;
                     if((final_pct_x * ((127 - local_analog_gyro_deadzone) / 100.0f)) < 0.0f)//To 255
@@ -1019,7 +1021,8 @@ void __not_in_flash_func(on_bt_data)(CHANNEL_TYPE channel, uint8_t *data, uint16
                     
                 }
             }
-            if((ghost_press_mute)&&(!exiting_config))
+
+            if((ghost_press_mute)&&(!exiting_config))// Control mute button press if released prior to enter config mode if get_global_config().time_config_mode > 0
             {
                 if(mute_button_press_time == 0)
                 {
@@ -1415,9 +1418,6 @@ int main() {
     critical_section_init(&report_cs);
 
     device_config_load();
-    // Touchpad always starts active; enable_touchpad controls whether the PS+button
-    // shortcut is available (1 = shortcut enabled, 0 = touchpad always on, no toggle).
-    touchpad_runtime_enabled = true;
 
     wake_init();
 
