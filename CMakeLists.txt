@@ -96,13 +96,13 @@ project(omnisense-dongle C CXX ASM)
 pico_sdk_init()
 
 #Removes extra hid descriptors for Linux. Avoiding issues with Linux hid-playstation driver.
-option(ENABLE_EXTRA_HID "Enable USB HID descriptors" ON)
+option(ENABLE_EXTRA_HID "Enable USB HID descriptors")
 if (ENABLE_EXTRA_HID STREQUAL "ON")
         set(ENABLE_EXTRA_HID_VALUE 1)
         set(OMNISENSE_FIRMWARE_NAME "omnisense-dongle-extra-hid")
 else ()
         set(ENABLE_EXTRA_HID_VALUE 0)
-        set(OMNISENSE_FIRMWARE_NAME "omnisense-dongle")
+        set(OMNISENSE_FIRMWARE_NAME "omnisense-dongle-no-extra-hid")
 endif ()
 # Add executable. Default name is the project name, version 0.1
 add_executable(omnisense-dongle
