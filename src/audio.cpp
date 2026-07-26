@@ -471,6 +471,25 @@ void __not_in_flash_func(audio_loop)() {
             pkt[mute_light_mode_offset] = MuteLight::Off; //Mute Light off on not config mode
         }
 
+        //Profile to player lights
+        size_t player_light_offset = 13 + offsetof(SetStateData, LightBrightness) + 1;
+        if(local_profile_selected == 0)
+        {
+            pkt[player_light_offset] = 0x04;
+        }
+        else if(local_profile_selected == 1)
+        {
+            pkt[player_light_offset] = 0x02;
+        }
+        else if(local_profile_selected == 2)
+        {
+            pkt[player_light_offset] = 0x15;
+        }
+        else if(local_profile_selected == 3)
+        {
+            pkt[player_light_offset] = 0x1B;
+        }
+
         // Haptics Audio Data
         pkt[76] = 0x12 | 0 << 6 | 1 << 7;
         pkt[77] = SAMPLE_SIZE;

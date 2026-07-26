@@ -5,6 +5,7 @@
 #include "tusb.h"
 #include "bsp/board_api.h"
 #include "config.h"
+#include "bt.h"
 
 uint8_t mute[2]; // 0: SPEAKER(0x02) 1: MIC(0x05)
 float volume[2] = {-100.0f,0.0f}; // 0: SPEAKER(0x02) 1: MIC(0x05)
@@ -187,3 +188,13 @@ void tud_hid_report_complete_cb(uint8_t instance, uint8_t const *report, uint16_
     (void) instance;
     (void) len;
 }
+
+#if !ENABLE_EXTRA_HID
+
+void tud_suspend_cb(bool remote_wakeup_en) {
+    printf("[USB PM] invoke tud_suspend_cb\n");
+    if (!get_global_config().wake_enable) return;   // wake off: leave the controller's BT alone on a USB suspend (see wake.cpp)
+    bt_power_off_controller();
+}
+
+#endif

@@ -4,7 +4,7 @@
 
 #include "wake.h"
 
-#ifdef ENABLE_WAKE_HID
+#if ENABLE_EXTRA_HID
 
 #include <cstdio>
 #include <cstring>
@@ -13,7 +13,6 @@
 #include "device/dcd.h"
 #include "pico/sync.h"
 #include "pico/time.h"
-//#include "ps_shortcut.h"
 #include "config.h"
 
 
@@ -134,15 +133,15 @@ extern "C" void tud_suspend_cb(bool remote_wakeup_en) {
         WAKE_DBG("suspend during reconnect grace -> ignored");
         return;
     }
-    // The power-off runs on every genuine suspend, independent of enable_wake (battery-save for
+    // The power-off runs on every genuine suspend, independent of wake_enable (battery-save for
     // a real sleep/shutdown). A spurious hub suspend is filtered by the debounce below, not a
     // gate -- it resumes and tud_resume_cb / tud_mount_cb cancel the pending power-off first.
-    // Do NOT gate this on enable_wake, or the controller stops powering off on shutdown.
+    // Do NOT gate this on wake_enable, or the controller stops powering off on shutdown.
     suspend_at_us = time_us_64();
     host_suspended = true;
     host_resumed_event = false;
     
-    // Everything below is the wake-UP path (press a key to wake the host) -- enable_wake only.
+    // Everything below is the wake-UP path (press a key to wake the host) -- wake_enable only.
     if (!get_global_config().wake_enable) return;
 
     // Unconditionally re-arm on suspend. If a previous wake attempt hung
@@ -225,14 +224,13 @@ void wake_on_bt_disconnect(void) {
     state = WAKE_IDLE;
     prev_b7 = 0x08; prev_b8 = 0x00; prev_b9 = 0x00;
     critical_section_exit(&wake_cs);
-    //ps_shortcut_reset();
 }
 
 void wake_task(void) {
     const uint64_t now = time_us_64();
 
     // Commit the deferred controller power-off once we have stayed suspended past the debounce
-    // window (a genuine host sleep/shutdown). Runs regardless of enable_wake -- it is a
+    // window (a genuine host sleep/shutdown). Runs regardless of wake_enable -- it is a
     // battery-save, not part of the wake-UP path. A transient hub suspend will already have
     // been cancelled by tud_resume_cb / tud_mount_cb before this fires.
     if (suspend_at_us != 0 && host_suspended &&
@@ -350,4 +348,4 @@ void wake_task(void) {
     }
 }
 
-#endif // ENABLE_WAKE_HID
+#endif // wake_enable_HID

@@ -21,6 +21,18 @@ Esta Edición Avanzada hereda todas las excelentes características del firmware
 
 ## 🚀 Primeros Pasos
 
+### Instalación del Firmware
+
+1. Descarga la última versión del firmware en la pestaña `Releases`
+2. Presiona y sostén el botón `BOOTSEL` de la Raspberry y conectala a tu pc.
+3. Aparecerá una nueva unidad en el explorador de archivos.
+4. Arrastra el archivo `*.uf2` a la nueva unidad.
+5. La Raspberry se desconectará y reiniciará con el nuevo firmware.
+6. Coloca el control en modo `emparejamiento`.
+7. El dongle detectará el control y se conectará automáticamente.
+
+### Configuración
+
 Configurar tu dongle es sencillo y se realiza directamente en tu navegador:
 
 1. Ve al [Configurador Web de OmniSense](https://nightggan.github.io/OmniSense-Config-Web/).
@@ -119,29 +131,52 @@ Tienes **4 perfiles distintos**, cada uno almacenando su propia configuración �
 
 ---
 
-## ⚙️ Steam Deck
+## ⚙️ Steam Deck / SteamOS
 
-Si quieres enviar audio al dongle simultáneamente con HDMI, altavoces o conector de 3,5 mm, puedes usar el script "restaurar_respaldo.sh" que se encuentra en la carpeta de scripts. Esto le dará un nombre fijo al dongle y, cada vez que lo conectes, la Deck enviará audio al HDMI, altavoces o auriculares al mismo tiempo que al dongle, para que puedas disfrutar de la retroalimentación háptica con la salida de audio que prefieras. Además, configurará el perfil de audio del dongle a pro-audio, lo cual es necesario para que la retroalimentación háptica funcione correctamente en Linux.
+Si quieres enviar audio al dongle simultáneamente con tu salida de audio predeterminada en todo momento puedes usar este **[script](https://github.com/Nightggan/Audio-Mix-Steam-Deck/tree/main/OmniSense%20Timed%20Audio%20Mix)**. Esto le dará un nombre fijo al dongle y, cada vez que lo conectes, la Deck enviará audio a tu salida seleccionada al mismo tiempo que al dongle, para que puedas disfrutar de la retroalimentación háptica a la vez que audio en otro dispositivo. Además, configurará el perfil de audio del dongle a pro-audio, lo cual es necesario para que la retroalimentación háptica funcione correctamente en Linux.
 
-Primero, asegúrate de tener una contraseña configurada para el usuario `deck`. Si no la tienes, abre la terminal y ejecuta `passwd`. El sistema te pedirá una nueva contraseña y la confirmación.
+1. Descarga el contenido de la carpeta **[OmniSense Timed Audio Mix](https://github.com/Nightggan/Audio-Mix-Steam-Deck/tree/main/OmniSense%20Timed%20Audio%20Mix)** en /home/deck/audio-mix o la carpeta de tu preferencia.
+2. Navega a la carpeta que contiene los scripts, presiona el botón derecho y selecciona "Abrir terminal aquí" o presiona la combinación Alt+Shift+F4.
+3. Asegúrate de tener una contraseña configurada para el usuario `deck`. 
+    - Ejecuta `passwd`. 
+    - Ingresa una nueva contraseña
+    - Repite la nueva contraseña y confírmala.
+4. Conecta el dongle y empareja el mando.
+5. En la terminal ejecuta `sh ./timed_service_install.sh`.
+6. El script te pedirá la contraseña de superusuario (Creada en el paso 3) e instalará el servicio.
+7. Una vez finalizado el proceso, desconecta y conecta el dongle para que se apliquen los cambios.
 
-Luego, conecta el dongle, empareja el mando y sigue estos pasos:
+Tendrás que hacer esto una sola vez, pero, después de una actualización, Steam podría sobrescribir los cambios, por lo que tendrás que ejecutar el script de nuevo (solo el paso 5).
 
-1. Crea una nueva carpeta en `/home/deck/` llamada `audio_mix`.
-2. Copia el contenido de la carpeta `scripts` en la nueva carpeta `/home/deck/audio_mix`.
-3. Abre la terminal y ejecuta `sh /home/deck/audio_mix/restaurar_respaldo.sh`.
-4. El script te pedirá la contraseña de root.
+---
 
-5. Una vez finalizado, desconecta y vuelve a conectar el dongle para que se apliquen los cambios.
+## ⚙️ Corrección de errores
 
-Tendrás que hacer esto una sola vez, pero, después de una actualización, Steam podría sobrescribir los cambios, por lo que tendrás que ejecutar el script de nuevo (solo el paso 3).
+### Atajos del Host en Windows
+
+Si luego de una actualización del firmware notas que los atajos de `Suspender Host`, `Despertar Host` o `Control de Volumen del Host` no funcionan como se espera sigue los siguientes pasos.
+
+1. Descarga **[USB Deview](https://usbdeview.com)**
+2. Descomprime el contenido en una carpeta.
+3. Ejecuta `USBDeview.exe`
+4. Ordena las columnas por `VendorID`
+5. Selecciona todas las filas que digan en la columna `VendorID` `054c` y en la columna `ProductID` `0ce6`
+    - Esto corresponde con los ID oficiales de Dualsense, los mismos que informa el Dongle
+6. Presiona el `botón derecho del mouse` sobre la selección y pincha `Uninstall Selected Devices`
+7. Desconecta y conecta el dongle
+8. Sólo por ser Windows, nunca está demás un reinicio.
+
+Esto eliminará el caché de dispositivos USB del SO lo que hará que lea nuevamente la descripción de reporte del Dongle y permitirá que Windows acepte los comandos enviados por los atajos.
+
+### Actualización del firmware desde una versión anterior a 1.8.3
+
+Antes de actualizar a una nueva versión del firmware primero flashea en el dongle el archivo `RP-008273-DS-3-flash_nuke.uf2` ubicado en la carpeta `utils`. Luego flashea la última versión del firmware siguiendo los pasos de siempre. Esto ayudará a limpiar cualquier basura o remanente de una versión anterior del firmware.
 
 ---
 
 ## 📝 Cambios respecto al Fork Original
 
 - Se eliminó el atajo para desactivar el panel táctil.
-
 - Se revisaron los valores de parámetros predeterminados para ofrecer una mejor experiencia inicial.
 
 ## 🙌 Créditos y Reconocimientos

@@ -30,6 +30,15 @@
 // Pico SDK speciifically for waiting on conditions
 #include "pico/critical_section.h"
 
+#define PS_KBD_INSTANCE 2
+static constexpr uint8_t EXTRA_HID_REPORT_ID_CONSUMER = 3;
+static constexpr uint8_t EXTRA_HID_REPORT_ID_SYSTEM = 2;
+
+static constexpr uint16_t USAGE_CONSUMER_VOLUME_INCREMENT = HID_USAGE_CONSUMER_VOLUME_INCREMENT;
+static constexpr uint16_t USAGE_CONSUMER_VOLUME_DECREMENT = HID_USAGE_CONSUMER_VOLUME_DECREMENT;
+static constexpr uint16_t USAGE_CONSUMER_MUTE = HID_USAGE_CONSUMER_MUTE;
+static constexpr uint8_t USAGE_SYSTEM_SLEEP = 0x02;
+
 int reportSeqCounter = 0;
 uint8_t packetCounter = 0;
 bool spk_active = false;
@@ -244,70 +253,73 @@ auto set_bit = [](uint8_t &byte, const int bit, const bool value) {
         byte = (byte & ~(1 << bit)) | (value << bit);
     };
 
-// HID Async system
-static constexpr uint8_t HID_REPORT_ID_KEYBOARD = 1;
-static constexpr uint8_t HID_REPORT_ID_VOLUME = 3;
-static constexpr uint8_t HID_REPORT_ID_SYSTEM_CONTROL = 2;
-//static constexpr uint16_t HID_USAGE_CONSUMER_SLEEP = 0x0032;
-static uint16_t current_media_key = 0;
+static uint16_t current_media_usage = 0;
 static bool media_key_needs_release = false;
 static uint32_t media_key_timer = 0;
-static uint8_t current_system_control = 0;
+static uint8_t current_system_usage = 0;
 static bool system_control_needs_release = false;
 static uint32_t system_control_timer = 0;
 
 void process_media_keys() {
-    if (!tud_hid_n_ready(1)) return; 
+    if (!tud_hid_n_ready(PS_KBD_INSTANCE)) return; 
 
     if (system_control_needs_release) {
-        if (to_ms_since_boot(get_absolute_time()) - system_control_timer > 20) {
-            uint8_t empty = 0;
-            tud_hid_n_report(1, HID_REPORT_ID_SYSTEM_CONTROL, &empty, sizeof(empty));
+        if (to_ms_since_boot(get_absolute_time()) - system_control_timer > 30) {
+            printf("[MediaKeys] Releasing System Control\n");
+            uint8_t released = 0;
+            tud_hid_n_report(PS_KBD_INSTANCE, EXTRA_HID_REPORT_ID_SYSTEM, &released, sizeof(released));
             system_control_needs_release = false;
         }
         return;
     }
 
-    if (current_system_control != 0) {
-        tud_hid_n_report(1, HID_REPORT_ID_SYSTEM_CONTROL, &current_system_control, sizeof(current_system_control));
+    if (current_system_usage != 0) {
+        printf("[MediaKeys] Sending System Control: 0x%02X\n", current_system_usage);
+        tud_hid_n_report(PS_KBD_INSTANCE, EXTRA_HID_REPORT_ID_SYSTEM, &current_system_usage, sizeof(current_system_usage));
         system_control_needs_release = true;
         system_control_timer = to_ms_since_boot(get_absolute_time());
-        current_system_control = 0;
+        current_system_usage = 0;
         return;
     }
 
     if (media_key_needs_release) {
         // Han pasado 20 milisegundos? Soltamos la tecla.
-        if (to_ms_since_boot(get_absolute_time()) - media_key_timer > 20) {
-            uint16_t empty = 0;
-            tud_hid_n_report(1, HID_REPORT_ID_VOLUME, &empty, sizeof(empty));
+        if (to_ms_since_boot(get_absolute_time()) - media_key_timer > 30) {
+            printf("[MediaKeys] Releasing Media Key\n");
+            uint16_t released = 0;
+            tud_hid_n_report(PS_KBD_INSTANCE, EXTRA_HID_REPORT_ID_CONSUMER, &released, sizeof(released));
             media_key_needs_release = false;
         }
     } 
-    else if (current_media_key != 0) {
-        // Enviar la nueva tecla
-        tud_hid_n_report(1, HID_REPORT_ID_VOLUME, &current_media_key, sizeof(current_media_key));
+    else if (current_media_usage != 0) {
+        printf("[MediaKeys] Sending Media Usage: 0x%04X\n", current_media_usage);
+        tud_hid_n_report(PS_KBD_INSTANCE, EXTRA_HID_REPORT_ID_CONSUMER, &current_media_usage, sizeof(current_media_usage));
         media_key_needs_release = true;
         media_key_timer = to_ms_since_boot(get_absolute_time());
-        current_media_key = 0; // Limpiamos la solicitud
+        current_media_usage = 0; // Limpiamos la solicitud
     }
 }
 
 void send_volume_up_command() {
-    if (!media_key_needs_release) current_media_key = HID_USAGE_CONSUMER_VOLUME_INCREMENT;  
+    if (!media_key_needs_release) current_media_usage = USAGE_CONSUMER_VOLUME_INCREMENT;
     
 }
 
 void send_volume_down_command() {  
-    if (!media_key_needs_release) current_media_key = HID_USAGE_CONSUMER_VOLUME_DECREMENT;
+    if (!media_key_needs_release) current_media_usage = USAGE_CONSUMER_VOLUME_DECREMENT;
 }
 
 void send_mute_command() {
-    if (!media_key_needs_release) current_media_key = HID_USAGE_CONSUMER_MUTE;
+    if (!media_key_needs_release){
+        current_media_usage = USAGE_CONSUMER_MUTE;
+        printf("[MediaKeys] Sending Mute Command\n");
+    } 
 }
 
 void send_sleep_command() {
-    if (!media_key_needs_release && !system_control_needs_release) current_system_control = 0x02;
+    if (!system_control_needs_release) {
+        current_system_usage = USAGE_SYSTEM_SLEEP;
+    }
 }
 
 //Custon on_bt_data adding trigger/lightbar modes and shortcuts
@@ -539,7 +551,7 @@ void __not_in_flash_func(on_bt_data)(CHANNEL_TYPE channel, uint8_t *data, uint16
                 profile_switch_shortcut_lock_left = false;
             }
             
-            #if !USE_LINUX_USB_DESCRIPTORS // Host Sleep command, disabled on Linux
+            #if ENABLE_EXTRA_HID // Host Sleep command
             // Sleep Host: Circle
             if (actual_global_config.sleep_host_enable) {
                     
@@ -550,7 +562,7 @@ void __not_in_flash_func(on_bt_data)(CHANNEL_TYPE channel, uint8_t *data, uint16
                     config_button_pressed = false;
                     config_mode_enabled = false;
                     sleep_host_shortcut_lock = true;
-                    bt_disconnect();
+                    //bt_disconnect();
                 } else {
                     sleep_host_shortcut_lock = false;
                 }
@@ -1048,8 +1060,8 @@ void __not_in_flash_func(on_bt_data)(CHANNEL_TYPE channel, uint8_t *data, uint16
             }
         }
 
+        wake_on_bt_input(data + 3, len - 3);
         
-
         if (get_global_config().polling_rate_mode != 2) {
         memcpy(interrupt_in_data, data + 3, 63);
         
@@ -1067,7 +1079,7 @@ void __not_in_flash_func(on_bt_data)(CHANNEL_TYPE channel, uint8_t *data, uint16
         report_dirty = true;
         critical_section_exit(&report_cs);
         #if ENABLE_BATT_LED
-                battery_led_note_report();
+        battery_led_note_report();
         #endif
 
     }
@@ -1078,30 +1090,32 @@ void __not_in_flash_func(on_bt_data)(CHANNEL_TYPE channel, uint8_t *data, uint16
 // Return zero will cause the stack to STALL request
 uint16_t tud_hid_get_report_cb(uint8_t itf, uint8_t report_id, hid_report_type_t report_type, uint8_t *buffer,
                                uint16_t reqlen) {
+    #if ENABLE_EXTRA_HID
+    if (itf == 1 || itf == 2) {
+        if (reqlen >= 8) {
+            memset(buffer, 0, 8);
+            return 8;
+        }
+        return 0;
+    }
+    #endif
+    (void) itf;
+    (void) report_id;
     (void) report_type;
+    (void) buffer;
+    (void) reqlen;
     
     if (is_pico_cmd(report_id)) {
         return pico_cmd_get(report_id, buffer, reqlen);
     }
 
-    #if !USE_LINUX_USB_DESCRIPTORS
-        if (report_id == HID_REPORT_ID_KEYBOARD) {
-            return 0;
-        }
-    #endif
-
     std::vector<uint8_t> feature_data = get_feature_data(report_id, reqlen);
     if (!feature_data.empty()) {
-        uint16_t len = (uint16_t)std::min((size_t)reqlen, feature_data.size() - 1);
-        memcpy(buffer, feature_data.data() + 1, len);
-        return len;
+        
+        memcpy(buffer, feature_data.data() + 1, feature_data.size() - 1);
     }
     
-    // BT feature data not yet cached — return zeros instead of STALLing.
-    // hid_playstation calls GET_FEATURE(0x20) during probe; a STALL causes
-    // it to fail and leaves the device without a driver.
-    memset(buffer, 0, reqlen);
-    return reqlen;
+    return feature_data.empty() ? 0 : feature_data.size() - 1;
 }
 
 bool tud_audio_set_itf_cb(uint8_t rhport, tusb_control_request_t const *p_request) {
@@ -1125,15 +1139,17 @@ bool tud_audio_set_itf_cb(uint8_t rhport, tusb_control_request_t const *p_reques
 // received data on OUT endpoint ( Report ID = 0, Type = 0 )
 void tud_hid_set_report_cb(uint8_t itf, uint8_t report_id, hid_report_type_t report_type, uint8_t const *buffer,
                            uint16_t bufsize) {
+    #if ENABLE_EXTRA_HID
+    if (itf == 1 || itf == 2) {
+        // Drop extra HID SET_REPORT (host LED state).
+        return;
+    }
+    #endif
     (void) itf;
     (void) report_id;
     (void) report_type;
     (void) buffer;
     (void) bufsize;
-
-    #if !USE_LINUX_USB_DESCRIPTORS
-        if (itf == 1) itf=0; //Ignores Control requests on Consumer interface (itf=1) to avoid STALLs on the host side and reroutes them to DS itf
-    #endif
         
     if (is_pico_cmd(report_id)) {
         printf("[HID] Receive 0xf6 setting config, funcid:0x%02X\n", buffer[0]);
@@ -1455,7 +1471,8 @@ int main() {
         }*/
         cyw43_arch_poll();
         tud_task();
-        #if !USE_LINUX_USB_DESCRIPTORS
+        wake_task();
+        #if ENABLE_EXTRA_HID
             process_media_keys();
         #endif
         //original audio loop location

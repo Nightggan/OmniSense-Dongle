@@ -96,13 +96,13 @@ project(omnisense-dongle C CXX ASM)
 pico_sdk_init()
 
 #Removes extra hid descriptors for Linux. Avoiding issues with Linux hid-playstation driver.
-option(USE_LINUX_USB_DESCRIPTORS "Enable Linux USB HID descriptors")
-if (USE_LINUX_USB_DESCRIPTORS STREQUAL "ON")
-        set(USE_LINUX_USB_DESCRIPTORS_VALUE 1)
-        set(OMNISENSE_FIRMWARE_NAME "omnisense-dongle-linux")
+option(ENABLE_EXTRA_HID "Enable USB HID descriptors" ON)
+if (ENABLE_EXTRA_HID STREQUAL "ON")
+        set(ENABLE_EXTRA_HID_VALUE 1)
+        set(OMNISENSE_FIRMWARE_NAME "omnisense-dongle-extra-hid")
 else ()
-        set(USE_LINUX_USB_DESCRIPTORS_VALUE 0)
-        set(OMNISENSE_FIRMWARE_NAME "omnisense-dongle-windows")
+        set(ENABLE_EXTRA_HID_VALUE 0)
+        set(OMNISENSE_FIRMWARE_NAME "omnisense-dongle")
 endif ()
 # Add executable. Default name is the project name, version 0.1
 add_executable(omnisense-dongle
@@ -290,28 +290,20 @@ target_compile_definitions(omnisense-dongle PRIVATE
         ENABLE_BATT_LED=${ENABLE_BATT_LED_VALUE}
         SYS_CLOCK_KHZ=${SYS_CLOCK_KHZ_VALUE}
         DISABLE_SPEAKER_PROC=${DISABLE_SPEAKER_PROC_VALUE}
-        USE_LINUX_USB_DESCRIPTORS=${USE_LINUX_USB_DESCRIPTORS_VALUE}
+        ENABLE_EXTRA_HID=${ENABLE_EXTRA_HID_VALUE}
 )
 
 # Wake-on-PS + Xbox Game Bar are now in the base firmware, gated at runtime by the
-# enable_wake / ps_shortcut_enabled config fields. ENABLE_WAKE_HID stays defined so
+# wake_enable, host_volume_control and sleep_host config fields. ENABLE_EXTRA_HID stays defined so
 # the wake/keyboard descriptors and TinyUSB capacity compile in; the interface and
 # behavior are only presented/run when enabled at runtime (see usb_descriptors.cpp,
 # wake.cpp).
-target_compile_definitions(omnisense-dongle PRIVATE ENABLE_WAKE_HID)
+target_compile_definitions(omnisense-dongle PRIVATE ENABLE_EXTRA_HID)
 target_sources(omnisense-dongle PRIVATE
         src/wake.cpp
+        src/usb_descriptors.cpp
+        src/tusb_config.h
 )
-
-if(USE_LINUX_USB_DESCRIPTORS)
-        target_sources(omnisense-dongle PRIVATE
-                        src/usb_descriptors_linux.cpp
-                        src/tusb_config_linux.h)
-else()
-        target_sources(omnisense-dongle PRIVATE
-                src/usb_descriptors.cpp
-                src/tusb_config.h)
-endif()
 
 
 

@@ -21,6 +21,18 @@ This Advanced Edition inherits all the great features of the original firmware�
 
 ## 🚀 Getting Started
 
+### Firmware installation
+
+1. Download the last firmware version on `Releases` tab.
+2. Press and hold the Raspberry's `BOOTSEL` button, then connect it to your PC.
+3. A new drive will appear in File Explorer.
+4. Drag the `*.uf2` file onto the new drive.
+5. The Raspberry will disconnect and reboot with the new firmware.
+6. Put the controller into `pairing` mode.
+7. The dongle will detect the controller and connect automatically.
+
+### Configuration
+
 Configuring your dongle is simple and happens right in your browser:
 
 1. Go to the [OmniSense Web Configurator](https://nightggan.github.io/OmniSense-Config-Web/).
@@ -119,21 +131,46 @@ You have **4 distinct profiles**, each storing its own unique setup for:
 
 ---
 
-## ⚙️ Steam Deck
+## ⚙️ Steam Deck / SteamOS
 
-If you want to send audio to the dongle at the same time as HDMI, Speakers or 3.5mm jack, you can use the provided script "restaurar_respaldo.sh" on the scripts folder. This will give a stable name to the dongle and then every time you plug it the deck will send audio to the HDMI, Speakers or headphones at the same time as the dongle so you can enjoy haptics using your desired audio out. Also it will set the audio profile for the dongle to pro-audio which is needed for haptics to work properly on Linux.
+If you want to send audio to the dongle at the same time as your default audio output at all times, you can use this **[script](https://github.com/Nightggan/Audio-Mix-Steam-Deck/tree/main/OmniSense%20Timed%20Audio%20Mix)**. This will give the dongle a fixed name and, each time you connect it, the Deck will send audio to your selected output and to the dongle simultaneously, so you can enjoy haptic feedback while listening through another device. It will also set the dongle audio profile to pro-audio, which is required for haptic feedback to work correctly on Linux.
 
-First, make sure you have a password set for the `deck` user. If not enter the terminal an run `passwd`. The system will ask for a new password and a confirmation.
+1. Download the contents of the **[OmniSense Timed Audio Mix](https://github.com/Nightggan/Audio-Mix-Steam-Deck/tree/main/OmniSense%20Timed%20Audio%20Mix)** folder to /home/deck/audio-mix or the folder of your choice.
+2. Navigate to the folder that contains the scripts, right-click and select "Open Terminal Here", or press Alt+Shift+F4.
+3. Make sure you have a password configured for the `deck` user.
+    - Run `passwd`.
+    - Enter a new password.
+    - Re-enter the new password and confirm it.
+4. Connect the dongle and pair the controller.
+5. In the terminal, run `sh ./timed_service_install.sh`.
+6. The script will ask for the superuser password (created in step 3) and install the service.
+7. Once the process is complete, unplug and reconnect the dongle so the changes can be applied.
 
-Then, plug the dongle, pair the controller and follow these steps:
+You only need to do this once, but after an update, Steam may overwrite the changes, so you will need to run the script again (step 5 only).
 
-1. Make a new directory on `/home/deck/` called `audio_mix` 
-2. Paste the `scripts` folder contents on the new folder `/home/deck/audio_mix`
-3. Enter the terminal an run `sh /home/deck/audio_mix/restaurar_respaldo.sh`
-4. The script will ask you the root pasword.
-5. After it ends, unplug an plug the dongle again for the changes to apply
+---
 
-You will need to do this once, but, after an update, Steam could probably overwrite the changes, so you will have to run the script again (Step 3 only).
+## ⚙️ Troubleshooting
+
+### Host Shortcuts on Windows
+
+If after a firmware update you notice that the `Suspend Host`, `Wake Host`, or `Host Volume Control` shortcuts do not work as expected, follow these steps.
+
+1. Download **[USB Deview](https://usbdeview.com)**.
+2. Extract the contents into a folder.
+3. Run `USBDeview.exe`.
+4. Sort the columns by `VendorID`.
+5. Select all rows where the `VendorID` column is `054c` and the `ProductID` column is `0ce6`.
+    - These are the official DualSense IDs, the same ones reported by the dongle.
+6. Right-click the selection and click `Uninstall Selected Devices`.
+7. Unplug and reconnect the dongle.
+8. Since this is Windows, a reboot is always a good idea.
+
+This will clear the OS USB device cache, forcing it to read the dongle report descriptor again and allowing Windows to accept commands sent by these shortcuts.
+
+### Firmware Update from a Version Earlier Than 1.8.3
+
+Before updating to a new firmware version, first flash the `RP-008273-DS-3-flash_nuke.uf2` file onto the dongle from the `utils` folder. Then flash the latest firmware version following the usual steps. This helps clean up any leftovers from a previous firmware version.
 
 ---
 

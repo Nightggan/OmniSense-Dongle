@@ -336,11 +336,22 @@ static void hci_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t *p
         }
 
         case HCI_EVENT_DISCONNECTION_COMPLETE: {
+#if !ENABLE_SERIAL
             // Do NOT call tud_disconnect() here: disconnecting the full USB device
             // also tears down the UAC1 audio interface, which causes PipeWire to
             // lose ds5_dongle_sink and disrupts headset audio routing on the host.
             // USB stays connected; the host's audio loopback keeps working while
             // we search for the controller again via inquiry.
+
+            // Hide the USB device when no controller is paired (upstream behavior), EXCEPT when
+            // wake is on (stay on the bus so a returning controller can signal a host wake) or
+            // while the host is suspended -- hiding then re-showing re-enumerates, and a USB
+            // re-connect wakes a sleeping host. Defer the hide until the host is awake.
+
+            if (!get_global_config().wake_enable) {
+                tud_disconnect();
+            }
+#endif
             gap_connectable_control(1);
             gap_discoverable_control(1);
             const uint8_t reason = hci_event_disconnection_complete_get_reason(packet);
@@ -351,7 +362,7 @@ static void hci_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t *p
             hid_control_cid = 0;
             hid_interrupt_cid = 0;
             feature_data.clear();
-            wake_on_bt_disconnect();
+            while (queue_try_remove(&send_fifo, NULL)) {}
             cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, false);
 #if ENABLE_BATT_LED
             battery_led_on_disconnect();
