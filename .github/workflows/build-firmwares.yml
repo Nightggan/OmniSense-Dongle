@@ -119,44 +119,44 @@ jobs:
           fi
           git -C "$PICO_SDK_PATH/lib/tinyusb" checkout --detach "$TINYUSB_REF"
 
-      - name: Build Windows firmware
+      - name: Build Extra-Hid firmware
         run: |
           VERSION_ARG=()
           [ -n "${FW_VER:-}" ] && VERSION_ARG=(-DVERSION="$FW_VER")
-          cmake -S . -B build/windows -G Ninja \
+          cmake -S . -B build -G Ninja \
             -DCMAKE_BUILD_TYPE=Release \
             -DPICO_SDK_PATH="$PICO_SDK_PATH" \
-            -DUSE_LINUX_USB_DESCRIPTORS="OFF" \
+            -DENABLE_EXTRA_HID="ON" \
             "${VERSION_ARG[@]}"
-          cmake --build build/windows --target omnisense-dongle 
+          cmake --build build --target omnisense-dongle 
           mkdir -p artifacts
-          cp build/windows/omnisense-dongle-windows.uf2 "artifacts/omnisense-dongle-windows${{ inputs.asset_suffix }}.uf2"
+          cp build/omnisense-dongle-extra-hid.uf2 "artifacts/omnisense-dongle-extra-hid${{ inputs.asset_suffix }}.uf2"
 
-      - name: Build Linux firmware
+      - name: Build No-Extra-HID firmware
         run: |
           VERSION_ARG=()
           [ -n "${FW_VER:-}" ] && VERSION_ARG=(-DVERSION="$FW_VER")
-          cmake -S . -B build/linux -G Ninja \
+          cmake -S . -B build -G Ninja \
             -DCMAKE_BUILD_TYPE=Release \
             -DPICO_SDK_PATH="$PICO_SDK_PATH" \
-            -DUSE_LINUX_USB_DESCRIPTORS="ON" \
+            -DENABLE_EXTRA_HID="OFF" \
             "${VERSION_ARG[@]}"
-          cmake --build build/linux --target omnisense-dongle 
+          cmake --build build --target omnisense-dongle 
           mkdir -p artifacts
-          cp build/linux/omnisense-dongle-linux.uf2 "artifacts/omnisense-dongle-linux${{ inputs.asset_suffix }}.uf2"
+          cp build/omnisense-dongle-no-extra-hid.uf2 "artifacts/omnisense-dongle-no-extra-hid${{ inputs.asset_suffix }}.uf2"
 
-      - name: Upload Linux UF2 artifact
+      - name: Upload No-Extra-HID UF2 artifact
         uses: actions/upload-artifact@v4
         with:
-          name: OmniSense-Dongle-Linux${{ inputs.asset_suffix }}
-          path: artifacts/omnisense-dongle-linux${{ inputs.asset_suffix }}.uf2
+          name: OomniSense-Dongle-No-Extra-HID${{ inputs.asset_suffix }}
+          path: artifacts/omnisense-dongle-no-extra-hid${{ inputs.asset_suffix }}.uf2
           if-no-files-found: error
 
-      - name: Upload Windows UF2 artifact
+      - name: Upload Extra-HID UF2 artifact
         uses: actions/upload-artifact@v4
         with:
-          name: OmniSense-Dongle-Windows${{ inputs.asset_suffix }}
-          path: artifacts/omnisense-dongle-windows${{ inputs.asset_suffix }}.uf2
+          name: OmniSense-Dongle-Extra-HID${{ inputs.asset_suffix }}
+          path: artifacts/omnisense-dongle-extra-hid${{ inputs.asset_suffix }}.uf2
           if-no-files-found: error
 
       - name: Attach UF2s to release
