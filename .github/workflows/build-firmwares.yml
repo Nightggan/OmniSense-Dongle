@@ -132,25 +132,25 @@ jobs:
           mkdir -p artifacts
           cp build/omnisense-dongle-extra-hid.uf2 "artifacts/omnisense-dongle-extra-hid${{ inputs.asset_suffix }}.uf2"
 
-      - name: Build No-Extra-HID firmware
-        run: |
-          VERSION_ARG=()
-          [ -n "${FW_VER:-}" ] && VERSION_ARG=(-DVERSION="$FW_VER")
-          cmake -S . -B build -G Ninja \
-            -DCMAKE_BUILD_TYPE=Release \
-            -DPICO_SDK_PATH="$PICO_SDK_PATH" \
-            -DENABLE_EXTRA_HID="OFF" \
-            "${VERSION_ARG[@]}"
-          cmake --build build --target omnisense-dongle 
-          mkdir -p artifacts
-          cp build/omnisense-dongle-no-extra-hid.uf2 "artifacts/omnisense-dongle-no-extra-hid${{ inputs.asset_suffix }}.uf2"
+#      - name: Build No-Extra-HID firmware
+#        run: |
+#          VERSION_ARG=()
+#          [ -n "${FW_VER:-}" ] && VERSION_ARG=(-DVERSION="$FW_VER")
+#          cmake -S . -B build -G Ninja \
+#            -DCMAKE_BUILD_TYPE=Release \
+#            -DPICO_SDK_PATH="$PICO_SDK_PATH" \
+#            -DENABLE_EXTRA_HID="OFF" \
+#            "${VERSION_ARG[@]}"
+#          cmake --build build --target omnisense-dongle 
+#          mkdir -p artifacts
+#          cp build/omnisense-dongle-no-extra-hid.uf2 "artifacts/omnisense-dongle-no-extra-hid${{ inputs.asset_suffix }}.uf2"
 
-      - name: Upload No-Extra-HID UF2 artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: OomniSense-Dongle-No-Extra-HID${{ inputs.asset_suffix }}
-          path: artifacts/omnisense-dongle-no-extra-hid${{ inputs.asset_suffix }}.uf2
-          if-no-files-found: error
+#      - name: Upload No-Extra-HID UF2 artifact
+#        uses: actions/upload-artifact@v4
+#        with:
+#          name: OomniSense-Dongle-No-Extra-HID${{ inputs.asset_suffix }}
+#          path: artifacts/omnisense-dongle-no-extra-hid${{ inputs.asset_suffix }}.uf2
+#          if-no-files-found: error
 
       - name: Upload Extra-HID UF2 artifact
         uses: actions/upload-artifact@v4
