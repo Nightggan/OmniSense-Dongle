@@ -21,9 +21,23 @@ Esta Edición Avanzada hereda todas las excelentes características del firmware
 
 ## 🚀 Primeros Pasos
 
+### Dos Sabores
+
+#### Extra-HID
+
+- Siempre se presenta al host con interfaz extra, independiente de la configuración de "Despertar Host", "Suspender Host" y "Usar Volumen del Host".
+- Es capaz de controlar el volumen del host, suspenderlo y despertarlo.
+- Se desconecta del host si "Despertar Host" está desactivado.
+
+#### No-Extra-HID
+
+- Siempre se presenta al host como un control nativo, sin interfaces de teclado extra.
+- No es capaz de controlar el volumen del host ni suspenderlo ni despertarlo.
+- Ideal para usar en SteamOS/Linux ya que Linux por defecto ignora los comandos de teclado en la interfaz hid-playstation
+
 ### Instalación del Firmware
 
-1. Descarga la última versión del firmware en la pestaña `Releases`
+1. Descarga la última versión del firmware de tu elección en la pestaña `Releases`
 2. Presiona y sostén el botón `BOOTSEL` de la Raspberry y conectala a tu pc.
 3. Aparecerá una nueva unidad en el explorador de archivos.
 4. Arrastra el archivo `*.uf2` a la nueva unidad.

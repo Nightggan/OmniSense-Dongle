@@ -21,9 +21,23 @@ This Advanced Edition inherits all the great features of the original firmwareâ€
 
 ## ðŸš€ Getting Started
 
+### Two flavours
+
+#### Extra-HID
+
+- Always presents an extra interface to the host, regardless of the "Wake Host", "Sleep  Host", and "Use host volume" settings. 
+- Capable of controlling host volume, as well as putting the host to sleep and waking it up. 
+- Disconnects from the host if "wake_enable" is disabled. 
+
+#### No-Extra-HID
+
+- Always presents itself to the host as a native controller, without extra keyboard interfaces. 
+- Cannot control host volume, nor put the host to sleep or wake it up. 
+- Ideal for use with SteamOS/Linux, as Linux ignores keyboard commands on the hid-playstation interface by default.
+
 ### Firmware installation
 
-1. Download the last firmware version on `Releases` tab.
+1. Download the last firmware version of your choice on `Releases` tab. 
 2. Press and hold the Raspberry's `BOOTSEL` button, then connect it to your PC.
 3. A new drive will appear in File Explorer.
 4. Drag the `*.uf2` file onto the new drive.
