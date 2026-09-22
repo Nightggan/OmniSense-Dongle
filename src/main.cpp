@@ -19,25 +19,20 @@
 #endif
 #include "config.h"
 #include "cmd.h"
+#if ENABLE_EXTRA_HID
 #include "wake.h"
+#endif
 #if ENABLE_BATT_LED
 #include "battery_led.h"
 #endif
 #include "lightbar_controller.h"
 #include <algorithm> // Para std::clamp
 #include <cmath>     // Para std::round
-
+#include "audio.h"
 // Pico SDK speciifically for waiting on conditions
 #include "pico/critical_section.h"
 
 #define PS_KBD_INSTANCE 2
-static constexpr uint8_t EXTRA_HID_REPORT_ID_CONSUMER = 3;
-static constexpr uint8_t EXTRA_HID_REPORT_ID_SYSTEM = 2;
-
-static constexpr uint16_t USAGE_CONSUMER_VOLUME_INCREMENT = HID_USAGE_CONSUMER_VOLUME_INCREMENT;
-static constexpr uint16_t USAGE_CONSUMER_VOLUME_DECREMENT = HID_USAGE_CONSUMER_VOLUME_DECREMENT;
-static constexpr uint16_t USAGE_CONSUMER_MUTE = HID_USAGE_CONSUMER_MUTE;
-static constexpr uint8_t USAGE_SYSTEM_SLEEP = 0x02;
 
 int reportSeqCounter = 0;
 uint8_t packetCounter = 0;
@@ -77,7 +72,6 @@ uint32_t right_analog_down_holding_time = 0;
 bool right_analog_up_triggered = false;
 bool right_analog_down_triggered = false;
 bool request_temp_save = false;
-volatile float local_current_volume = -100.0f;
 volatile bool headset_plugged = false;
 volatile bool audio_mute = false;
 volatile float current_auto_haptics_gain = 1.5f;
@@ -92,6 +86,14 @@ int16_t raw_ang_vel_x = 0;
 int16_t raw_ang_vel_z = 0;
 float final_pct_x = 0;
 float final_pct_z = 0;
+
+#if ENABLE_EXTRA_HID
+static bool system_control_needs_release = false;
+static uint8_t current_system_usage = 0;
+static constexpr uint8_t USAGE_SYSTEM_SLEEP = 0x02;
+static uint32_t system_control_timer = 0;
+static constexpr uint8_t EXTRA_HID_REPORT_ID_SYSTEM = 2;
+#endif
 //End Custom vars Omni
 
 uint8_t interrupt_in_data[63] = {
@@ -107,6 +109,38 @@ uint8_t interrupt_in_data[63] = {
 
 critical_section_t report_cs;
 volatile bool report_dirty = false;
+
+#if ENABLE_EXTRA_HID
+
+void process_sleep_key() {
+    if (!tud_hid_n_ready(PS_KBD_INSTANCE)) return; 
+
+    if (system_control_needs_release) {
+        if (to_ms_since_boot(get_absolute_time()) - system_control_timer > 30) {
+            printf("[MediaKeys] Releasing System Control\n");
+            uint8_t released = 0;
+            tud_hid_n_report(PS_KBD_INSTANCE, EXTRA_HID_REPORT_ID_SYSTEM, &released, sizeof(released));
+            system_control_needs_release = false;
+        }
+        return;
+    }
+
+    if (current_system_usage != 0) {
+        printf("[MediaKeys] Sending System Control: 0x%02X\n", current_system_usage);
+        tud_hid_n_report(PS_KBD_INSTANCE, EXTRA_HID_REPORT_ID_SYSTEM, &current_system_usage, sizeof(current_system_usage));
+        system_control_needs_release = true;
+        system_control_timer = to_ms_since_boot(get_absolute_time());
+        current_system_usage = 0;
+        return;
+    }
+}
+
+void send_sleep_command() {
+    if (!system_control_needs_release) {
+        current_system_usage = USAGE_SYSTEM_SLEEP;
+    }
+}
+#endif
 
 void __not_in_flash_func(interrupt_loop)() {
     if (!tud_hid_ready()) return;
@@ -253,77 +287,35 @@ auto set_bit = [](uint8_t &byte, const int bit, const bool value) {
         byte = (byte & ~(1 << bit)) | (value << bit);
     };
 
-static uint16_t current_media_usage = 0;
-static bool media_key_needs_release = false;
-static uint32_t media_key_timer = 0;
-static uint8_t current_system_usage = 0;
-static bool system_control_needs_release = false;
-static uint32_t system_control_timer = 0;
-
-void process_media_keys() {
-    if (!tud_hid_n_ready(PS_KBD_INSTANCE)) return; 
-
-    if (system_control_needs_release) {
-        if (to_ms_since_boot(get_absolute_time()) - system_control_timer > 30) {
-            printf("[MediaKeys] Releasing System Control\n");
-            uint8_t released = 0;
-            tud_hid_n_report(PS_KBD_INSTANCE, EXTRA_HID_REPORT_ID_SYSTEM, &released, sizeof(released));
-            system_control_needs_release = false;
-        }
-        return;
-    }
-
-    if (current_system_usage != 0) {
-        printf("[MediaKeys] Sending System Control: 0x%02X\n", current_system_usage);
-        tud_hid_n_report(PS_KBD_INSTANCE, EXTRA_HID_REPORT_ID_SYSTEM, &current_system_usage, sizeof(current_system_usage));
-        system_control_needs_release = true;
-        system_control_timer = to_ms_since_boot(get_absolute_time());
-        current_system_usage = 0;
-        return;
-    }
-
-    if (media_key_needs_release) {
-        // Han pasado 20 milisegundos? Soltamos la tecla.
-        if (to_ms_since_boot(get_absolute_time()) - media_key_timer > 30) {
-            printf("[MediaKeys] Releasing Media Key\n");
-            uint16_t released = 0;
-            tud_hid_n_report(PS_KBD_INSTANCE, EXTRA_HID_REPORT_ID_CONSUMER, &released, sizeof(released));
-            media_key_needs_release = false;
-        }
-    } 
-    else if (current_media_usage != 0) {
-        printf("[MediaKeys] Sending Media Usage: 0x%04X\n", current_media_usage);
-        tud_hid_n_report(PS_KBD_INSTANCE, EXTRA_HID_REPORT_ID_CONSUMER, &current_media_usage, sizeof(current_media_usage));
-        media_key_needs_release = true;
-        media_key_timer = to_ms_since_boot(get_absolute_time());
-        current_media_usage = 0; // Limpiamos la solicitud
-    }
-}
-
-void send_volume_up_command() {
-    if (!media_key_needs_release) current_media_usage = USAGE_CONSUMER_VOLUME_INCREMENT;
-    
-}
-
-void send_volume_down_command() {  
-    if (!media_key_needs_release) current_media_usage = USAGE_CONSUMER_VOLUME_DECREMENT;
-}
-
-void send_mute_command() {
-    if (!media_key_needs_release){
-        current_media_usage = USAGE_CONSUMER_MUTE;
-        printf("[MediaKeys] Sending Mute Command\n");
-    } 
-}
-
-void send_sleep_command() {
-    if (!system_control_needs_release) {
-        current_system_usage = USAGE_SYSTEM_SLEEP;
-    }
-}
-
 //Custon on_bt_data adding trigger/lightbar modes and shortcuts
 void __not_in_flash_func(on_bt_data)(CHANNEL_TYPE channel, uint8_t *data, uint16_t len) {
+    auto update_volume = [](Global_Config_body actual_global_config, bool up){
+        if(headset_plugged) {
+            if(up)
+            {
+                actual_global_config.headset_volume = actual_global_config.headset_volume + 2.0f;
+                if(actual_global_config.headset_volume > 100.0f) actual_global_config.headset_volume = 100.0f;  
+            } else {
+                actual_global_config.headset_volume = actual_global_config.headset_volume - 2.0f;
+                if(actual_global_config.headset_volume < 0.0f) actual_global_config.headset_volume = 0.0f;
+            }
+            set_global_config_ram(actual_global_config);
+            set_volume(actual_global_config.headset_volume - 100.0f);
+        } else {
+            if(up)
+            {
+                actual_global_config.speaker_volume = actual_global_config.speaker_volume + 2.0f;
+                if(actual_global_config.speaker_volume > 100.0f) actual_global_config.speaker_volume = 100.0f;  
+            } else {
+                actual_global_config.speaker_volume = actual_global_config.speaker_volume - 2.0f;
+                if(actual_global_config.speaker_volume < 0.0f) actual_global_config.speaker_volume = 0.0f;
+            }
+            set_global_config_ram(actual_global_config);
+            set_volume(actual_global_config.speaker_volume - 100.0f);
+        }
+        
+    };
+
     static bool request_flash_save = false;
     Global_Config_body actual_global_config = get_global_config();
     if (channel == INTERRUPT && data[1] == 0x31) {
@@ -336,11 +328,11 @@ void __not_in_flash_func(on_bt_data)(CHANNEL_TYPE channel, uint8_t *data, uint16
             headset_plugged = data[56] & 1; 
             if(headset_plugged)//Updating the volatile to update the volume live on headset plug/unplugg
             {
-                local_current_volume = actual_global_config.headset_volume - 100.0f;
+                set_volume(actual_global_config.headset_volume - 100.0f);
             }
             else
             {
-                local_current_volume = actual_global_config.speaker_volume - 100.0f;
+                set_volume(actual_global_config.speaker_volume - 100.0f);
             }
 
             uint8_t dummy_buffer[sizeof(SetStateData) + 1] = {0};
@@ -585,12 +577,14 @@ void __not_in_flash_func(on_bt_data)(CHANNEL_TYPE channel, uint8_t *data, uint16
             // Mute Speaker: SQUARE
             if (shortcut_btn_pressed(data, 0))
             {    
-                if(actual_global_config.control_host_volume==1)
+                if(actual_global_config.use_host_volume==1)
                 {
                     if (!mute_speaker_shortcut_lock) {
+                        #if ENABLE_EXTRA_HID
                         //Send a volume up command to the host
                         send_mute_command();
                         mute_speaker_shortcut_lock = true;
+                        #endif
                     }
                 }
                 else
@@ -719,35 +713,20 @@ void __not_in_flash_func(on_bt_data)(CHANNEL_TYPE channel, uint8_t *data, uint16
             //Speaker Volume Up Shortcut control: Left Analog Up
             if (speaker_volume_up_shortcut_lock) {
                 
-                if(actual_global_config.control_host_volume==1)
+                if(actual_global_config.use_host_volume==1)
                 {
                     //Send a volume up command to the host
+                    #if ENABLE_EXTRA_HID
                     send_volume_up_command();
+                    request_temp_save = true;
+                    #endif
                 }
                 else
                 {   
-                    if(headset_plugged)
-                    {
-                        actual_global_config.headset_volume = actual_global_config.headset_volume + 2.0f;
-                        if (actual_global_config.headset_volume > 100.0f) {
-                            actual_global_config.headset_volume = 100.0f;
-                        }
-                        
-                        local_current_volume = actual_global_config.headset_volume - 100.0f;
-                        set_global_config(actual_global_config);
-                        request_temp_save = true;    
-                    }
-                    else
-                    {
-                        actual_global_config.speaker_volume = actual_global_config.speaker_volume + 2.0f;
-                        if (actual_global_config.speaker_volume > 100.0f) {
-                            actual_global_config.speaker_volume = 100.0f;
-                        }
-                        
-                        local_current_volume = actual_global_config.speaker_volume - 100.0f;
-                        set_global_config(actual_global_config);
-                        request_temp_save = true;    
-                    }
+                    
+                    update_volume(actual_global_config, true);
+                    //set_global_config(actual_global_config);
+                    request_temp_save = true;    
                     audio_mute = false; // Disable mute
                 }
                 left_analog_up_holding_time = 0;
@@ -758,35 +737,19 @@ void __not_in_flash_func(on_bt_data)(CHANNEL_TYPE channel, uint8_t *data, uint16
             //Speaker Volume Down Shortcut control: Left Analog Down
             if (speaker_volume_down_shortcut_lock) {
                 
-                if(actual_global_config.control_host_volume==1)
+                if(actual_global_config.use_host_volume==1)
                 {
                     //Send a volume down command to the host
+                    #if ENABLE_EXTRA_HID
                     send_volume_down_command();
+                    request_temp_save = true;
+                    #endif
                 }
                 else
                 {
-                    if(headset_plugged)
-                    {
-                        actual_global_config.headset_volume = actual_global_config.headset_volume - 2.0f;
-                        if (actual_global_config.headset_volume < 0.0f) {
-                            actual_global_config.headset_volume = 0.0f;
-                        }
-                        
-                        local_current_volume = actual_global_config.headset_volume - 100.0f;
-                        set_global_config(actual_global_config);
-                        request_temp_save = true;    
-                    }
-                    else
-                    {
-                        actual_global_config.speaker_volume = actual_global_config.speaker_volume - 2.0f;
-                        if (actual_global_config.speaker_volume < 0.0f) {
-                            actual_global_config.speaker_volume = 0.0f;
-                        }
-                        
-                        local_current_volume = actual_global_config.speaker_volume - 100.0f;
-                        set_global_config(actual_global_config);
-                        request_temp_save = true;    
-                    } 
+                    update_volume(actual_global_config, false);
+                    //set_global_config(actual_global_config);
+                    request_temp_save = true;    
                     audio_mute = false; // Disable mute
                 }
                 left_analog_down_triggered = false;
@@ -877,15 +840,6 @@ void __not_in_flash_func(on_bt_data)(CHANNEL_TYPE channel, uint8_t *data, uint16
             && !profile_switch_shortcut_lock_down && !profile_switch_shortcut_lock_left && !profile_switch_shortcut_lock_right
             && !haptic_gain_up_shortcut_lock && !haptic_gain_down_shortcut_lock && !sleep_host_shortcut_lock && !rumble_mode_switch_shortcut_lock)
             {
-                if(headset_plugged)
-                {
-                    local_current_volume = actual_global_config.headset_volume - 100.0f; //Updating the volatile var for audio loop to use without a full flash save 
-                }
-                else
-                {
-                    local_current_volume = actual_global_config.speaker_volume - 100.0f; //Updating the volatile var for audio loop to use without a full flash save 
-                }
-                
                 current_auto_haptics_gain = actual_global_config.auto_haptics_gain;
                 request_temp_save = false;
                 // 2. Enforce the update of the internal state[] reading the new config modified by the shortcuts
@@ -930,15 +884,6 @@ void __not_in_flash_func(on_bt_data)(CHANNEL_TYPE channel, uint8_t *data, uint16
                 state_set(forced_pkt + 3, sizeof(SetStateData));
                 bt_write(forced_pkt, sizeof(forced_pkt));
             }
-            if(headset_plugged)    
-            {
-                local_current_volume = actual_global_config.headset_volume - 100.0f; //Updating the volatile var for audio loop to use without a full flash save
-            }
-            else
-            {
-                local_current_volume = actual_global_config.speaker_volume - 100.0f; //Updating the volatile var for audio loop to use without a full flash save
-            }
-            set_volume(local_current_volume);
             
             //Hair trigger values override
             if(left_trigger_real_position>0)
@@ -1059,9 +1004,10 @@ void __not_in_flash_func(on_bt_data)(CHANNEL_TYPE channel, uint8_t *data, uint16
                 suppress_all_inputs(data);
             }
         }
-
+        #if ENABLE_EXTRA_HID
         wake_on_bt_input(data + 3, len - 3);
-        
+        #endif
+
         if (get_global_config().polling_rate_mode != 2) {
         memcpy(interrupt_in_data, data + 3, 63);
         
@@ -1242,8 +1188,10 @@ static void state_keepalive() {
         }
     }
     else if (cfg.trigger_right_mode == 5) {// Rumble to Trigger
-            
-        uint16_t amp = (uint16_t)rumble_right * (uint16_t)cfg.rumble_trigger_strength / 100u;
+        uint16_t rumble_avg = (uint16_t)rumble_right + (uint16_t)rumble_left;
+        rumble_avg = std::min(rumble_avg, (uint16_t)255);
+        uint16_t amp = rumble_avg * (uint16_t)cfg.rumble_trigger_strength / 100u;
+
         if (amp > 255) amp = 255;
         for (int i = 0; i < 11; ++i) 
             pkt[right_trigger_offset + i] = 0;//Cleans trigger parameters
@@ -1302,8 +1250,10 @@ static void state_keepalive() {
         }
     }
     else if (cfg.trigger_left_mode == 5) {// Rumble to Trigger
-            
-        uint16_t amp = (uint16_t)rumble_left * (uint16_t)cfg.rumble_trigger_strength / 100u;
+        
+        uint16_t rumble_avg = (uint16_t)rumble_right + (uint16_t)rumble_left;
+        rumble_avg = std::min(rumble_avg, (uint16_t)255);
+        uint16_t amp = rumble_avg * (uint16_t)cfg.rumble_trigger_strength / 100u;
         if (amp > 255) amp = 255;
         for (int i = 0; i < 11; ++i) 
             pkt[left_trigger_offset + i] = 0;//Cleans trigger parameters
@@ -1434,8 +1384,9 @@ int main() {
     critical_section_init(&report_cs);
 
     device_config_load();
-
+    #if ENABLE_EXTRA_HID
     wake_init();
+    #endif
 
     bt_init();
     bt_register_data_callback(on_bt_data);
@@ -1471,11 +1422,10 @@ int main() {
         }*/
         cyw43_arch_poll();
         tud_task();
-        wake_task();
         #if ENABLE_EXTRA_HID
-            process_media_keys();
+            wake_task();
+            process_sleep_key();
         #endif
-        //original audio loop location
         audio_loop();
         interrupt_loop();
         // Run keepalive when audio haptics are active OR when game motors are on.

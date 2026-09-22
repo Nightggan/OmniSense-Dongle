@@ -30,7 +30,6 @@ bool first_color_captured = false;
 volatile bool trigger_left_mode_0_engaged = false;
 volatile bool trigger_right_mode_0_engaged = false;
 extern bool config_mode_enabled;
-extern volatile float local_current_volume;
 extern volatile bool headset_plugged;
 extern uint8_t local_profile_selected;
 extern uint8_t right_trigger_real_position;
@@ -247,11 +246,11 @@ void state_update(const uint8_t *data, const uint8_t size)
         set_bit(state[motor_flag_offset], 1, true);
     }*/
 
-    // Always allow headphone volume control
-    memcpy(
+    // Always allow headphone volume control. Controlled on usb.cpp if use_host_volume is enabled
+    /*memcpy(
         state + offsetof(SetStateData, VolumeHeadphones),
         data + offsetof(SetStateData, VolumeHeadphones),
-        sizeof(uint8_t));
+        sizeof(uint8_t));*/
 
     /*copy_if_allowed(
         update.AllowHeadphoneVolume,
@@ -436,10 +435,11 @@ void state_update(const uint8_t *data, const uint8_t size)
             state[right_trigger_offset + 3] = 255;                                  // Force to break the wall
             memset(state + right_trigger_offset + 4, 0, 7);
         }
-        else if (current_config.trigger_right_mode == 5)
-        { // Rumble to Trigger
-
-            uint16_t amp = (uint16_t)update.RumbleEmulationRight * (uint16_t)current_config.rumble_trigger_strength / 100u;
+        else if (current_config.trigger_right_mode == 5) // Rumble to Trigger
+        { 
+            uint16_t rumble_avg = (uint16_t)update.RumbleEmulationLeft + (uint16_t)update.RumbleEmulationRight;
+            rumble_avg = std::min(rumble_avg, (uint16_t)255);
+            uint16_t amp = rumble_avg * (uint16_t)current_config.rumble_trigger_strength / 100u;
             if (amp > 255)
                 amp = 255;
             for (int i = 0; i < 11; ++i)
@@ -530,8 +530,10 @@ void state_update(const uint8_t *data, const uint8_t size)
             memset(state + left_trigger_offset + 4, 0, 7);
         }
         else if (current_config.trigger_left_mode == 5)
-        {
-            uint16_t amp = (uint16_t)update.RumbleEmulationLeft * (uint16_t)current_config.rumble_trigger_strength / 100u;
+        {   
+            uint16_t rumble_avg = (uint16_t)update.RumbleEmulationLeft + (uint16_t)update.RumbleEmulationRight;
+            rumble_avg = std::min(rumble_avg, (uint16_t)255);
+            uint16_t amp = rumble_avg * (uint16_t)current_config.rumble_trigger_strength / 100u;
             if (amp > 255)
                 amp = 255;
 
@@ -588,14 +590,6 @@ void state_update(const uint8_t *data, const uint8_t size)
     {
         state[mute_light_mode_offset] = MuteLight::Off; // Mute Light off on not config mode
     }
-    if (headset_plugged)
-    {
-        size_t headphone_volume_offset = offsetof(SetStateData, VolumeHeadphones);
-        float headphone_volume_float = local_current_volume + 100;
-        headphone_volume_float *= 1.27;
-        uint8_t headphone_volume_byte = static_cast<uint8_t>(std::round(headphone_volume_float));
-        state[headphone_volume_offset] = headphone_volume_byte;
-    }
 }
 
 void state_set_led_color(uint8_t r, uint8_t g, uint8_t b) {
@@ -623,4 +617,17 @@ void state_clear_motors() {
     state[offsetof(SetStateData, RumbleEmulationRight)] = 0;
     state[offsetof(SetStateData, RumbleEmulationLeft)]  = 0;
     g_rumble_emulation = 0;
+}
+
+void __not_in_flash_func(set_audio_state)(bool value, uint8_t offset) {
+    auto set_bit = [](uint8_t &byte, const int bit, const bool value)
+    {
+        byte = (byte & ~(1 << bit)) | (value << bit);
+    };
+
+    set_bit(state[0], offset, value);
+}
+
+void __not_in_flash_func(set_mic_volume)(uint8_t data) {
+    memcpy(state + offsetof(SetStateData, VolumeMic), &data, sizeof(uint8_t));
 }

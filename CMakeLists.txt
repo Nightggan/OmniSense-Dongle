@@ -81,7 +81,7 @@ else ()
             set(SYS_CLOCK_KHZ_VALUE 150000)
         else ()
             set(CYW43_PIO_CLOCK_DIV_VALUE 2)
-            set(SYS_CLOCK_KHZ_VALUE 150000)
+            set(SYS_CLOCK_KHZ_VALUE 200000)
         endif ()
 endif ()
 
@@ -293,12 +293,8 @@ target_compile_definitions(omnisense-dongle PRIVATE
         ENABLE_EXTRA_HID=${ENABLE_EXTRA_HID_VALUE}
 )
 
-# Wake-on-PS + Xbox Game Bar are now in the base firmware, gated at runtime by the
-# wake_enable, host_volume_control and sleep_host config fields. ENABLE_EXTRA_HID stays defined so
-# the wake/keyboard descriptors and TinyUSB capacity compile in; the interface and
-# behavior are only presented/run when enabled at runtime (see usb_descriptors.cpp,
-# wake.cpp).
-target_compile_definitions(omnisense-dongle PRIVATE ENABLE_EXTRA_HID)
+# The extra HID interfaces are optional because their presence changes the USB topology
+# and can affect host controller-driver matching.
 target_sources(omnisense-dongle PRIVATE
         src/wake.cpp
         src/usb_descriptors.cpp

@@ -1,0 +1,13 @@
+Audio
+1. Si se controla el audio del host
+    - El control obtiene el volumen establecido por el host.
+    - Si se recibe una señal para el parlante esta suena por lo audifonos si estan conectados. (PS5 native)
+    - Si se recibe una señal para los audifonos estos suenan sólo por los audífonos si estan conectados (nativo)
+
+2. Si se controla manualmente el volumen del control
+    - El control ignora el volumen establecido por el host y el jugador debe controlar el volumen
+    - Se controla sólo el volumen de los audifonos.
+    - Variables de volumen general sólo aplicable a los audifonos.
+    
+Para ambos casos se silencia el parlante si hay audifonos conectados. Solo suena el parlante cuando
+se manda una señal a los canales ch3 y ch4.

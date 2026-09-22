@@ -24,6 +24,10 @@
 #define SAMPLE_SIZE       64
 #define REPORT_SIZE       398
 #define REPORT_ID         0x36
+#define PS_KBD_INSTANCE 2
+static constexpr uint16_t USAGE_CONSUMER_VOLUME_INCREMENT = HID_USAGE_CONSUMER_VOLUME_INCREMENT;
+static constexpr uint16_t USAGE_CONSUMER_VOLUME_DECREMENT = HID_USAGE_CONSUMER_VOLUME_DECREMENT;
+static constexpr uint16_t USAGE_CONSUMER_MUTE = HID_USAGE_CONSUMER_MUTE;
 // #define VOLUME_GAIN       2
 // #define BUFFER_LENGTH     48
 
@@ -100,7 +104,6 @@ critical_section_t opus_cs;
 
 //Custom vars Omni
 static float local_current_volume; //Live speaker volume prior to save to the flash
-
 extern volatile bool audio_mute;
 extern volatile float current_auto_haptics_gain;
 extern volatile uint8_t local_profile_selected;
@@ -112,6 +115,14 @@ extern volatile uint8_t lb_controlled_red;
 extern volatile uint8_t lb_controlled_green;
 extern volatile uint8_t lb_controlled_blue;
 extern volatile bool config_mode_enabled;
+
+#if ENABLE_EXTRA_HID
+static constexpr uint8_t EXTRA_HID_REPORT_ID_CONSUMER = 3;
+static constexpr uint8_t EXTRA_HID_REPORT_ID_SYSTEM = 2;
+static bool media_key_needs_release = false;
+static uint16_t current_media_usage = 0;
+static uint32_t media_key_timer = 0;
+#endif
 //End Custom vars Omni
 struct audio_raw_element {
     float data[512 * 2];
@@ -121,13 +132,63 @@ void set_headset(bool state) {
     plug_headset = state;
 }
 
-void set_volume(float volume) {
+void __not_in_flash_func(set_volume)(float volume) {
     local_current_volume = volume;
+}
+
+void __not_in_flash_func(set_mute)(bool state) {
+    audio_mute = state;
 }
 
 auto set_audio_bit = [](uint8_t &byte, const int bit, const bool value) {
         byte = (byte & ~(1 << bit)) | (value << bit);
     };
+
+#if ENABLE_EXTRA_HID
+void __not_in_flash_func(process_media_keys)() {
+    if (!tud_hid_n_ready(PS_KBD_INSTANCE)) return; 
+
+    if (media_key_needs_release) {
+        // Han pasado 20 milisegundos? Soltamos la tecla.
+        if (to_ms_since_boot(get_absolute_time()) - media_key_timer > 30) {
+            printf("[MediaKeys] Releasing Media Key\n");
+            uint16_t released = 0;
+            tud_hid_n_report(PS_KBD_INSTANCE, EXTRA_HID_REPORT_ID_CONSUMER, &released, sizeof(released));
+            media_key_needs_release = false;
+        }
+    } 
+    else if (current_media_usage != 0) {
+        printf("[MediaKeys] Sending Media Usage: 0x%04X\n", current_media_usage);
+        tud_hid_n_report(PS_KBD_INSTANCE, EXTRA_HID_REPORT_ID_CONSUMER, &current_media_usage, sizeof(current_media_usage));
+        media_key_needs_release = true;
+        media_key_timer = to_ms_since_boot(get_absolute_time());
+        current_media_usage = 0; // Limpiamos la solicitud
+    }
+}
+
+void __not_in_flash_func(send_volume_up_command)() {
+    if (!media_key_needs_release){
+        audio_mute = false;
+        current_media_usage = USAGE_CONSUMER_VOLUME_INCREMENT;
+    } 
+    
+}
+
+void __not_in_flash_func(send_volume_down_command)() {  
+    if (!media_key_needs_release){
+        audio_mute = false;
+        current_media_usage = USAGE_CONSUMER_VOLUME_DECREMENT;
+    } 
+   
+}
+
+void __not_in_flash_func(send_mute_command)() {
+    if (!media_key_needs_release){
+        current_media_usage = USAGE_CONSUMER_MUTE;
+    } 
+}
+
+#endif
 
 void __not_in_flash_func(audio_loop)() {
     // 1. 读取 USB 音频数据
@@ -165,8 +226,8 @@ void __not_in_flash_func(audio_loop)() {
 
     const auto &global_config = get_global_config();
     const uint8_t auto_mode  = global_config.auto_haptics_enable;
-    const bool auto_mute     = ((auto_mode == 2 || actual_ch == 2) && global_config.auto_mute_mode) ||
-                               (auto_mode == 1 && global_config.auto_mute_mode);
+    const bool auto_mute     = ((auto_mode == 2 || actual_ch == 2) && global_config.auto_mute_mode && !plug_headset) ||
+                               (auto_mode == 1 && global_config.auto_mute_mode && !plug_headset); //Mute audio out if auto-mute is enabled and no headset is plugged in
     if(audio_mute)//Check if mute shortcut
         mute[0] = true;
     else
@@ -354,8 +415,10 @@ void __not_in_flash_func(audio_loop)() {
                 }
             }
             else if (local_profile_config.trigger_right_mode == 5) {// Rumble to Trigger
+                uint16_t rumble_avg = (uint16_t)rumble_right + (uint16_t)rumble_left;
+                rumble_avg = std::min(rumble_avg, (uint16_t)255);
+                uint16_t amp = rumble_avg * (uint16_t)local_profile_config.rumble_trigger_strength / 100u;
                 
-                uint16_t amp = (uint16_t)rumble_right * (uint16_t)local_profile_config.rumble_trigger_strength / 100u;
                 if (amp > 255) amp = 255;
                 for (int i = 0; i < 11; ++i) 
                     pkt[right_trigger_offset + i] = 0;//Cleans trigger parameters
@@ -412,7 +475,10 @@ void __not_in_flash_func(audio_loop)() {
                 }
             }
             else if (local_profile_config.trigger_left_mode == 5) {
-                uint16_t amp = (uint16_t)rumble_left * (uint16_t)local_profile_config.rumble_trigger_strength / 100u;
+                uint16_t rumble_avg = (uint16_t)rumble_right + (uint16_t)rumble_left;
+                rumble_avg = std::min(rumble_avg, (uint16_t)255);
+                uint16_t amp = rumble_avg * (uint16_t)local_profile_config.rumble_trigger_strength / 100u;
+                
                 if (amp > 255) 
                     amp = 255;
 
@@ -543,6 +609,9 @@ void __not_in_flash_func(core1_entry)() {
     resampler_audio.Prealloc(2, 512, 480);
     flash_safe_execute_core_init(); 
     while (true) {
+        #if ENABLE_EXTRA_HID
+        process_media_keys();
+        #endif
         static audio_raw_element audio_element{};
         queue_remove_blocking(&audio_fifo, &audio_element);
         // 将 512 frames 重采样成 480 frames 以解决噪音问题。感谢 @Junhoo

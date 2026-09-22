@@ -26,7 +26,7 @@ struct __attribute__((packed)) Global_Config_body {
     float headset_volume; //Headset volume [0-100] converted to -100 to 0 on audio.cpp
     uint8_t auto_mute_mode; //Disable Speaker on Auto Haptics mode 1 and 2
     uint16_t time_config_mode; //Millisecs to hold mute to enter config mode
-    uint8_t control_host_volume; //0: internal DS volume, 1: host HID volume control
+    uint8_t use_host_volume; //0: manual control of internal DS volume, 1: use host volume
     uint8_t classic_rumble_mix_profile; //0: balanced, 1: strong, 2: off
     
 };
@@ -105,6 +105,7 @@ void set_global_config(const Global_Config_body &new_config);
 void set_profile_config(const Profile_Config_body &new_profile_config);
 void set_profile_config(const uint8_t *new_profile_config, const uint16_t len, uint8_t profile_index_set);
 void set_profile_index(uint8_t new_profile);
+void set_global_config_ram(const Global_Config_body &new_config);
 extern bool is_dse;
 
 #endif //DS5_BRIDGE_CONFIG_H

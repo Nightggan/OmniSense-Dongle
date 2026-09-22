@@ -17,7 +17,9 @@
 #include "classic/sdp_server.h"
 #include "config.h"
 #include "state_mgr.h"
+#if ENABLE_EXTRA_HID
 #include "wake.h"
+#endif
 #include "pico/util/queue.h"
 #if ENABLE_BATT_LED
 #include "battery_led.h"
@@ -391,12 +393,13 @@ static void l2cap_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t 
             // printf_hexdump(packet, size);
             bt_data_callback(INTERRUPT, packet, size);
 
+            #if ENABLE_EXTRA_HID
             // Wake-on-button: pass the report global_body (skip the 3-byte L2CAP/HID
             // header) so the offsets match wake.cpp's expected layout.
             if (size >= 13) {
                 wake_on_bt_input(packet + 3, size - 3);
             }
-
+            #endif
             // 静默检测
             if (get_global_config().disable_inactive_disconnect) {
                 return;
@@ -489,8 +492,9 @@ static void l2cap_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t 
                     const auto mtu = l2cap_get_remote_mtu_for_local_cid(hid_interrupt_cid);
                     printf("[L2CAP] Remote Interrupt MTU: %d\n",mtu);
 
+                    #if ENABLE_EXTRA_HID
                     wake_on_bt_connect();
-
+                    #endif
                     gap_connectable_control(false);
                     gap_discoverable_control(false);
                     // tud_connect();

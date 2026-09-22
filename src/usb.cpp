@@ -6,7 +6,9 @@
 #include "bsp/board_api.h"
 #include "config.h"
 #include "bt.h"
-
+#include "audio.h"
+#include "state_mgr.h"
+#include "utils.h"
 uint8_t mute[2]; // 0: SPEAKER(0x02) 1: MIC(0x05)
 float volume[2] = {-100.0f,0.0f}; // 0: SPEAKER(0x02) 1: MIC(0x05)
 
@@ -55,6 +57,12 @@ static bool audio10_set_req_entity(tusb_control_request_t const *p_request, uint
                         mute[index] = pBuff[0];
 
                         TU_LOG2("    Set Mute: %d of entity: %u\r\n", mute[index], entityID);
+                        if(get_global_config().use_host_volume == 1 && entityID == UAC1_ENTITY_SPK_FEATURE_UNIT)
+                        {
+                            set_mute(pBuff[0] == 0x01);
+                        }
+                            
+                            
                         return true;
 
                     default:
@@ -71,8 +79,22 @@ static bool audio10_set_req_entity(tusb_control_request_t const *p_request, uint
                         // Do not sync USB audio volume to config: the OS restores its
                         // last-known volume on every reconnect, which would silently
                         // override the user's speaker_volume setting saved in flash.
-
-                        TU_LOG2("    Set Volume: %d dB of entity: %u\r\n", volume[index], entityID);
+                        // Applied only when use_host_volume is enabled
+                        if (entityID == UAC1_ENTITY_SPK_FEATURE_UNIT && get_global_config().use_host_volume == 1) 
+                        {
+                            set_volume(volume[index]);
+                            if (entityID == UAC1_ENTITY_SPK_FEATURE_UNIT) {
+                                
+                                set_audio_state(true, 4);
+                                set_audio_state(true, 5);
+                            }
+                            if (entityID == UAC1_ENTITY_MIC_FEATURE_UNIT) {
+                                uint8_t volumeMic = static_cast<uint8_t>(volume[index]);
+                                set_audio_state(true, 6);
+                                set_mic_volume(volumeMic);
+                            }
+                        }
+                        //TU_LOG2("    Set Volume: %d dB of entity: %u\r\n", volume[index], entityID);
                         return true;
 
                     default:
@@ -193,7 +215,6 @@ void tud_hid_report_complete_cb(uint8_t instance, uint8_t const *report, uint16_
 
 void tud_suspend_cb(bool remote_wakeup_en) {
     printf("[USB PM] invoke tud_suspend_cb\n");
-    if (!get_global_config().wake_enable) return;   // wake off: leave the controller's BT alone on a USB suspend (see wake.cpp)
     bt_power_off_controller();
 }
 

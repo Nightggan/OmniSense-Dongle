@@ -10,5 +10,9 @@ void audio_loop();
 void core1_entry();
 void set_headset(bool state);
 void set_volume(float volume);
-
+void set_mute(bool state);
+void send_volume_up_command();
+void send_volume_down_command();
+void send_mute_command();
+void process_media_keys();
 #endif //DS5_BRIDGE_AUDIO_H

@@ -12,5 +12,7 @@ void state_set_led_color(uint8_t r, uint8_t g, uint8_t b);
 void state_get_rumble_emulation(uint8_t *right, uint8_t *left);
 bool state_motors_active();
 void state_clear_motors();
+void set_audio_state(bool value, uint8_t offset);
+void set_mic_volume(uint8_t data);
 
 #endif //DS5_BRIDGE_STATE_MGR_H

@@ -12,7 +12,7 @@
 #include "hardware/sync.h"
 #include "pico/cyw43_arch.h"
 #include "pico/flash.h"
-
+#include "audio.h"
 constexpr uint32_t CONFIG_MAGIC = 0xCAFEBABE;
 #if !ENABLE_EXTRA_HID
     constexpr uint16_t SO_VERSION = 1;
@@ -22,7 +22,6 @@ constexpr uint32_t CONFIG_MAGIC = 0xCAFEBABE;
 constexpr uint16_t CONFIG_VERSION = 7;
 constexpr uint32_t CONFIG_FLASH_OFFSET = PICO_FLASH_SIZE_BYTES - FLASH_SECTOR_SIZE;
 static Device_Config config{};
-extern volatile float local_current_volume;
 extern volatile bool headset_plugged;
 extern volatile float current_auto_haptics_gain;
 extern uint8_t local_profile_selected;
@@ -136,7 +135,7 @@ void global_config_valid() {
     //Default to 1 to mute sound pass to speaker/headphones, does not affect haptics
     if (global_body->auto_mute_mode > 1){
         printf("[Config] Global Mute is invalid\n");
-        global_body->auto_mute_mode = 1; //Default to on to avoid audio feedback when auto haptics is enabled
+        global_body->auto_mute_mode = 1; //Default to on to mute speaker on auto haptics activation
     } 
 
     if(global_body->time_config_mode < 0  || global_body->time_config_mode > 3000){
@@ -161,12 +160,7 @@ void global_config_valid() {
     if(config.magic != CONFIG_MAGIC)//First run after flash erase, set magic to valid value to avoid infinite loop of config validation
     {
         config.magic = CONFIG_MAGIC;
-        #if !ENABLE_EXTRA_HID
-            printf("[Config] On Linux Build control_host_volume is always off\n");
-            global_body->control_host_volume = 0; //Default to internal speaker volume. On Linux builds, control host volume is always off to avoid issues with Linux HID driver.
-        #else
-            global_body->control_host_volume = 1; //Default to host volume control. On Linux builds, control host volume is always off to avoid issues with Linux HID driver.
-        #endif
+        global_body->use_host_volume = 1; //Default to use host volume to speaker and headset
         printf("[Config] Config Magic Header is invalid\n");
     }
 
@@ -287,14 +281,15 @@ void device_config_load() {
     global_config_valid();
     profile_config_valid();
     
-    if(headset_plugged)
-    {
-        local_current_volume = get_global_config().headset_volume - 100.0f;
-    }
-    else
-    {
-        local_current_volume = get_global_config().speaker_volume - 100.0f;    
-    }
+    if(get_global_config().use_host_volume == 0)
+        if(headset_plugged)
+        {
+            set_volume(get_global_config().headset_volume - 100.0f);
+        }
+        else
+        {
+            set_volume(get_global_config().speaker_volume - 100.0f);    
+        }
     
     current_auto_haptics_gain = get_global_config().auto_haptics_gain;
     local_profile_selected = config.profile_selected;
@@ -398,6 +393,10 @@ void set_global_config(const uint8_t *new_global_config, const uint16_t len) {
 void set_global_config(const Global_Config_body &new_global_config) {
     config.global_body = new_global_config;
     global_config_valid();
+}
+
+void set_global_config_ram(const Global_Config_body &new_global_config) {
+    config.global_body = new_global_config;
 }
 
 //Profile saves

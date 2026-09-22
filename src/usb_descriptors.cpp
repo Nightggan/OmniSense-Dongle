@@ -50,7 +50,7 @@ enum {
     ITF_NUM_CDC,
     ITF_NUM_CDC_DATA,
 #endif
-#if ENABLE_EXTRA_HID
+#if ENABLE_EXTRA_HID //Adds Keyboard and Consumer HID interfaces for wake functionality and host volume/sleep control only if Extra HID is enabled
     ITF_NUM_HID_KBD,
     ITF_NUM_HID_CONSUMER,
 #endif
@@ -74,7 +74,7 @@ enum {
 #if ENABLE_EXTRA_HID
     CONFIG_DESC_LEN_TOTAL = CONFIG_DESC_LEN_BASE + CONFIG_DESC_LEN_WAKE_KBD + TUD_HID_DESC_LEN
 #else
-    CONFIG_DESC_LEN_TOTAL = CONFIG_DESC_LEN_BASE + CONFIG_DESC_LEN_WAKE_KBD
+    CONFIG_DESC_LEN_TOTAL = CONFIG_DESC_LEN_BASE
 #endif
     
 #if ENABLE_SERIAL
@@ -138,7 +138,11 @@ uint8_t const *tud_descriptor_device_cb(void) {
     desc_device.iSerialNumber = 0x00;
     // USB 2.1 (so the host requests the BOS / MS OS 2.0 selective-suspend opt-in)
     // only when wake is enabled; plain USB 2.0 otherwise.
-    desc_device.bcdUSB = get_global_config().wake_enable ? 0x0210 : 0x0200;
+    #if ENABLE_EXTRA_HID
+    desc_device.bcdUSB = 0x0210;
+    #else
+    desc_device.bcdUSB = 0x0200;
+    #endif
     return reinterpret_cast<uint8_t const *>(&desc_device);
 }
 
@@ -569,8 +573,11 @@ uint8_t const *tud_descriptor_configuration_cb(uint8_t index) {
     // Wake / Game Bar are runtime features. Keep the interface layout stable and only
     // toggle the REMOTE_WAKEUP bit; changing bNumInterfaces/length at runtime can leave
     // non-contiguous interface numbers in the descriptor and break host parsing.
-    const bool wake = get_global_config().wake_enable || get_global_config().sleep_host_enable || get_global_config().control_host_volume;
-    descriptor_configuration[7] = wake ? 0xE0 : 0xC0; // bmAttributes (REMOTE_WAKEUP bit)
+    #if ENABLE_EXTRA_HID
+    descriptor_configuration[7] = 0xE0; // bmAttributes (REMOTE_WAKEUP bit)
+    #else
+    descriptor_configuration[7] = 0xC0; // bmAttributes (no REMOTE_WAKEUP)
+    #endif
     const uint16_t total = CONFIG_DESC_LEN_TOTAL;
     descriptor_configuration[2] = (uint8_t) (total & 0xFF);                  // wTotalLength lo
     descriptor_configuration[3] = (uint8_t) (total >> 8);                    // wTotalLength hi
@@ -1152,7 +1159,6 @@ uint8_t const desc_bos[] = {
 uint8_t const *tud_descriptor_bos_cb(void) {
     // BOS carries the MS OS 2.0 selective-suspend opt-in, only meaningful for wake.
     // When wake is off the device is USB 2.0 and the host won't ask -- guard anyway.
-    if (!get_global_config().wake_enable && !get_global_config().control_host_volume && !get_global_config().sleep_host_enable) return nullptr;
     return desc_bos;
 }
 
@@ -1197,7 +1203,6 @@ TU_VERIFY_STATIC(sizeof(desc_ms_os_20) == MS_OS_20_DESC_LEN, "MS OS 2.0 descript
 // platform capability, then issues this vendor request to fetch the
 // descriptor set itself.
 bool tud_vendor_control_xfer_cb(uint8_t rhport, uint8_t stage, tusb_control_request_t const *request) {
-    if (!get_global_config().wake_enable && !get_global_config().control_host_volume && !get_global_config().sleep_host_enable) return false;
     if (stage != CONTROL_STAGE_SETUP) return true;
     if (request->bmRequestType_bit.type != TUSB_REQ_TYPE_VENDOR) return false;
     if (request->bRequest == MS_OS_20_VENDOR_CODE && request->wIndex == 7) {
