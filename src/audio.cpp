@@ -235,8 +235,9 @@ void __not_in_flash_func(audio_loop)() {
     
     const float audio_gain   = (mute[0] || auto_mute) ? 0.0f : powf(10.0f, local_current_volume / 20.0f);
     const float haptics_gain = global_config.haptics_gain;
-    // For 2ch mode (Windows/Stereo Mix), always enable auto-haptics DSP regardless of auto_mode setting
-    const float auto_gain    = (auto_mode > 0 || actual_ch == 2) ? (current_auto_haptics_gain / 100.0f) * haptics_gain : 0.0f;
+    // Loteran OG: For 2ch mode (Windows/Stereo Mix), always enable auto-haptics DSP regardless of auto_mode setting
+    // Nightggan: Only use auto-haptics DSP when auto_mode is enabled
+    const float auto_gain    = (auto_mode > 0/* || actual_ch == 2*/) ? (current_auto_haptics_gain / 100.0f) * haptics_gain : 0.0f;
 
     const float lp_fc = (float)global_config.auto_haptics_lowpass_hz;
     const float lp_a = 1.0f - expf(-2.0f * M_PI * lp_fc / 48000.0f);

@@ -110,16 +110,15 @@ void global_config_valid() {
     
     // Defaults to 0 (off) for configs saved before this field existed: the
     // erased flash tail reads 0xFF, which the >1 clamp turns into 0.
+    #if !ENABLE_EXTRA_HID
+    printf("[Config] On Linux Build wake_enable is always off\n");
+    global_body->wake_enable = 0; //On Linux builds, wake is always off to avoid issues with Linux HID driver.
+    #else
     if (global_body->wake_enable > 1) {
-        #if !ENABLE_EXTRA_HID
-            printf("[Config] On Linux Build wake_enable is always off\n");
-            global_body->wake_enable = 0; //On Linux builds, wake is always off to avoid issues with Linux HID driver.
-        #else
-            printf("[Config] wake_enable is invalid\n");
-            global_body->wake_enable = 1; //Default to on to allow wake-on-PS+<button> to work
-        #endif
+        printf("[Config] wake_enable is invalid\n");
+        global_body->wake_enable = 1; //Default to on to allow wake-on-PS+<button> to work
     }
-    
+    #endif
     //Default speaker volume to -100 (min) to not scare your sleeping wife
     if (std::isnan(global_body->speaker_volume) || global_body->speaker_volume < 0 || global_body->speaker_volume > 100) {
         global_body->speaker_volume = 0;

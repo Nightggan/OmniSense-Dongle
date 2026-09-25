@@ -349,10 +349,13 @@ static void hci_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t *p
             // wake is on (stay on the bus so a returning controller can signal a host wake) or
             // while the host is suspended -- hiding then re-showing re-enumerates, and a USB
             // re-connect wakes a sleeping host. Defer the hide until the host is awake.
-
+            #if ENABLE_EXTRA_HID
             if (!get_global_config().wake_enable) {
                 tud_disconnect();
             }
+            #else
+            tud_disconnect();
+            #endif
 #endif
             gap_connectable_control(1);
             gap_discoverable_control(1);
